@@ -111,22 +111,38 @@ function saveLocalItem(key: string, data: unknown): void {
 // ============ 初始化 ============
 
 // 优先从 localStorage 恢复数据（持久化），其次使用 mock 数据
+// 注意：这些只是初始渲染用的缓存，initialize() 会用云端数据覆盖
 const initCategories: Category[] = loadLocal<Category[]>('categories', mockCategories as Category[])
 const initLinks: LinkItem[] = loadLocalLinks()
 const initSubCategories: SubCategory[] = loadLocal<SubCategory[]>('subcategories', mockSubCategories as SubCategory[])
 
-// Helper: 智能合并 - 云端数据优先，但保留本地独有的新增数据
+// Helper: 智能合并 - 云端数据是唯一数据源
+// 云端有数据时：以云端为准，但保留本地标记为 _pendingSync 的数据（云写入失败时创建的）
+// 云端为空时：使用本地数据（离线/首次使用）
 function mergeLists<T extends { id: string }>(remote: T[], local: T[]): T[] {
-  const remoteIds = new Set(remote.map(r => r.id))
-  const localOnly = local.filter(l => !remoteIds.has(l.id))
-  // 如果本地有比远程多的数据（新增但写云端失败），合并进来
-  if (localOnly.length > 0) {
-    console.log(`[DataStore] 合并 ${localOnly.length} 条本地独有数据到远程数据中`)
+  if (remote.length > 0) {
+    // 云端有数据 → 云端是唯一数据源
+    // 只保留本地被标记为 "pendingSync" 的数据（这些是之前云写入失败的新增数据）
+    const pendingItems = local.filter(
+      (l: Record<string, unknown>) => (l as Record<string, unknown>)._pendingSync === true
+    ) as T[]
+    if (pendingItems.length > 0) {
+      const remoteIds = new Set(remote.map(r => r.id))
+      const trulyPending = pendingItems.filter(p => !remoteIds.has(p.id))
+      if (trulyPending.length > 0) {
+        console.log(`[DataStore] 合并 ${trulyPending.length} 条待同步本地数据到云端数据`)
+        return [...remote, ...trulyPending]
+      }
+    }
+    return remote
   }
-  return [...remote, ...localOnly]
+  // 云端无数据 → 使用本地数据作为回退
+  console.log('[DataStore] 云端无数据，使用本地数据')
+  return local
 }
 
 // Helper: reload all data from service (非阻塞)
+// 重要：云端数据是唯一数据源，本地 localStorage 只是缓存
 async function reloadAll(set: (partial: Partial<DataStore>) => void) {
   try {
     const [categories, links, subCategories, tags, driveTypes] = await Promise.all([
@@ -137,22 +153,29 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void) {
       Promise.resolve(ds.fetchDriveTypes()),
     ])
     
-    // 获取之前的本地数据，合并本地独有条目（这些可能是云写入失败后仅存本地的新增数据）
+    // 获取本地数据（用于判断是否有待同步的数据）
     const localCats = loadLocal<Category[]>('categories', [])
     const localLinks = loadLocalLinks()
     const localSubs = loadLocal<SubCategory[]>('subcategories', [])
     
-    // 合并：云端数据 + 本地独有的新数据
+    // 关键：云端数据优先！只有云端为空时才用本地，否则云端是唯一数据源
     const mergedCategories = mergeLists(categories, localCats)
     const mergedLinks = mergeLists(links, localLinks)
     const mergedSubCategories = mergeLists(subCategories, localSubs)
     
-    // 同步到 localStorage 作为本地缓存
+    // 同步到 localStorage 作为本地缓存（下次打开加速加载）
     saveLocalItem('categories', mergedCategories)
     saveLocalLinks(mergedLinks)
     saveLocalItem('subcategories', mergedSubCategories)
     
-    const hasLocalOnly = localCats.length > categories.length || localLinks.length > links.length
+    // 判断是否有本地独有数据（说明云写入失败了）
+    const hasCloudData = categories.length > 0 || links.length > 0
+    const hasLocalOnly = localLinks.some(
+      (l: Record<string, unknown>) => (l as Record<string, unknown>)._pendingSync === true
+    )
+    
+    console.log(`[DataStore] 云端加载完成: ${categories.length} 分类, ${links.length} 链接, pendingSync=${hasLocalOnly}`)
+    
     set({ 
       categories: mergedCategories, 
       links: mergedLinks, 
@@ -160,12 +183,20 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void) {
       tags, driveTypes, 
       initialized: true, 
       error: null, 
-      cloudSyncError: hasLocalOnly // 如果有本地独有数据，说明之前云写入失败了
+      cloudSyncError: !hasCloudData && hasLocalOnly // 云端没数据但本地有 = 云不可用
     })
   } catch (err) {
     console.error('[DataStore] reloadAll error:', err)
-    // 即使失败也不阻塞页面，用户仍能看到 localStorage/mock 数据
-    set({ initialized: false, error: String(err) })
+    // 云端加载失败，使用本地缓存
+    const fallbackLinks = loadLocalLinks()
+    const fallbackCats = loadLocal<Category[]>('categories', mockCategories as Category[])
+    set({ 
+      initialized: true,  
+      error: String(err),
+      categories: fallbackCats,
+      links: fallbackLinks,
+      cloudSyncError: true 
+    })
   }
 }
 
@@ -248,7 +279,6 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   addLink: async (linkData) => {
     const currentLinks = get().links
     const maxSort = Math.max(0, ...currentLinks.map(l => l.sort_order || 0))
-    // 保留原始 category_id
     const originalCategoryId = linkData.category_id || ''
 
     const newLink: LinkItem = {
@@ -258,7 +288,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       description: linkData.description || '',
       url: linkData.url || '',
       drive_type: linkData.drive_type || 'baidu',
-      category_id: originalCategoryId,  // 始终保留用户选择的分类
+      category_id: originalCategoryId,
       subcategory_id: linkData.subcategory_id || '',
       icon: linkData.icon || '',
       is_pinned: linkData.is_pinned || false,
@@ -275,14 +305,15 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       visible: true,
     }
 
-    let cloudFailed = false
+    // 尝试云写入
     try {
       if (ds.isCloudApiConfigured()) {
+        console.log('[DataStore] addLink 尝试云写入:', newLink.name)
         await ds.createLinkApi({
           name: newLink.name,
           slug: newLink.slug,
           url: newLink.url,
-          category_id: originalCategoryId,  // D1 不需要 UUID 校验
+          category_id: originalCategoryId,
           extract_code: newLink.extract_code,
           expires_at: newLink.expires_at,
           is_pinned: newLink.is_pinned,
@@ -292,41 +323,45 @@ export const useDataStore = create<DataStore>()((set, get) => ({
           icon: newLink.icon,
           description: newLink.description,
         })
+        // 云写入成功 → 从云端重新拉取完整数据（以云端为准）
         const links = await ds.fetchLinks()
-        // 同步到 localStorage 作为缓存，确保刷新不丢失
         saveLocalLinks(links)
-        set({ links, cloudSyncError: false })
+        set({ links, cloudSyncError: false, lastSyncErrorDetail: '' })
+        console.log('[DataStore] addLink 云写入成功，云端共', links.length, '条链接')
         return
       }
-    }     catch (err) {
+    } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
-      const errDetail = JSON.stringify(err, null, 2)
-      console.error('[DataStore] addLink 云写入失败，回退到本地存储:\n' + errDetail)
-      cloudFailed = true
-      // 不在这里 set，等下面统一处理（避免被覆盖）
+      console.error('[DataStore] addLink 云写入失败，回退到本地存储:', errMsg)
+      // 云写入失败 → 保存到本地，标记为待同步
+      const pendingLink = { ...newLink, _pendingSync: true } as LinkItem & { _pendingSync?: boolean }
+      const storage = loadLocalLinks()
+      storage.unshift(pendingLink as LinkItem)
+      saveLocalLinks(storage)
+      set({ 
+        links: [pendingLink as LinkItem, ...get().links], 
+        cloudSyncError: true,
+        lastSyncErrorDetail: `addLink 云写入失败: ${errMsg}`
+      })
+      return
     }
-    // 回退：存到 localStorage
+    
+    // 云端未配置 → 纯本地模式
     const storage = loadLocalLinks()
     storage.unshift(newLink)
     saveLocalLinks(storage)
-    // 保留 lastSyncErrorDetail 不被覆盖
-    const currentState = get()
-    set({ 
-      links: [newLink, ...currentState.links], 
-      cloudSyncError: cloudFailed,
-      // 保留之前设置的错误详情（来自 catch 或其他 set）
-      lastSyncErrorDetail: cloudFailed ? (currentState.lastSyncErrorDetail || `addLink: 云写入失败，${ds.isCloudApiConfigured() ? '已配置但连接失败' : '未配置云API'}`) : ''
-    })
+    set({ links: [newLink, ...get().links], cloudSyncError: false })
   },
 
   updateLink: async (id, updates) => {
     let cloudFailed = false
     try {
       if (ds.isCloudApiConfigured()) {
-        // D1 不需要 UUID 校验
         const cloudUpdates = { ...updates } as Record<string, unknown>
         await ds.updateLinkApi(id, cloudUpdates)
+        // 云写入成功 → 以云端数据为准
         const links = await ds.fetchLinks()
+        saveLocalLinks(links)
         set({ links, cloudSyncError: false })
         return
       }
@@ -336,20 +371,27 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     }
     const updatedLinks = get().links.map(l => l.id === id ? { ...l, ...updates } : l)
     saveLocalLinks(updatedLinks)
-    set({ links: updatedLinks, cloudSyncError: cloudFailed || get().cloudSyncError })
+    set({ links: updatedLinks, cloudSyncError: cloudFailed })
   },
 
   deleteLink: async (id) => {
     let cloudFailed = false
     try {
-      await ds.deleteLinkApi(id)
+      if (ds.isCloudApiConfigured()) {
+        await ds.deleteLinkApi(id)
+        // 云删除成功 → 以云端数据为准
+        const links = await ds.fetchLinks()
+        saveLocalLinks(links)
+        set({ links, cloudSyncError: false })
+        return
+      }
     } catch (err) {
       console.error('[DataStore] deleteLink 云写入失败，回退到本地存储:', err)
       cloudFailed = true
     }
     const filteredLinks = get().links.filter(l => l.id !== id)
     saveLocalLinks(filteredLinks)
-    set({ links: filteredLinks, cloudSyncError: cloudFailed || get().cloudSyncError })
+    set({ links: filteredLinks, cloudSyncError: cloudFailed })
   },
 
   togglePin: async (id) => {
