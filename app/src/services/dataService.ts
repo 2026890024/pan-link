@@ -6,10 +6,16 @@
 // ============ 配置 ============
 
 // Worker API 地址（部署后替换为实际地址）
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://pan-link-api.你的用户名.workers.dev'
+// 生产环境：Pages Functions 同域名部署，使用相对路径
+// 开发环境：通过 Vite proxy 转发 /api 到 Worker
+// 也可以通过 VITE_API_BASE_URL 手动指定完整地址
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 export function isCloudApiConfigured(): boolean {
-  return !!API_BASE && !API_BASE.includes('你的用户名')
+  // 生产环境：空字符串 = Pages Functions 同域部署 = 已配置
+  // 开发环境：有完整 URL 且不是占位符 = 已配置
+  if (!API_BASE) return true  // Empty = relative = Pages Functions
+  return !API_BASE.includes('你的用户名')
 }
 
 // ============ 类型定义 ============

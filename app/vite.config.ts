@@ -8,6 +8,12 @@ export default defineConfig({
   server: {
     host: '127.0.0.1',
     port: 5173,
+    proxy: {
+      '/api': {
+        target: 'https://pan-link-api.2026890024.workers.dev',
+        changeOrigin: true,
+      },
+    },
   },
   resolve: {
     alias: {
