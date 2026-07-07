@@ -444,8 +444,8 @@ export default function HomePage() {
 
           {/* Right Content */}
           <div className="flex-1 min-w-0">
-            {/* Featured */}
-            {!selectedSubCategory && featuredLinks.length > 0 && (
+            {/* Featured - 只在全部资源下显示 */}
+            {!selectedCategory && !selectedSubCategory && featuredLinks.length > 0 && (
               <div className="mb-8 animate-fade-in">
                 <div className="flex items-center gap-3 mb-5">
                   <div className="p-2 bg-amber-50 rounded-xl border border-amber-100">
@@ -453,7 +453,7 @@ export default function HomePage() {
                   </div>
                   <h2 className="text-lg font-bold text-gray-900">精选推荐</h2>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   {featuredLinks.map((link, idx) => (
                     <div
                       key={link.id}
@@ -551,24 +551,26 @@ export default function HomePage() {
                         {paginatedLinks.map((link) => (
                           <div
                             key={link.id}
-                            className="group flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 cursor-pointer border border-transparent hover:border-gray-200"
+                            className="group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 cursor-pointer border border-transparent hover:border-gray-200"
                             onClick={() => setSelectedLink(link)}
                           >
-                            {getLinkIcon(link)}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors truncate text-sm">
-                                  {link.name}
-                                </h3>
-                                {link.is_pinned && (
-                                  <span className="flex-shrink-0 px-2 py-0.5 bg-amber-50 text-amber-600 text-[10px] rounded-full font-medium flex items-center gap-1 border border-amber-100">
-                                    <Star className="w-2.5 h-2.5 fill-amber-400" /> 置顶
-                                  </span>
-                                )}
+                            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                              {getLinkIcon(link)}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm sm:truncate leading-tight">
+                                    {link.name}
+                                  </h3>
+                                  {link.is_pinned && (
+                                    <span className="flex-shrink-0 px-2 py-0.5 bg-amber-50 text-amber-600 text-[10px] rounded-full font-medium flex items-center gap-1 border border-amber-100">
+                                      <Star className="w-2.5 h-2.5 fill-amber-400" /> 置顶
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1 leading-relaxed line-clamp-2 sm:truncate">{link.description}</p>
                               </div>
-                              <p className="text-xs text-gray-500 truncate mt-1">{link.description}</p>
                             </div>
-                            <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-1.5 flex-shrink-0 sm:ml-auto" onClick={(e) => e.stopPropagation()}>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
