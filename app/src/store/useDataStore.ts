@@ -16,12 +16,12 @@ interface DataStore {
   driveTypes: DriveType[]
   customDriveTypes: Record<string, { name: string; icon: string; color: string }>
 
-  // 加载状态
-  loading: boolean
+  // 加载状态 - initialized 表示后台数据加载完成
+  initialized: boolean
   error: string | null
 
-  // 初始化
-  initialize: () => Promise<void>
+  // 初始化（非阻塞：先显示页面，后台静默加载数据）
+  initialize: () => void
 
   // Categories
   addCategory: (name: string) => Promise<void>
@@ -76,7 +76,7 @@ function generateSlug(name: string, existingSlugs?: string[]): string {
   return slug
 }
 
-// Helper: reload all data from service
+// Helper: reload all data from service (非阻塞)
 async function reloadAll(set: (partial: Partial<DataStore>) => void) {
   try {
     const [categories, links, subCategories, tags, driveTypes] = await Promise.all([
@@ -86,10 +86,11 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void) {
       ds.fetchTags(),
       Promise.resolve(ds.fetchDriveTypes()),
     ])
-    set({ categories, links, subCategories, tags, driveTypes, loading: false, error: null })
+    set({ categories, links, subCategories, tags, driveTypes, initialized: true, error: null })
   } catch (err) {
     console.error('[DataStore] reloadAll error:', err)
-    set({ loading: false, error: String(err) })
+    // 即使失败也不阻塞页面，用户仍能看到 mock 数据
+    set({ initialized: false, error: String(err) })
   }
 }
 
@@ -110,12 +111,13 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   customDriveTypes: { ...customDriveTypes },
 
   loading: false,
+  initialized: false,
   error: null,
 
-  // 初始化 - 从数据源加载
-  initialize: async () => {
-    set({ loading: true })
-    await reloadAll(set)
+  // 初始化 - 后台静默加载，不阻塞页面渲染
+  initialize: () => {
+    // 立即返回，不阻塞 UI
+    reloadAll(set)
   },
 
   // ===== Categories =====

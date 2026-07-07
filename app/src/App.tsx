@@ -40,39 +40,12 @@ function PageLoading() {
 }
 
 function App() {
-  const { loading, error, initialize } = useDataStore()
+  const { initialize, initialized } = useDataStore()
 
   useEffect(() => {
+    // 后台静默加载，不阻塞页面渲染
     initialize()
   }, [initialize])
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center p-8 glass rounded-2xl max-w-md">
-          <p className="text-red-500 font-semibold text-lg mb-2">数据加载失败</p>
-          <p className="text-gray-500 text-sm mb-4">{error}</p>
-          <button
-            onClick={() => { initialize() }}
-            className="px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-medium cursor-pointer hover:bg-brand-700"
-          >
-            重试
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-2 border-gray-200 border-t-brand-500 rounded-full animate-spin" />
-          <span className="text-sm text-gray-400">加载资源中...</span>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <ErrorBoundary>
