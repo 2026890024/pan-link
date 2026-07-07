@@ -19,6 +19,7 @@ interface DataStore {
   // 加载状态 - initialized 表示后台数据加载完成
   initialized: boolean
   error: string | null
+  cloudSyncError: boolean // 是否 Supabase 写入失败（数据仅保存在本地）
 
   // 初始化（非阻塞：先显示页面，后台静默加载数据）
   initialize: () => void
@@ -76,6 +77,43 @@ function generateSlug(name: string, existingSlugs?: string[]): string {
   return slug
 }
 
+// ============ localStorage 本地回退 ============
+
+const LS_PREFIX = 'panlink_'
+
+function loadLocal<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(LS_PREFIX + key)
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return fallback
+}
+
+function saveLocal<T>(key: string, data: T): void {
+  try {
+    localStorage.setItem(LS_PREFIX + key, JSON.stringify(data))
+  } catch { /* quota exceeded */ }
+}
+
+function loadLocalLinks(): LinkItem[] {
+  return loadLocal<LinkItem[]>('links', mockLinks as LinkItem[])
+}
+
+function saveLocalLinks(links: LinkItem[]): void {
+  saveLocal('links', links)
+}
+
+function saveLocalItem(key: string, data: unknown): void {
+  saveLocal(key, data)
+}
+
+// ============ 初始化 ============
+
+// 优先从 localStorage 恢复数据（持久化），其次使用 mock 数据
+const initCategories: Category[] = loadLocal<Category[]>('categories', mockCategories as Category[])
+const initLinks: LinkItem[] = loadLocalLinks()
+const initSubCategories: SubCategory[] = loadLocal<SubCategory[]>('subcategories', mockSubCategories as SubCategory[])
+
 // Helper: reload all data from service (非阻塞)
 async function reloadAll(set: (partial: Partial<DataStore>) => void) {
   try {
@@ -86,7 +124,11 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void) {
       ds.fetchTags(),
       Promise.resolve(ds.fetchDriveTypes()),
     ])
-    set({ categories, links, subCategories, tags, driveTypes, initialized: true, error: null })
+    // 同步到 localStorage 作为本地缓存
+    saveLocalItem('categories', categories)
+    saveLocalLinks(links)
+    saveLocalItem('subcategories', subCategories)
+    set({ categories, links, subCategories, tags, driveTypes, initialized: true, error: null, cloudSyncError: false })
   } catch (err) {
     console.error('[DataStore] reloadAll error:', err)
     // 即使失败也不阻塞页面，用户仍能看到 mock 数据
@@ -97,10 +139,10 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void) {
 // ============ 创建 Store ============
 
 export const useDataStore = create<DataStore>()((set, get) => ({
-  // 初始数据 (localStorage fallback)
-  categories: [...mockCategories],
-  links: [...mockLinks],
-  subCategories: [...mockSubCategories],
+  // 初始数据：优先 localStorage，其次 mock
+  categories: initCategories,
+  links: initLinks,
+  subCategories: initSubCategories,
   tags: mockTags.map(t => ({
     ...t,
     user_id: t.user_id || '1',
@@ -113,6 +155,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   loading: false,
   initialized: false,
   error: null,
+  cloudSyncError: false,
 
   // 初始化 - 后台静默加载，不阻塞页面渲染
   initialize: () => {
@@ -124,16 +167,18 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   addCategory: async (name) => {
     try {
       const category = await ds.createCategory(name)
-      set(state => ({ categories: [...state.categories, category] }))
+      set(state => ({ categories: [...state.categories, category], cloudSyncError: false }))
     } catch (err) {
-      console.error('[DataStore] addCategory error:', err)
-      // 回退到本地
+      console.error('[DataStore] addCategory Supabase 写入失败，回退到本地存储:', err)
       const categories = get().categories
       const newCat: Category = {
         id: Date.now().toString(), name, icon: 'folder',
         sort_order: categories.length + 1,
       }
-      set({ categories: [...categories, newCat] })
+      const updated = [...categories, newCat]
+      // 回退到 localStorage
+      saveLocalItem('categories', updated)
+      set({ categories: updated, cloudSyncError: true })
     }
   },
 
@@ -141,18 +186,22 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     try {
       await ds.updateCategoryApi(id, updates)
     } catch { /* 回退 */ }
-    set({
-      categories: get().categories.map(c => c.id === id ? { ...c, ...updates } : c),
-    })
+    const updated = get().categories.map(c => c.id === id ? { ...c, ...updates } : c)
+    saveLocalItem('categories', updated)
+    set({ categories: updated })
   },
 
   deleteCategory: async (id) => {
     try {
       await ds.deleteCategoryApi(id)
     } catch { /* 回退 */ }
+    const updatedCategories = get().categories.filter(c => c.id !== id)
+    saveLocalItem('categories', updatedCategories)
+    const updatedLinks = get().links.map(l => l.category_id === id ? { ...l, category_id: '', subcategory_id: '' } : l)
+    saveLocalLinks(updatedLinks)
     set({
-      categories: get().categories.filter(c => c.id !== id),
-      links: get().links.map(l => l.category_id === id ? { ...l, category_id: '', subcategory_id: '' } : l),
+      categories: updatedCategories,
+      links: updatedLinks,
       subCategories: get().subCategories.filter(sc => sc.category_id !== id),
     })
   },
@@ -161,6 +210,11 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   addLink: async (linkData) => {
     const currentLinks = get().links
     const maxSort = Math.max(0, ...currentLinks.map(l => l.sort_order || 0))
+    // 确保 category_id 是有效 UUID（否则 Supabase 会拒绝）
+    const catId = linkData.category_id || ''
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(catId)
+    const finalCategoryId = isUuid ? catId : ''
+
     const newLink: LinkItem = {
       id: Date.now().toString(),
       name: linkData.name || '',
@@ -168,7 +222,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       description: linkData.description || '',
       url: linkData.url || '',
       drive_type: linkData.drive_type || 'baidu',
-      category_id: linkData.category_id || '',
+      category_id: finalCategoryId,
       subcategory_id: linkData.subcategory_id || '',
       icon: linkData.icon || '',
       is_pinned: linkData.is_pinned || false,
@@ -185,13 +239,14 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       visible: true,
     }
 
+    let supabaseFailed = false
     try {
       if (ds.isSupabaseConfigured()) {
         await ds.createLinkApi({
           name: newLink.name,
           slug: newLink.slug,
           url: newLink.url,
-          category_id: newLink.category_id,
+          category_id: finalCategoryId || null,
           extract_code: newLink.extract_code,
           expires_at: newLink.expires_at,
           is_pinned: newLink.is_pinned,
@@ -202,41 +257,57 @@ export const useDataStore = create<DataStore>()((set, get) => ({
           description: newLink.description,
         })
         const links = await ds.fetchLinks()
-        set({ links })
-        return
+        set({ links, cloudSyncError: false })
+        return // 成功写入 Supabase，不同步到 localStorage
       }
     } catch (err) {
-      console.error('[DataStore] addLink error:', err)
-      throw err // 向上抛出错误，让调用方显示 toast
+      console.error('[DataStore] addLink Supabase 写入失败，回退到本地存储:', err)
+      supabaseFailed = true
     }
-    set({ links: [newLink, ...get().links] })
+    // 回退：存到 localStorage
+    const storage = loadLocalLinks()
+    storage.unshift(newLink)
+    saveLocalLinks(storage)
+    set({ links: [newLink, ...get().links], cloudSyncError: supabaseFailed })
   },
 
   updateLink: async (id, updates) => {
+    let supabaseFailed = false
     try {
       if (ds.isSupabaseConfigured()) {
-        await ds.updateLinkApi(id, updates as Record<string, unknown>)
+        // 确保 category_id 是有效 UUID
+        const supabaseUpdates = { ...updates } as Record<string, unknown>
+        if (supabaseUpdates.category_id) {
+          const catId = String(supabaseUpdates.category_id)
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(catId)) {
+            delete supabaseUpdates.category_id // 非 UUID，不传给 Supabase
+          }
+        }
+        await ds.updateLinkApi(id, supabaseUpdates)
         const links = await ds.fetchLinks()
-        set({ links })
+        set({ links, cloudSyncError: false })
         return
       }
     } catch (err) {
-      console.error('[DataStore] updateLink error:', err)
-      throw err // 向上抛出错误
+      console.error('[DataStore] updateLink Supabase 写入失败，回退到本地存储:', err)
+      supabaseFailed = true
     }
-    set({
-      links: get().links.map(l => l.id === id ? { ...l, ...updates } : l),
-    })
+    const updatedLinks = get().links.map(l => l.id === id ? { ...l, ...updates } : l)
+    saveLocalLinks(updatedLinks)
+    set({ links: updatedLinks, cloudSyncError: supabaseFailed || get().cloudSyncError })
   },
 
   deleteLink: async (id) => {
+    let supabaseFailed = false
     try {
       await ds.deleteLinkApi(id)
     } catch (err) {
-      console.error('[DataStore] deleteLink error:', err)
-      throw err // 向上抛出错误
+      console.error('[DataStore] deleteLink Supabase 写入失败，回退到本地存储:', err)
+      supabaseFailed = true
     }
-    set({ links: get().links.filter(l => l.id !== id) })
+    const filteredLinks = get().links.filter(l => l.id !== id)
+    saveLocalLinks(filteredLinks)
+    set({ links: filteredLinks, cloudSyncError: supabaseFailed || get().cloudSyncError })
   },
 
   togglePin: async (id) => {
@@ -246,13 +317,13 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       if (ds.isSupabaseConfigured()) {
         await ds.updateLinkApi(id, { is_pinned: !link.is_pinned })
         const links = await ds.fetchLinks()
-        set({ links })
+        set({ links, cloudSyncError: false })
         return
       }
-    } catch (err) { console.error(err) }
-    set({
-      links: get().links.map(l => l.id === id ? { ...l, is_pinned: !l.is_pinned } : l),
-    })
+    } catch (err) { console.error('[DataStore] togglePin Supabase 失败:', err) }
+    const updated = get().links.map(l => l.id === id ? { ...l, is_pinned: !l.is_pinned } : l)
+    saveLocalLinks(updated)
+    set({ links: updated })
   },
 
   toggleFeatured: async (id) => {
@@ -262,13 +333,13 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       if (ds.isSupabaseConfigured()) {
         await ds.updateLinkApi(id, { is_featured: !link.is_featured })
         const links = await ds.fetchLinks()
-        set({ links })
+        set({ links, cloudSyncError: false })
         return
       }
-    } catch (err) { console.error(err) }
-    set({
-      links: get().links.map(l => l.id === id ? { ...l, is_featured: !l.is_featured } : l),
-    })
+    } catch (err) { console.error('[DataStore] toggleFeatured Supabase 失败:', err) }
+    const updated = get().links.map(l => l.id === id ? { ...l, is_featured: !l.is_featured } : l)
+    saveLocalLinks(updated)
+    set({ links: updated })
   },
 
   toggleLinkVisibility: async (id) => {
@@ -279,13 +350,13 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       if (ds.isSupabaseConfigured()) {
         await ds.updateLinkApi(id, { visible: newVisible })
         const links = await ds.fetchLinks()
-        set({ links })
+        set({ links, cloudSyncError: false })
         return
       }
-    } catch (err) { console.error(err) }
-    set({
-      links: get().links.map(l => l.id === id ? { ...l, visible: newVisible } : l),
-    })
+    } catch (err) { console.error('[DataStore] toggleLinkVisibility Supabase 失败:', err) }
+    const updated = get().links.map(l => l.id === id ? { ...l, visible: newVisible } : l)
+    saveLocalLinks(updated)
+    set({ links: updated })
   },
 
   moveLinkSortOrder: async (id, direction, categoryId) => {
@@ -318,15 +389,15 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         set({ links: refreshedLinks })
         return
       }
-    } catch (err) { console.error(err) }
+    } catch (err) { console.error('[DataStore] moveLinkSortOrder Supabase 失败:', err) }
 
-    set({
-      links: get().links.map(l => {
+    const updatedLinks = get().links.map(l => {
         if (l.id === id) return { ...l, sort_order: newSortOrder }
         if (l.id === swapLink.id) return { ...l, sort_order: swapNewSortOrder }
         return l
-      }),
-    })
+      })
+    saveLocalLinks(updatedLinks)
+    set({ links: updatedLinks })
   },
 
   incrementClicks: async (id) => {

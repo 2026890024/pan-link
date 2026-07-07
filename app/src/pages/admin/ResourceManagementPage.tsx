@@ -34,6 +34,7 @@ export default function ResourceManagementPage() {
     links,
     subCategories,
     driveTypes,
+    cloudSyncError,
     addCategory,
     updateCategory,
     deleteCategory,
@@ -229,70 +230,54 @@ export default function ResourceManagementPage() {
     setConfirmOpen(true)
   }
 
-  const handleAddLink = async () => {
+  const handleAddLink = () => {
     if (formLink.title.trim() && formLink.url.trim()) {
       const targetCategoryId = formLink.category_id || categories[0]?.id || ''
-      try {
-        await addLink({
-          name: formLink.title.trim(),
-          title: formLink.title.trim(),
-          description: formLink.description,
-          url: formLink.url.trim(),
-          drive_type: formLink.drive_type,
-          category_id: targetCategoryId,
-          category_name: categories.find(c => c.id === targetCategoryId)?.name,
-          subcategory_id: formLink.subcategory_id || '',
-          icon: formLinkIcon || '',
-          slug: formLink.slug || formLink.title.slice(0, 10).replace(/\s/g, '-').toLowerCase(),
-          extract_code: formLink.extract_code,
-          expires_at: formLink.expires_at || null,
-          is_pinned: formLink.is_pinned,
-          is_featured: formLink.is_featured,
-          tags: [],
-          keywords: formLink.keywords ? formLink.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
-          category_logo: '',
-        })
-        setLinkModalOpen(false)
-        toast.success('链接已添加')
-      } catch (err: any) {
-        console.error('添加链接失败:', err)
-        const msg = err?.message || String(err)
-        toast.error(`添加失败：${msg}`)
-      }
+      addLink({
+        name: formLink.title.trim(),
+        title: formLink.title.trim(),
+        description: formLink.description,
+        url: formLink.url.trim(),
+        drive_type: formLink.drive_type,
+        category_id: targetCategoryId,
+        category_name: categories.find(c => c.id === targetCategoryId)?.name,
+        subcategory_id: formLink.subcategory_id || '',
+        icon: formLinkIcon || '',
+        slug: formLink.slug || formLink.title.slice(0, 10).replace(/\s/g, '-').toLowerCase(),
+        extract_code: formLink.extract_code,
+        expires_at: formLink.expires_at || null,
+        is_pinned: formLink.is_pinned,
+        is_featured: formLink.is_featured,
+        tags: [],
+        keywords: formLink.keywords ? formLink.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
+        category_logo: '',
+      })
+      setLinkModalOpen(false)
+      toast.success('链接已添加')
     }
   }
 
-  const handleEdit = async () => {
+  const handleEdit = () => {
     if (formLink.id && formLink.title.trim() && formLink.url.trim()) {
-      try {
-        await updateLink(formLink.id, {
-          name: formLink.title.trim(),
-          title: formLink.title.trim(),
-          description: formLink.description,
-          url: formLink.url.trim(),
-          category_id: formLink.category_id,
-          category_name: categories.find(c => c.id === formLink.category_id)?.name,
-          subcategory_id: formLink.subcategory_id,
-          drive_type: formLink.drive_type,
-          slug: formLink.slug,
-          icon: formLinkIcon || '',
-          extract_code: formLink.extract_code,
-          expires_at: formLink.expires_at || null,
-          keywords: formLink.keywords ? formLink.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
-          is_pinned: formLink.is_pinned,
-          is_featured: formLink.is_featured,
-        })
-        setLinkModalOpen(false)
-        toast.success('链接已更新')
-      } catch (err: any) {
-        console.error('更新链接失败:', err)
-        const msg = err?.message || String(err)
-        if (msg.includes('invalid input syntax for type uuid')) {
-          toast.error('该链接是演示数据，请先「新增链接」再修改')
-        } else {
-          toast.error(`保存失败：${msg}`)
-        }
-      }
+      updateLink(formLink.id, {
+        name: formLink.title.trim(),
+        title: formLink.title.trim(),
+        description: formLink.description,
+        url: formLink.url.trim(),
+        category_id: formLink.category_id,
+        category_name: categories.find(c => c.id === formLink.category_id)?.name,
+        subcategory_id: formLink.subcategory_id,
+        drive_type: formLink.drive_type,
+        slug: formLink.slug,
+        icon: formLinkIcon || '',
+        extract_code: formLink.extract_code,
+        expires_at: formLink.expires_at || null,
+        keywords: formLink.keywords ? formLink.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
+        is_pinned: formLink.is_pinned,
+        is_featured: formLink.is_featured,
+      })
+      setLinkModalOpen(false)
+      toast.success('链接已更新')
     }
   }
 
@@ -317,14 +302,9 @@ export default function ResourceManagementPage() {
       title: '删除链接',
       message: '确定删除该链接吗？此操作不可撤销。',
       variant: 'danger',
-      onConfirm: async () => {
-        try {
-          await deleteLink(id)
-          toast.success('链接已删除')
-        } catch (err) {
-          console.error('删除链接失败:', err)
-          toast.error(`删除失败：${err?.message || String(err)}`)
-        }
+      onConfirm: () => {
+        deleteLink(id)
+        toast.success('链接已删除')
       },
     })
     setConfirmOpen(true)
@@ -334,6 +314,27 @@ export default function ResourceManagementPage() {
 
   return (
     <div className="p-4 sm:p-6">
+      {/* 云同步警告 */}
+      {cloudSyncError && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-sm text-amber-800">
+          <span className="text-amber-500 text-lg flex-shrink-0">⚠️</span>
+          <div>
+            <p className="font-medium">云同步不可用</p>
+            <p className="text-amber-700 mt-0.5">
+              数据当前仅保存在本地浏览器中。<br />
+              换电脑或清除浏览器数据后可能丢失。<br />
+              请检查 Supabase 配置：<a href="https://supabase.com/dashboard/project/kcucxrunwzcxxwxwnpojoc/sql/new" target="_blank" className="underline text-blue-600">打开 Supabase SQL Editor</a> 执行以下 SQL：
+            </p>
+            <pre className="mt-2 text-xs bg-amber-100 p-2 rounded overflow-x-auto">
+{`ALTER TABLE links DISABLE ROW LEVEL SECURITY;
+ALTER TABLE categories DISABLE ROW LEVEL SECURITY;
+ALTER TABLE tags DISABLE ROW LEVEL SECURITY;
+ALTER TABLE link_tags DISABLE ROW LEVEL SECURITY;
+ALTER TABLE link_visits DISABLE ROW LEVEL SECURITY;`}
+            </pre>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">资源管理</h1>
