@@ -212,7 +212,7 @@ export default {
 
         // 返回创建的记录
         const link = await env.DB.prepare('SELECT * FROM links WHERE id = ?').bind(id).first();
-        return JsonResponse(link, 201, corsHeaders);
+        return jsonResponse(link, 201, corsHeaders);
       }
 
       // PUT /api/links/:id - 更新链接

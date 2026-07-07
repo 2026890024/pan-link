@@ -6,4 +6,4 @@ compatibility_date = "2024-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "pan-link-db"
-database_id = "3492384c-c066-4b9d-8030-ced77974352d"
+database_id = "3492384c-c066-4b9d-8030-ced79794352d"
