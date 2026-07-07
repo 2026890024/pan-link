@@ -114,6 +114,17 @@ const initCategories: Category[] = loadLocal<Category[]>('categories', mockCateg
 const initLinks: LinkItem[] = loadLocalLinks()
 const initSubCategories: SubCategory[] = loadLocal<SubCategory[]>('subcategories', mockSubCategories as SubCategory[])
 
+// Helper: 智能合并 - Supabase 数据优先，但保留本地独有的新增数据
+function mergeLists<T extends { id: string }>(remote: T[], local: T[]): T[] {
+  const remoteIds = new Set(remote.map(r => r.id))
+  const localOnly = local.filter(l => !remoteIds.has(l.id))
+  // 如果本地有比远程多的数据（新增但写 Supabase 失败），合并进来
+  if (localOnly.length > 0) {
+    console.log(`[DataStore] 合并 ${localOnly.length} 条本地独有数据到远程数据中`)
+  }
+  return [...remote, ...localOnly]
+}
+
 // Helper: reload all data from service (非阻塞)
 async function reloadAll(set: (partial: Partial<DataStore>) => void) {
   try {
@@ -124,14 +135,35 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void) {
       ds.fetchTags(),
       Promise.resolve(ds.fetchDriveTypes()),
     ])
+    
+    // 获取之前的本地数据，合并本地独有条目（这些可能是 Supabase 写入失败后仅存本地的新增数据）
+    const localCats = loadLocal<Category[]>('categories', [])
+    const localLinks = loadLocalLinks()
+    const localSubs = loadLocal<SubCategory[]>('subcategories', [])
+    
+    // 合并：Supabase 数据 + 本地独有的新数据
+    const mergedCategories = mergeLists(categories, localCats)
+    const mergedLinks = mergeLists(links, localLinks)
+    const mergedSubCategories = mergeLists(subCategories, localSubs)
+    
     // 同步到 localStorage 作为本地缓存
-    saveLocalItem('categories', categories)
-    saveLocalLinks(links)
-    saveLocalItem('subcategories', subCategories)
-    set({ categories, links, subCategories, tags, driveTypes, initialized: true, error: null, cloudSyncError: false })
+    saveLocalItem('categories', mergedCategories)
+    saveLocalLinks(mergedLinks)
+    saveLocalItem('subcategories', mergedSubCategories)
+    
+    const hasLocalOnly = localCats.length > categories.length || localLinks.length > links.length
+    set({ 
+      categories: mergedCategories, 
+      links: mergedLinks, 
+      subCategories: mergedSubCategories, 
+      tags, driveTypes, 
+      initialized: true, 
+      error: null, 
+      cloudSyncError: hasLocalOnly // 如果有本地独有数据，说明之前 Supabase 写入失败了
+    })
   } catch (err) {
     console.error('[DataStore] reloadAll error:', err)
-    // 即使失败也不阻塞页面，用户仍能看到 mock 数据
+    // 即使失败也不阻塞页面，用户仍能看到 localStorage/mock 数据
     set({ initialized: false, error: String(err) })
   }
 }
@@ -167,7 +199,9 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   addCategory: async (name) => {
     try {
       const category = await ds.createCategory(name)
-      set(state => ({ categories: [...state.categories, category], cloudSyncError: false }))
+      const updated = [...get().categories, category]
+      saveLocalItem('categories', updated)
+      set(state => ({ categories: updated, cloudSyncError: false }))
     } catch (err) {
       console.error('[DataStore] addCategory Supabase 写入失败，回退到本地存储:', err)
       const categories = get().categories
@@ -257,8 +291,10 @@ export const useDataStore = create<DataStore>()((set, get) => ({
           description: newLink.description,
         })
         const links = await ds.fetchLinks()
+        // 同步到 localStorage 作为缓存，确保刷新不丢失
+        saveLocalLinks(links)
         set({ links, cloudSyncError: false })
-        return // 成功写入 Supabase，不同步到 localStorage
+        return
       }
     } catch (err) {
       console.error('[DataStore] addLink Supabase 写入失败，回退到本地存储:', err)
