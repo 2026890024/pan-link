@@ -229,54 +229,64 @@ export default function ResourceManagementPage() {
     setConfirmOpen(true)
   }
 
-  const handleAddLink = () => {
+  const handleAddLink = async () => {
     if (formLink.title.trim() && formLink.url.trim()) {
       const targetCategoryId = formLink.category_id || categories[0]?.id || ''
-      addLink({
-        name: formLink.title.trim(),
-        title: formLink.title.trim(),
-        description: formLink.description,
-        url: formLink.url.trim(),
-        drive_type: formLink.drive_type,
-        category_id: targetCategoryId,
-        category_name: categories.find(c => c.id === targetCategoryId)?.name,
-        subcategory_id: formLink.subcategory_id || '',
-        icon: formLinkIcon || '',
-        slug: formLink.slug || formLink.title.slice(0, 10).replace(/\s/g, '-').toLowerCase(),
-        extract_code: formLink.extract_code,
-        expires_at: formLink.expires_at || null,
-        is_pinned: formLink.is_pinned,
-        is_featured: formLink.is_featured,
-        tags: [],
-        keywords: formLink.keywords ? formLink.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
-        category_logo: '',
-      })
-      setLinkModalOpen(false)
-      toast.success('链接已添加')
+      try {
+        await addLink({
+          name: formLink.title.trim(),
+          title: formLink.title.trim(),
+          description: formLink.description,
+          url: formLink.url.trim(),
+          drive_type: formLink.drive_type,
+          category_id: targetCategoryId,
+          category_name: categories.find(c => c.id === targetCategoryId)?.name,
+          subcategory_id: formLink.subcategory_id || '',
+          icon: formLinkIcon || '',
+          slug: formLink.slug || formLink.title.slice(0, 10).replace(/\s/g, '-').toLowerCase(),
+          extract_code: formLink.extract_code,
+          expires_at: formLink.expires_at || null,
+          is_pinned: formLink.is_pinned,
+          is_featured: formLink.is_featured,
+          tags: [],
+          keywords: formLink.keywords ? formLink.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
+          category_logo: '',
+        })
+        setLinkModalOpen(false)
+        toast.success('链接已添加')
+      } catch (err) {
+        console.error('添加链接失败:', err)
+        toast.error('添加失败！请检查 Supabase RLS 权限设置')
+      }
     }
   }
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (formLink.id && formLink.title.trim() && formLink.url.trim()) {
-      updateLink(formLink.id, {
-        name: formLink.title.trim(),
-        title: formLink.title.trim(),
-        description: formLink.description,
-        url: formLink.url.trim(),
-        category_id: formLink.category_id,
-        category_name: categories.find(c => c.id === formLink.category_id)?.name,
-        subcategory_id: formLink.subcategory_id,
-        drive_type: formLink.drive_type,
-        slug: formLink.slug,
-        icon: formLinkIcon || '',
-        extract_code: formLink.extract_code,
-        expires_at: formLink.expires_at || null,
-        keywords: formLink.keywords ? formLink.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
-        is_pinned: formLink.is_pinned,
-        is_featured: formLink.is_featured,
-      })
-      setLinkModalOpen(false)
-      toast.success('链接已更新')
+      try {
+        await updateLink(formLink.id, {
+          name: formLink.title.trim(),
+          title: formLink.title.trim(),
+          description: formLink.description,
+          url: formLink.url.trim(),
+          category_id: formLink.category_id,
+          category_name: categories.find(c => c.id === formLink.category_id)?.name,
+          subcategory_id: formLink.subcategory_id,
+          drive_type: formLink.drive_type,
+          slug: formLink.slug,
+          icon: formLinkIcon || '',
+          extract_code: formLink.extract_code,
+          expires_at: formLink.expires_at || null,
+          keywords: formLink.keywords ? formLink.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
+          is_pinned: formLink.is_pinned,
+          is_featured: formLink.is_featured,
+        })
+        setLinkModalOpen(false)
+        toast.success('链接已更新')
+      } catch (err) {
+        console.error('更新链接失败:', err)
+        toast.error('保存失败！请检查 Supabase RLS 权限设置')
+      }
     }
   }
 
@@ -301,9 +311,14 @@ export default function ResourceManagementPage() {
       title: '删除链接',
       message: '确定删除该链接吗？此操作不可撤销。',
       variant: 'danger',
-      onConfirm: () => {
-        deleteLink(id)
-        toast.success('链接已删除')
+      onConfirm: async () => {
+        try {
+          await deleteLink(id)
+          toast.success('链接已删除')
+        } catch (err) {
+          console.error('删除链接失败:', err)
+          toast.error('删除失败！请检查 Supabase RLS 权限设置')
+        }
       },
     })
     setConfirmOpen(true)

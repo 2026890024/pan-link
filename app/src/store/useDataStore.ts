@@ -201,13 +201,13 @@ export const useDataStore = create<DataStore>()((set, get) => ({
           icon: newLink.icon,
           description: newLink.description,
         })
-        // 刷新列表
         const links = await ds.fetchLinks()
         set({ links })
         return
       }
     } catch (err) {
       console.error('[DataStore] addLink error:', err)
+      throw err // 向上抛出错误，让调用方显示 toast
     }
     set({ links: [newLink, ...get().links] })
   },
@@ -222,6 +222,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       }
     } catch (err) {
       console.error('[DataStore] updateLink error:', err)
+      throw err // 向上抛出错误
     }
     set({
       links: get().links.map(l => l.id === id ? { ...l, ...updates } : l),
@@ -233,6 +234,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       await ds.deleteLinkApi(id)
     } catch (err) {
       console.error('[DataStore] deleteLink error:', err)
+      throw err // 向上抛出错误
     }
     set({ links: get().links.filter(l => l.id !== id) })
   },
