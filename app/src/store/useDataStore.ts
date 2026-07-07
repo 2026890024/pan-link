@@ -20,6 +20,7 @@ interface DataStore {
   initialized: boolean
   error: string | null
   cloudSyncError: boolean // 是否 Supabase 写入失败（数据仅保存在本地）
+  lastSyncErrorDetail: string // 最后一次 Supabase 写入的精确错误详情
 
   // 初始化（非阻塞：先显示页面，后台静默加载数据）
   initialize: () => void
@@ -188,6 +189,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   initialized: false,
   error: null,
   cloudSyncError: false,
+  lastSyncErrorDetail: '',
 
   // 初始化 - 后台静默加载，不阻塞页面渲染
   initialize: () => {
@@ -203,6 +205,8 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       saveLocalItem('categories', updated)
       set(state => ({ categories: updated, cloudSyncError: false }))
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      const errDetail = JSON.stringify(err, null, 2)
       console.error('[DataStore] addCategory Supabase 写入失败，回退到本地存储:', err)
       const categories = get().categories
       const newCat: Category = {
@@ -212,7 +216,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       const updated = [...categories, newCat]
       // 回退到 localStorage
       saveLocalItem('categories', updated)
-      set({ categories: updated, cloudSyncError: true })
+      set({ categories: updated, cloudSyncError: true, lastSyncErrorDetail: `addCategory 失败: ${errMsg}\n${errDetail}` })
     }
   },
 
@@ -297,8 +301,11 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         return
       }
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      const errDetail = JSON.stringify(err, null, 2)
       console.error('[DataStore] addLink Supabase 写入失败，回退到本地存储:', err)
       supabaseFailed = true
+      set({ cloudSyncError: true, lastSyncErrorDetail: `addLink 失败: ${errMsg}\n${errDetail}` })
     }
     // 回退：存到 localStorage
     const storage = loadLocalLinks()

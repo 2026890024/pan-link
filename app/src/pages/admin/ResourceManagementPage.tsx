@@ -35,6 +35,7 @@ export default function ResourceManagementPage() {
     subCategories,
     driveTypes,
     cloudSyncError,
+    lastSyncErrorDetail,
     addCategory,
     updateCategory,
     deleteCategory,
@@ -318,20 +319,21 @@ export default function ResourceManagementPage() {
       {cloudSyncError && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-sm text-amber-800">
           <span className="text-amber-500 text-lg flex-shrink-0">⚠️</span>
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="font-medium">云同步不可用</p>
-            <p className="text-amber-700 mt-0.5">
-              数据当前仅保存在本地浏览器中。<br />
-              换电脑或清除浏览器数据后可能丢失。<br />
-              请检查 Supabase 配置：<a href="https://supabase.com/dashboard/project/kcucxrunwzcxxwxwnpojoc/sql/new" target="_blank" className="underline text-blue-600">打开 Supabase SQL Editor</a> 执行以下 SQL：
+            <p className="text-amber-700 mt-1">
+              数据当前仅保存在本地浏览器中，换设备后可能丢失。
+              <a href="https://supabase.com/dashboard/project/kcucxrunwzcxxwxwnpojoc/sql/new" target="_blank" className="underline text-blue-600 ml-1">打开 Supabase 修复</a>
             </p>
-            <pre className="mt-2 text-xs bg-amber-100 p-2 rounded overflow-x-auto">
-{`ALTER TABLE links DISABLE ROW LEVEL SECURITY;
-ALTER TABLE categories DISABLE ROW LEVEL SECURITY;
-ALTER TABLE tags DISABLE ROW LEVEL SECURITY;
-ALTER TABLE link_tags DISABLE ROW LEVEL SECURITY;
-ALTER TABLE link_visits DISABLE ROW LEVEL SECURITY;`}
-            </pre>
+            {/* 精确错误详情 - 帮助诊断 */}
+            {lastSyncErrorDetail && (
+              <details className="mt-2">
+                <summary className="cursor-pointer font-medium text-red-700 hover:text-red-800">🔍 查看错误详情（点击展开）</summary>
+                <pre className="mt-1 text-xs bg-red-50 border border-red-200 p-2 rounded overflow-x-auto text-red-900 whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
+                  {lastSyncErrorDetail}
+                </pre>
+              </details>
+            )}
           </div>
         </div>
       )}
