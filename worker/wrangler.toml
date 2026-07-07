@@ -1,0 +1,9 @@
+name = "pan-link-api"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# 绑定 D1 数据库（部署时需要先创建）
+[[d1_databases]]
+binding = "DB"
+database_name = "pan-link-db"
+database_id = "3492384c-c066-4b9d-8030-ced77974352d"

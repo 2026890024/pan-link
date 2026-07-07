@@ -19,8 +19,8 @@ interface DataStore {
   // 加载状态 - initialized 表示后台数据加载完成
   initialized: boolean
   error: string | null
-  cloudSyncError: boolean // 是否 Supabase 写入失败（数据仅保存在本地）
-  lastSyncErrorDetail: string // 最后一次 Supabase 写入的精确错误详情
+  cloudSyncError: boolean // 是否云写入失败（数据仅保存在本地）
+  lastSyncErrorDetail: string // 最后一次云写入的精确错误详情
 
   // 初始化（非阻塞：先显示页面，后台静默加载数据）
   initialize: () => void
@@ -115,11 +115,11 @@ const initCategories: Category[] = loadLocal<Category[]>('categories', mockCateg
 const initLinks: LinkItem[] = loadLocalLinks()
 const initSubCategories: SubCategory[] = loadLocal<SubCategory[]>('subcategories', mockSubCategories as SubCategory[])
 
-// Helper: 智能合并 - Supabase 数据优先，但保留本地独有的新增数据
+// Helper: 智能合并 - 云端数据优先，但保留本地独有的新增数据
 function mergeLists<T extends { id: string }>(remote: T[], local: T[]): T[] {
   const remoteIds = new Set(remote.map(r => r.id))
   const localOnly = local.filter(l => !remoteIds.has(l.id))
-  // 如果本地有比远程多的数据（新增但写 Supabase 失败），合并进来
+  // 如果本地有比远程多的数据（新增但写云端失败），合并进来
   if (localOnly.length > 0) {
     console.log(`[DataStore] 合并 ${localOnly.length} 条本地独有数据到远程数据中`)
   }
@@ -137,12 +137,12 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void) {
       Promise.resolve(ds.fetchDriveTypes()),
     ])
     
-    // 获取之前的本地数据，合并本地独有条目（这些可能是 Supabase 写入失败后仅存本地的新增数据）
+    // 获取之前的本地数据，合并本地独有条目（这些可能是云写入失败后仅存本地的新增数据）
     const localCats = loadLocal<Category[]>('categories', [])
     const localLinks = loadLocalLinks()
     const localSubs = loadLocal<SubCategory[]>('subcategories', [])
     
-    // 合并：Supabase 数据 + 本地独有的新数据
+    // 合并：云端数据 + 本地独有的新数据
     const mergedCategories = mergeLists(categories, localCats)
     const mergedLinks = mergeLists(links, localLinks)
     const mergedSubCategories = mergeLists(subCategories, localSubs)
@@ -160,7 +160,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void) {
       tags, driveTypes, 
       initialized: true, 
       error: null, 
-      cloudSyncError: hasLocalOnly // 如果有本地独有数据，说明之前 Supabase 写入失败了
+      cloudSyncError: hasLocalOnly // 如果有本地独有数据，说明之前云写入失败了
     })
   } catch (err) {
     console.error('[DataStore] reloadAll error:', err)
@@ -207,7 +207,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
       const errDetail = JSON.stringify(err, null, 2)
-      console.error('[DataStore] addCategory Supabase 写入失败，回退到本地存储:', err)
+      console.error('[DataStore] addCategory 云写入失败，回退到本地存储:', err)
       const categories = get().categories
       const newCat: Category = {
         id: Date.now().toString(), name, icon: 'folder',
@@ -248,11 +248,8 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   addLink: async (linkData) => {
     const currentLinks = get().links
     const maxSort = Math.max(0, ...currentLinks.map(l => l.sort_order || 0))
-    // 保留原始 category_id（本地分类可能用非UUID格式如Date.now()）
+    // 保留原始 category_id
     const originalCategoryId = linkData.category_id || ''
-    // 仅对 Supabase 写入做 UUID 校验，本地存储直接使用原始值
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(originalCategoryId)
-    const supabaseCategoryId = isUuid ? originalCategoryId : null
 
     const newLink: LinkItem = {
       id: Date.now().toString(),
@@ -278,14 +275,14 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       visible: true,
     }
 
-    let supabaseFailed = false
+    let cloudFailed = false
     try {
-      if (ds.isSupabaseConfigured()) {
+      if (ds.isCloudApiConfigured()) {
         await ds.createLinkApi({
           name: newLink.name,
           slug: newLink.slug,
           url: newLink.url,
-          category_id: supabaseCategoryId,  // 仅传入有效UUID，null则Supabase设为NULL
+          category_id: originalCategoryId,  // D1 不需要 UUID 校验
           extract_code: newLink.extract_code,
           expires_at: newLink.expires_at,
           is_pinned: newLink.is_pinned,
@@ -304,8 +301,8 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     }     catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
       const errDetail = JSON.stringify(err, null, 2)
-      console.error('[DataStore] addLink Supabase 写入失败，回退到本地存储:\n' + errDetail)
-      supabaseFailed = true
+      console.error('[DataStore] addLink 云写入失败，回退到本地存储:\n' + errDetail)
+      cloudFailed = true
       // 不在这里 set，等下面统一处理（避免被覆盖）
     }
     // 回退：存到 localStorage
@@ -316,62 +313,56 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     const currentState = get()
     set({ 
       links: [newLink, ...currentState.links], 
-      cloudSyncError: supabaseFailed,
+      cloudSyncError: cloudFailed,
       // 保留之前设置的错误详情（来自 catch 或其他 set）
-      lastSyncErrorDetail: supabaseFailed ? (currentState.lastSyncErrorDetail || `addLink: Supabase写入失败，${ds.isSupabaseConfigured() ? '已配置但连接失败' : '未配置Supabase'}`) : ''
+      lastSyncErrorDetail: cloudFailed ? (currentState.lastSyncErrorDetail || `addLink: 云写入失败，${ds.isCloudApiConfigured() ? '已配置但连接失败' : '未配置云API'}`) : ''
     })
   },
 
   updateLink: async (id, updates) => {
-    let supabaseFailed = false
+    let cloudFailed = false
     try {
-      if (ds.isSupabaseConfigured()) {
-        // 确保 category_id 是有效 UUID
-        const supabaseUpdates = { ...updates } as Record<string, unknown>
-        if (supabaseUpdates.category_id) {
-          const catId = String(supabaseUpdates.category_id)
-          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(catId)) {
-            delete supabaseUpdates.category_id // 非 UUID，不传给 Supabase
-          }
-        }
-        await ds.updateLinkApi(id, supabaseUpdates)
+      if (ds.isCloudApiConfigured()) {
+        // D1 不需要 UUID 校验
+        const cloudUpdates = { ...updates } as Record<string, unknown>
+        await ds.updateLinkApi(id, cloudUpdates)
         const links = await ds.fetchLinks()
         set({ links, cloudSyncError: false })
         return
       }
     } catch (err) {
-      console.error('[DataStore] updateLink Supabase 写入失败，回退到本地存储:', err)
-      supabaseFailed = true
+      console.error('[DataStore] updateLink 云写入失败，回退到本地存储:', err)
+      cloudFailed = true
     }
     const updatedLinks = get().links.map(l => l.id === id ? { ...l, ...updates } : l)
     saveLocalLinks(updatedLinks)
-    set({ links: updatedLinks, cloudSyncError: supabaseFailed || get().cloudSyncError })
+    set({ links: updatedLinks, cloudSyncError: cloudFailed || get().cloudSyncError })
   },
 
   deleteLink: async (id) => {
-    let supabaseFailed = false
+    let cloudFailed = false
     try {
       await ds.deleteLinkApi(id)
     } catch (err) {
-      console.error('[DataStore] deleteLink Supabase 写入失败，回退到本地存储:', err)
-      supabaseFailed = true
+      console.error('[DataStore] deleteLink 云写入失败，回退到本地存储:', err)
+      cloudFailed = true
     }
     const filteredLinks = get().links.filter(l => l.id !== id)
     saveLocalLinks(filteredLinks)
-    set({ links: filteredLinks, cloudSyncError: supabaseFailed || get().cloudSyncError })
+    set({ links: filteredLinks, cloudSyncError: cloudFailed || get().cloudSyncError })
   },
 
   togglePin: async (id) => {
     const link = get().links.find(l => l.id === id)
     if (!link) return
     try {
-      if (ds.isSupabaseConfigured()) {
+      if (ds.isCloudApiConfigured()) {
         await ds.updateLinkApi(id, { is_pinned: !link.is_pinned })
         const links = await ds.fetchLinks()
         set({ links, cloudSyncError: false })
         return
       }
-    } catch (err) { console.error('[DataStore] togglePin Supabase 失败:', err) }
+    } catch (err) { console.error('[DataStore] togglePin 云API失败:', err) }
     const updated = get().links.map(l => l.id === id ? { ...l, is_pinned: !l.is_pinned } : l)
     saveLocalLinks(updated)
     set({ links: updated })
@@ -381,13 +372,13 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     const link = get().links.find(l => l.id === id)
     if (!link) return
     try {
-      if (ds.isSupabaseConfigured()) {
+      if (ds.isCloudApiConfigured()) {
         await ds.updateLinkApi(id, { is_featured: !link.is_featured })
         const links = await ds.fetchLinks()
         set({ links, cloudSyncError: false })
         return
       }
-    } catch (err) { console.error('[DataStore] toggleFeatured Supabase 失败:', err) }
+    } catch (err) { console.error('[DataStore] toggleFeatured 云API失败:', err) }
     const updated = get().links.map(l => l.id === id ? { ...l, is_featured: !l.is_featured } : l)
     saveLocalLinks(updated)
     set({ links: updated })
@@ -398,13 +389,13 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     if (!link) return
     const newVisible = !link.visible
     try {
-      if (ds.isSupabaseConfigured()) {
+      if (ds.isCloudApiConfigured()) {
         await ds.updateLinkApi(id, { visible: newVisible })
         const links = await ds.fetchLinks()
         set({ links, cloudSyncError: false })
         return
       }
-    } catch (err) { console.error('[DataStore] toggleLinkVisibility Supabase 失败:', err) }
+    } catch (err) { console.error('[DataStore] toggleLinkVisibility 云API失败:', err) }
     const updated = get().links.map(l => l.id === id ? { ...l, visible: newVisible } : l)
     saveLocalLinks(updated)
     set({ links: updated })
@@ -431,7 +422,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     const swapNewSortOrder = targetLink.sort_order
 
     try {
-      if (ds.isSupabaseConfigured()) {
+      if (ds.isCloudApiConfigured()) {
         await Promise.all([
           ds.updateLinkApi(id, { sort_order: newSortOrder }),
           ds.updateLinkApi(swapLink.id, { sort_order: swapNewSortOrder }),
@@ -440,7 +431,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         set({ links: refreshedLinks })
         return
       }
-    } catch (err) { console.error('[DataStore] moveLinkSortOrder Supabase 失败:', err) }
+    } catch (err) { console.error('[DataStore] moveLinkSortOrder 云API失败:', err) }
 
     const updatedLinks = get().links.map(l => {
         if (l.id === id) return { ...l, sort_order: newSortOrder }
@@ -453,7 +444,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
 
   incrementClicks: async (id) => {
     try {
-      if (ds.isSupabaseConfigured()) {
+      if (ds.isCloudApiConfigured()) {
         await ds.incrementLinkClicks(id)
       }
     } catch { /* ignore */ }

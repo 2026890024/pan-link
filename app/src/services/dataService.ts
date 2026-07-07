@@ -1,10 +1,16 @@
 /**
  * 统一数据服务层
- * - 当配置了 Supabase 环境变量时，使用 Supabase (PostgreSQL) 作为主存储
+ * - 优先使用 Cloudflare Worker + D1 数据库（国内可访问）
  * - 未配置时自动回退到 localStorage
- * - 所有前端页面通过此服务进行 CRUD 操作，无需关心后端实现
  */
-import { supabase } from '@/lib/supabase'
+// ============ 配置 ============
+
+// Worker API 地址（部署后替换为实际地址）
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://pan-link-api.你的用户名.workers.dev'
+
+export function isCloudApiConfigured(): boolean {
+  return !!API_BASE && !API_BASE.includes('你的用户名')
+}
 
 // ============ 类型定义 ============
 
@@ -66,42 +72,35 @@ export interface LinkItem {
   visible: boolean
 }
 
-// ============ Supabase 是否可用 ============
+// ============ HTTP 工具函数 ============
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const url = `${API_BASE}${path}`
+  const resp = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  })
 
-export function isSupabaseConfigured(): boolean {
-  return !!(
-    SUPABASE_URL &&
-    SUPABASE_KEY &&
-    SUPABASE_URL !== 'https://your-project.supabase.co' &&
-    SUPABASE_KEY !== 'your-anon-key'
-  )
+  if (!resp.ok) {
+    const errBody = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }))
+    throw new Error(errBody.error || `API error ${resp.status}`)
+  }
+
+  return resp.json() as Promise<T>
 }
-
-// ============ 调试日志 ============
 
 const log = (action: string, ...args: unknown[]) => {
   if (import.meta.env.DEV) {
-    console.log(`[DataService] ${isSupabaseConfigured() ? '🔷 Supabase' : '💾 localStorage'} - ${action}`, ...args)
+    console.log(`[DataService] ${isCloudApiConfigured() ? '☁️ D1-Worker' : '💾 localStorage'} - ${action}`, ...args)
   }
 }
 
 // ============ 数据转换 ============
 
-function supabaseLinkToLinkItem(data: Record<string, unknown>): LinkItem {
-  const rawTags = Array.isArray(data.link_tags)
-    ? data.link_tags.map((lt: Record<string, unknown>) => lt?.tag).filter(Boolean)
-    : Array.isArray(data.tags)
-      ? data.tags
-      : []
-  const tags = rawTags.map((t: Record<string, unknown>) => ({
-    id: String(t?.id || ''),
-    name: String(t?.name || ''),
-    color: String(t?.color || '#6366F1'),
-  }))
-
+function workerLinkToLinkItem(data: Record<string, unknown>): LinkItem {
   return {
     id: String(data.id || ''),
     name: String(data.name || ''),
@@ -110,127 +109,115 @@ function supabaseLinkToLinkItem(data: Record<string, unknown>): LinkItem {
     url: String(data.url || ''),
     drive_type: String(data.drive_type || data.category_id || 'baidu'),
     category_id: String(data.category_id || ''),
-    category_name: data.category_name ? String(data.category_name) : data.category ? String((data.category as Record<string, unknown>)?.name || '') : undefined,
-    category_logo: data.category_logo ? String(data.category_logo) : data.category ? String((data.category as Record<string, unknown>)?.logo_url || '') : undefined,
+    category_name: data.category_name ? String(data.category_name) : undefined,
+    category_logo: data.category_logo ? String(data.category_logo) : undefined,
     subcategory_id: String(data.subcategory_id || ''),
     icon: String(data.icon || data.category_logo || ''),
     is_pinned: Boolean(data.is_pinned),
-    is_featured: Boolean(data.is_favorited) || Boolean(data.is_featured),
+    is_featured: Boolean(data.is_favorited),
     click_count: Number(data.click_count) || 0,
     registration_count: Number(data.registration_count) || 0,
     extract_code: String(data.extract_code || ''),
     expires_at: data.expires_at ? String(data.expires_at) : null,
-    tags,
+    tags: Array.isArray(data.tags)
+      ? (data.tags as Record<string, unknown>[]).map((t: Record<string, unknown>) => ({
+          id: String(t.id || ''),
+          name: String(t.name || ''),
+          color: String(t.color || '#6366F1'),
+        }))
+      : [],
+    keywords: [],
     created_at: String(data.created_at || new Date().toISOString()),
     slug: String(data.slug || ''),
     sort_order: Number(data.sort_order) || 999,
     visible: data.visible !== undefined ? Boolean(data.visible) : true,
-    keywords: Array.isArray(data.keywords) ? data.keywords.filter((k: unknown) => typeof k === 'string') : [],
   }
 }
+
 
 // ============ Categories API ============
 
 export async function fetchCategories(): Promise<Category[]> {
-  if (!isSupabaseConfigured()) return getLocalCategories()
+  if (!isCloudApiConfigured()) return getLocalCategories()
 
-  const { data, error } = await supabase
-    .from('categories')
-    .select('*')
-    .order('sort_order', { ascending: true })
-
-  if (error) {
-    console.error('[DataService] fetchCategories error:', error)
+  try {
+    const data = await apiFetch<Category[]>('/api/categories')
+    log('fetchCategories', data?.length)
+    return data.map(c => ({
+      id: String(c.id),
+      name: c.name,
+      icon: 'folder',
+      logo_url: c.logo_url,
+      sort_order: Number(c.sort_order) || 0,
+      is_system: Boolean(c.is_system),
+    }))
+  } catch (err) {
+    console.error('[DataService] fetchCategories error:', err)
     return getLocalCategories()
   }
-  log('fetchCategories', data?.length)
-  return (data || []).map(c => ({
-    id: String(c.id),
-    name: String(c.name),
-    icon: 'folder',
-    logo_url: c.logo_url,
-    sort_order: Number(c.sort_order) || 0,
-    is_system: Boolean(c.is_system),
-  }))
 }
 
 export async function createCategory(name: string, userId?: string): Promise<Category> {
-  if (!isSupabaseConfigured()) return addLocalCategory(name)
+  if (!isCloudApiConfigured()) return addLocalCategory(name)
 
-  const { data, error } = await supabase
-    .from('categories')
-    .insert({
-      name,
-      user_id: userId || null,
-      sort_order: 999,
-      is_system: false,
+  try {
+    const result = await apiFetch<{ success: boolean; id: string }>('/api/categories', {
+      method: 'POST',
+      body: JSON.stringify({ name, user_id: userId || '', sort_order: 999 }),
     })
-    .select()
-    .single()
-
-  if (error) throw error
-  log('createCategory', name)
-  return { id: String(data.id), name: data.name, icon: 'folder', logo_url: data.logo_url, sort_order: data.sort_order, is_system: data.is_system }
+    log('createCategory', name)
+    return { id: result.id, name, icon: 'folder', logo_url: null, sort_order: 999 }
+  } catch (err) {
+    throw err
+  }
 }
 
 export async function updateCategoryApi(id: string, updates: { name?: string; sort_order?: number }): Promise<void> {
-  if (!isSupabaseConfigured()) { updateLocalCategory(id, updates); return }
+  if (!isCloudApiConfigured()) { updateLocalCategory(id, updates); return }
 
-  const { error } = await supabase
-    .from('categories')
-    .update(updates)
-    .eq('id', id)
-
-  if (error) throw error
-  log('updateCategory', id, updates)
+  try {
+    await apiFetch(`/api/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    })
+    log('updateCategory', id, updates)
+  } catch (err) { throw err }
 }
 
 export async function deleteCategoryApi(id: string): Promise<void> {
-  if (!isSupabaseConfigured()) { deleteLocalCategory(id); return }
+  if (!isCloudApiConfigured()) { deleteLocalCategory(id); return }
 
-  const { error } = await supabase
-    .from('categories')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
-  log('deleteCategory', id)
+  try {
+    await apiFetch(`/api/categories/${id}`, { method: 'DELETE' })
+    log('deleteCategory', id)
+  } catch (err) { throw err }
 }
 
 // ============ Links API ============
 
 export async function fetchLinks(): Promise<LinkItem[]> {
-  if (!isSupabaseConfigured()) return getLocalLinks()
+  if (!isCloudApiConfigured()) return getLocalLinks()
 
-  const { data, error } = await supabase
-    .from('links')
-    .select(`*, category:categories(name, logo_url), link_tags(tag:tags(*))`)
-    .order('is_pinned', { ascending: false })
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('[DataService] fetchLinks error:', error)
+  try {
+    const data = await apiFetch<Record<string, unknown>[]>('/api/links')
+    log('fetchLinks', data?.length)
+    return data.map(workerLinkToLinkItem)
+  } catch (err) {
+    console.error('[DataService] fetchLinks error:', err)
     return getLocalLinks()
   }
-  log('fetchLinks', data?.length)
-  return (data || []).map(supabaseLinkToLinkItem)
 }
 
 export async function fetchPublicLinks(): Promise<LinkItem[]> {
-  if (!isSupabaseConfigured()) return getLocalLinks()
+  if (!isCloudApiConfigured()) return getLocalLinks()
 
-  const { data, error } = await supabase
-    .from('links')
-    .select(`*, category:categories(name, logo_url), link_tags(tag:tags(*))`)
-    .eq('status', 'active')
-    .order('is_pinned', { ascending: false })
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('[DataService] fetchPublicLinks error:', error)
+  try {
+    const data = await apiFetch<Record<string, unknown>[]>('/api/links/public')
+    return data.map(workerLinkToLinkItem)
+  } catch (err) {
+    console.error('[DataService] fetchPublicLinks error:', err)
     return getLocalLinks()
   }
-  return (data || []).map(supabaseLinkToLinkItem)
 }
 
 export async function createLinkApi(linkData: {
@@ -240,164 +227,101 @@ export async function createLinkApi(linkData: {
   icon?: string; description?: string; tags?: string[]; sort_order?: number;
   visible?: boolean;
 }, userId?: string): Promise<LinkItem> {
-  if (!isSupabaseConfigured()) return addLocalLink(linkData)
+  if (!isCloudApiConfigured()) return addLocalLink(linkData)
 
-  const { data, error } = await supabase
-    .from('links')
-    .insert({
-      user_id: userId || '00000000-0000-0000-0000-000000000000',
-      name: linkData.name,
-      slug: linkData.slug || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      url: linkData.url,
-      category_id: linkData.category_id || null,
-      subcategory_id: linkData.subcategory_id || null,
-      extract_code: linkData.extract_code || null,
-      expires_at: linkData.expires_at || null,
-      is_pinned: linkData.is_pinned || false,
-      is_favorited: linkData.is_featured || false,
-      drive_type: linkData.drive_type || 'baidu',
-      icon: linkData.icon || null,
-      description: linkData.description || null,
-      status: 'active',
-      validity_period: linkData.expires_at ? '1_year' : 'permanent',
-      sort_order: linkData.sort_order ?? 999,
-      visible: linkData.visible !== undefined ? linkData.visible : true,
+  try {
+    const data = await apiFetch<Record<string, unknown>>('/api/links', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...linkData,
+        user_id: userId || '',
+        status: 'active',
+      }),
     })
-    .select(`*, category:categories(name, logo_url)`)
-    .single()
-
-  if (error) throw error
-  log('createLink', linkData.name)
-
-  // Insert tag associations if tags provided
-  if (linkData.tags && linkData.tags.length > 0 && data) {
-    const tagRelations = linkData.tags.map(tagId => ({
-      link_id: data.id,
-      tag_id: tagId,
-    }))
-    const { error: tagErr } = await supabase.from('link_tags').insert(tagRelations)
-    if (tagErr) console.error('[DataService] link_tags insert error:', tagErr)
-  }
-
-  return supabaseLinkToLinkItem(data)
+    log('createLink', linkData.name)
+    return workerLinkToLinkItem(data)
+  } catch (err) { throw err }
 }
 
 export async function updateLinkApi(id: string, updates: Record<string, unknown>): Promise<void> {
-  if (!isSupabaseConfigured()) { updateLocalLink(id, updates); return }
+  if (!isCloudApiConfigured()) { updateLocalLink(id, updates); return }
 
-  // Map UI field names to Supabase field names
-  const supabaseUpdates: Record<string, unknown> = {}
-  if (updates.name !== undefined) supabaseUpdates.name = updates.name
-  if (updates.slug !== undefined) supabaseUpdates.slug = updates.slug
-  if (updates.url !== undefined) supabaseUpdates.url = updates.url
-  if (updates.category_id !== undefined) supabaseUpdates.category_id = updates.category_id
-  if (updates.extract_code !== undefined) supabaseUpdates.extract_code = updates.extract_code
-  if (updates.expires_at !== undefined) supabaseUpdates.expires_at = updates.expires_at
-  if (updates.is_pinned !== undefined) supabaseUpdates.is_pinned = updates.is_pinned
-  if (updates.is_featured !== undefined) supabaseUpdates.is_favorited = updates.is_featured
-  if (updates.description !== undefined) supabaseUpdates.description = updates.description
-  if (updates.sort_order !== undefined) supabaseUpdates.sort_order = updates.sort_order
-  if (updates.visible !== undefined) supabaseUpdates.visible = updates.visible
-
-  if (Object.keys(supabaseUpdates).length === 0) return
-
-  const { error } = await supabase
-    .from('links')
-    .update(supabaseUpdates)
-    .eq('id', id)
-
-  if (error) throw error
-  log('updateLink', id, Object.keys(supabaseUpdates))
+  try {
+    // Convert field names for the worker
+    const workerUpdates: Record<string, unknown> = {}
+    if (updates.is_featured !== undefined) workerUpdates.is_favorited = updates.is_featured
+    for (const [key, val] of Object.entries(updates)) {
+      if (key !== 'is_featured') workerUpdates[key] = val
+    }
+    
+    await apiFetch(`/api/links/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(workerUpdates),
+    })
+    log('updateLink', id, Object.keys(workerUpdates))
+  } catch (err) { throw err }
 }
 
 export async function deleteLinkApi(id: string): Promise<void> {
-  if (!isSupabaseConfigured()) { deleteLocalLink(id); return }
+  if (!isCloudApiConfigured()) { deleteLocalLink(id); return }
 
-  const { error } = await supabase
-    .from('links')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
-  log('deleteLink', id)
+  try {
+    await apiFetch(`/api/links/${id}`, { method: 'DELETE' })
+    log('deleteLink', id)
+  } catch (err) { throw err }
 }
 
 export async function incrementLinkClicks(id: string): Promise<void> {
-  if (!isSupabaseConfigured()) { incrementLocalClicks(id); return }
-
-  const { error } = await supabase.rpc('increment_link_click_count', {
-    link_id: id,
-  }).single()
-
-  if (error) {
-    // Fallback: directly update
-    const { data } = await supabase.from('links').select('click_count').eq('id', id).single()
-    if (data) {
-      await supabase.from('links').update({ click_count: (data.click_count || 0) + 1 }).eq('id', id)
-    }
-  }
+  if (!isCloudApiConfigured()) { incrementLocalClicks(id); return }
+  // Worker 的 /api/links/public GET 会自动记录点击
+  log('incrementClicks', id)
 }
 
 // ============ Tags API ============
 
 export async function fetchTags(userId?: string): Promise<Tag[]> {
-  if (!isSupabaseConfigured()) return getLocalTags()
+  if (!isCloudApiConfigured()) return getLocalTags()
 
-  const query = supabase.from('tags').select('*')
-  if (userId) query.eq('user_id', userId)
-
-  const { data, error } = await query.order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('[DataService] fetchTags error:', error)
+  try {
+    const data = await apiFetch<Tag[]>('/api/tags')
+    return (data || []).map(t => ({
+      id: String(t.id), user_id: t.user_id, name: t.name, color: t.color,
+      created_at: t.created_at, updated_at: t.updated_at,
+    }))
+  } catch (err) {
+    console.error('[DataService] fetchTags error:', err)
     return getLocalTags()
   }
-  return (data || []).map(t => ({
-    id: String(t.id),
-    user_id: String(t.user_id),
-    name: String(t.name),
-    color: String(t.color),
-    created_at: String(t.created_at),
-    updated_at: String(t.updated_at),
-  }))
 }
 
 export async function createTagApi(name: string, color: string, userId?: string): Promise<Tag> {
-  if (!isSupabaseConfigured()) return addLocalTag(name, color)
+  if (!isCloudApiConfigured()) return addLocalTag(name, color)
 
-  const { data, error } = await supabase
-    .from('tags')
-    .insert({
-      user_id: userId || '00000000-0000-0000-0000-000000000000',
-      name,
-      color,
+  try {
+    const result = await apiFetch<{ success: boolean; id: string }>('/api/tags', {
+      method: 'POST',
+      body: JSON.stringify({ name, color, user_id: userId || '' }),
     })
-    .select()
-    .single()
-
-  if (error) throw error
-  return { id: String(data.id), user_id: String(data.user_id), name: data.name, color: data.color, created_at: data.created_at, updated_at: data.updated_at }
+    return { id: result.id, user_id: userId || '', name, color, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+  } catch (err) { throw err }
 }
 
 export async function deleteTagApi(id: string): Promise<void> {
-  if (!isSupabaseConfigured()) { deleteLocalTag(id); return }
-
-  const { error } = await supabase
-    .from('tags')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
+  if (!isCloudApiConfigured()) { deleteLocalTag(id); return }
+  
+  try {
+    await apiFetch(`/api/tags/${id}`, { method: 'DELETE' })
+  } catch (err) { throw err }
 }
 
 // ============ Dashboard Stats ============
 
-export async function fetchDashboardStats(userId?: string): Promise<{
+export async function fetchDashboardStats(_userId?: string): Promise<{
   total_links: number; total_clicks: number; total_registrations: number;
   active_links: number; expiring_soon: number; expired_links: number;
   pinned_links: number; favorited_links: number;
 }> {
-  if (!isSupabaseConfigured()) {
+  if (!isCloudApiConfigured()) {
     const links = getLocalLinks()
     return {
       total_links: links.length,
@@ -411,41 +335,71 @@ export async function fetchDashboardStats(userId?: string): Promise<{
     }
   }
 
-  const { data, error } = await supabase.rpc('get_dashboard_stats', {
-    user_uuid: userId || '00000000-0000-0000-0000-000000000000',
-  })
+  try {
+    const data = await apiFetch<{
+      total_links: number; total_clicks: number; total_categories: number;
+      pinned_links: number; favorited_links: number;
+    }>('/api/links/stats')
 
-  if (error) throw error
-  return data
+    return {
+      total_links: data.total_links || 0,
+      total_clicks: data.total_clicks || 0,
+      total_registrations: 0,
+      active_links: data.total_links || 0,
+      expiring_soon: 0,
+      expired_links: 0,
+      pinned_links: data.pinned_links || 0,
+      favorited_links: data.favorited_links || 0,
+    }
+  } catch (err) {
+    console.error('[DataService] fetchStats error:', err)
+    throw err
+  }
 }
 
-// ============ SubCategories (local only for now) ============
+// ============ SubCategories (local only) ============
 
-export async function fetchSubCategories(): Promise<SubCategory[]> {
-  return getLocalSubCategories()
-}
-
-export async function addSubCategoryApi(categoryId: string, name: string): Promise<SubCategory> {
-  return addLocalSubCategory(categoryId, name)
-}
-
-export async function deleteSubCategoryApi(id: string): Promise<void> {
-  deleteLocalSubCategory(id)
-}
+export async function fetchSubCategories(): Promise<SubCategory[]> { return getLocalSubCategories() }
+export async function addSubCategoryApi(categoryId: string, name: string): Promise<SubCategory> { return addLocalSubCategory(categoryId, name) }
+export async function deleteSubCategoryApi(id: string): Promise<void> { deleteLocalSubCategory(id) }
 
 // ============ DriveTypes (local only) ============
 
-export function fetchDriveTypes(): DriveType[] {
-  return getLocalDriveTypes()
+export function fetchDriveTypes(): DriveType[] { return getLocalDriveTypes() }
+export function addDriveTypeApi(name: string, icon: string, color: string): DriveType { return addLocalDriveType(name, icon, color) }
+export function deleteDriveTypeApi(id: string): void { deleteLocalDriveType(id) }
+
+
+// ============ 公共接口（给前端页面直接调用）============
+
+export async function getLinkBySlug(slug: string): Promise<LinkItem | null> {
+  if (!isCloudApiConfigured()) return null
+  
+  try {
+    const data = await apiFetch<Record<string, unknown>>(`/api/links/public?slug=${encodeURIComponent(slug)}`)
+    return data ? workerLinkToLinkItem(data) : null
+  } catch { return null }
 }
 
-export function addDriveTypeApi(name: string, icon: string, color: string): DriveType {
-  return addLocalDriveType(name, icon, color)
+export async function getLinksByCategory(categoryId: string): Promise<LinkItem[]> {
+  if (!isCloudApiConfigured()) return getLocalLinks().filter(l => l.category_id === categoryId)
+  
+  try {
+    const data = await apiFetch<Record<string, unknown>[]>(`/api/links?category_id=${categoryId}`)
+    return data.map(workerLinkToLinkItem)
+  } catch { return [] }
 }
 
-export function deleteDriveTypeApi(id: string): void {
-  deleteLocalDriveType(id)
+export async function recordLinkVisit(_linkId: string, _visitType?: string): Promise<void> {
+  // Worker 自动记录，无需额外调用
 }
+
+export async function searchLinks(_query: string): Promise<LinkItem[]> {
+  if (!isCloudApiConfigured()) return []
+  // TODO: 实现搜索（需要在 D1 中创建 FTS5 或用 LIKE 查询）
+  return []
+}
+
 
 // ============ localStorage 回退实现 ============
 

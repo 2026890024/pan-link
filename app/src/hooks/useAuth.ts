@@ -1,44 +1,31 @@
 /**
- * 认证 Hook - Supabase Auth + 本地回退
- * 当 Supabase 未配置时，使用本地配置的账号密码
+ * 认证 Hook - 云API + 本地回退
+ * 当云API未配置时，使用本地配置的账号密码
  */
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import { isCloudApiConfigured } from '@/services/dataService'
 import { AUTH_CONFIG } from '@/config/auth'
-import { isSupabaseConfigured } from '@/services/dataService'
 import { fastHash, fastVerify } from '@/lib/crypto'
-import type { User } from '@supabase/supabase-js'
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<null>(null)
   const [loading, setLoading] = useState(true)
   const [localAuthed, setLocalAuthed] = useState(() => {
     try { return sessionStorage.getItem('admin_authed') === 'true' } catch { return false }
   })
 
   useEffect(() => {
-    if (!isSupabaseConfigured()) {
+    if (!isCloudApiConfigured()) {
       setLoading(false)
       return
     }
 
-    // 监听 Supabase Auth 状态变化
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null)
-      setLoading(false)
-    })
-
-    // 初始加载
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null)
-      setLoading(false)
-    })
-
-    return () => { subscription.unsubscribe() }
+    // 云模式：直接标记为已加载（后续可接入云认证）
+    setLoading(false)
   }, [])
 
   const login = useCallback(async (username: string, password: string): Promise<boolean> => {
-    // ========== 优先检查本地默认管理员凭证（所有模式都支持）==========
+    // ========== 本地默认管理员凭证验证（所有模式都支持）==========
     let authUsername = AUTH_CONFIG.username
     let authPasswordHash: string | null = fastHash(AUTH_CONFIG.password)
     
@@ -61,38 +48,29 @@ export function useAuth() {
       }
     } catch { /* ignore */ }
     
-    // 先尝试本地凭证验证（默认管理员账号在所有模式下都可用）
+    // 验证本地管理员账号
     if (username === authUsername && fastVerify(password, authPasswordHash || '')) {
       setLocalAuthed(true)
       sessionStorage.setItem('admin_authed', 'true')
       return true
     }
 
-    // 本地模式：本地验证失败就直接返回
-    if (!isSupabaseConfigured()) {
+    // 云模式：可以扩展云认证逻辑
+    if (!isCloudApiConfigured()) {
       return false
     }
 
-    // Supabase 模式：本地凭证不匹配时，尝试 Supabase Auth
-    const { error } = await supabase.auth.signInWithPassword({
-      email: username.includes('@') ? username : `${username}@admin.local`,
-      password,
-    })
-    return !error
+    // 未来：可接入 Worker API 的认证
+    return false
   }, [])
 
   const logout = useCallback(async () => {
-    // 清除本地认证（所有模式）
     setLocalAuthed(false)
     sessionStorage.removeItem('admin_authed')
-    // 如果是 Supabase 模式，同时登出 Supabase
-    if (isSupabaseConfigured()) {
-      await supabase.auth.signOut()
-    }
+    // 清除云认证状态
   }, [])
 
-  // 本地凭证认证在所有模式下都生效
-  const isAuthenticated = localAuthed || (isSupabaseConfigured() && !!user)
+  const isAuthenticated = localAuthed || (isCloudApiConfigured() && !!user)
 
   return {
     user,
@@ -100,6 +78,6 @@ export function useAuth() {
     isAuthenticated,
     login,
     logout,
-    isSupabaseMode: isSupabaseConfigured(),
+    isCloudMode: isCloudApiConfigured(),
   }
 }
