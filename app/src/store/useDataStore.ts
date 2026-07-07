@@ -301,18 +301,25 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         set({ links, cloudSyncError: false })
         return
       }
-    } catch (err) {
+    }     catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
       const errDetail = JSON.stringify(err, null, 2)
-      console.error('[DataStore] addLink Supabase 写入失败，回退到本地存储:', err)
+      console.error('[DataStore] addLink Supabase 写入失败，回退到本地存储:\n' + errDetail)
       supabaseFailed = true
-      set({ cloudSyncError: true, lastSyncErrorDetail: `addLink 失败: ${errMsg}\n${errDetail}` })
+      // 不在这里 set，等下面统一处理（避免被覆盖）
     }
     // 回退：存到 localStorage
     const storage = loadLocalLinks()
     storage.unshift(newLink)
     saveLocalLinks(storage)
-    set({ links: [newLink, ...get().links], cloudSyncError: supabaseFailed })
+    // 保留 lastSyncErrorDetail 不被覆盖
+    const currentState = get()
+    set({ 
+      links: [newLink, ...currentState.links], 
+      cloudSyncError: supabaseFailed,
+      // 保留之前设置的错误详情（来自 catch 或其他 set）
+      lastSyncErrorDetail: supabaseFailed ? (currentState.lastSyncErrorDetail || `addLink: Supabase写入失败，${ds.isSupabaseConfigured() ? '已配置但连接失败' : '未配置Supabase'}`) : ''
+    })
   },
 
   updateLink: async (id, updates) => {
