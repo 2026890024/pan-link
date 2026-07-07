@@ -248,10 +248,11 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   addLink: async (linkData) => {
     const currentLinks = get().links
     const maxSort = Math.max(0, ...currentLinks.map(l => l.sort_order || 0))
-    // 确保 category_id 是有效 UUID（否则 Supabase 会拒绝）
-    const catId = linkData.category_id || ''
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(catId)
-    const finalCategoryId = isUuid ? catId : ''
+    // 保留原始 category_id（本地分类可能用非UUID格式如Date.now()）
+    const originalCategoryId = linkData.category_id || ''
+    // 仅对 Supabase 写入做 UUID 校验，本地存储直接使用原始值
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(originalCategoryId)
+    const supabaseCategoryId = isUuid ? originalCategoryId : null
 
     const newLink: LinkItem = {
       id: Date.now().toString(),
@@ -260,7 +261,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       description: linkData.description || '',
       url: linkData.url || '',
       drive_type: linkData.drive_type || 'baidu',
-      category_id: finalCategoryId,
+      category_id: originalCategoryId,  // 始终保留用户选择的分类
       subcategory_id: linkData.subcategory_id || '',
       icon: linkData.icon || '',
       is_pinned: linkData.is_pinned || false,
@@ -284,7 +285,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
           name: newLink.name,
           slug: newLink.slug,
           url: newLink.url,
-          category_id: finalCategoryId || null,
+          category_id: supabaseCategoryId,  // 仅传入有效UUID，null则Supabase设为NULL
           extract_code: newLink.extract_code,
           expires_at: newLink.expires_at,
           is_pinned: newLink.is_pinned,
