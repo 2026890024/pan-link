@@ -254,9 +254,10 @@ export default function ResourceManagementPage() {
         })
         setLinkModalOpen(false)
         toast.success('链接已添加')
-      } catch (err) {
+      } catch (err: any) {
         console.error('添加链接失败:', err)
-        toast.error('添加失败！请检查 Supabase RLS 权限设置')
+        const msg = err?.message || String(err)
+        toast.error(`添加失败：${msg}`)
       }
     }
   }
@@ -283,9 +284,14 @@ export default function ResourceManagementPage() {
         })
         setLinkModalOpen(false)
         toast.success('链接已更新')
-      } catch (err) {
+      } catch (err: any) {
         console.error('更新链接失败:', err)
-        toast.error('保存失败！请检查 Supabase RLS 权限设置')
+        const msg = err?.message || String(err)
+        if (msg.includes('invalid input syntax for type uuid')) {
+          toast.error('该链接是演示数据，请先「新增链接」再修改')
+        } else {
+          toast.error(`保存失败：${msg}`)
+        }
       }
     }
   }
@@ -317,7 +323,7 @@ export default function ResourceManagementPage() {
           toast.success('链接已删除')
         } catch (err) {
           console.error('删除链接失败:', err)
-          toast.error('删除失败！请检查 Supabase RLS 权限设置')
+          toast.error(`删除失败：${err?.message || String(err)}`)
         }
       },
     })
