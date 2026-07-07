@@ -323,7 +323,7 @@ export default function ResourceManagementPage() {
             <p className="font-medium">云同步不可用</p>
             <p className="text-amber-700 mt-1">
               数据当前仅保存在本地浏览器中，换设备后可能丢失。
-              <a href="https://supabase.com/dashboard/project/kcucxrunwzcxxwxwnpojoc/sql/new" target="_blank" className="underline text-blue-600 ml-1">打开 Supabase 修复</a>
+              <a href="https://dash.cloudflare.com" target="_blank" className="underline text-blue-600 ml-1">打开 Cloudflare 检查</a>
             </p>
             {/* 精确错误详情 - 帮助诊断 */}
             {lastSyncErrorDetail && (
