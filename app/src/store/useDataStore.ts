@@ -119,7 +119,8 @@ const initSubCategories: SubCategory[] = loadLocal<SubCategory[]>('subcategories
 // Helper: 智能合并 - 云端数据是唯一数据源
 // 云端有数据时：以云端为准，但保留本地标记为 _pendingSync 的数据（云写入失败时创建的）
 // 云端为空时：使用本地数据（离线/首次使用）
-function mergeLists<T extends { id: string }>(remote: T[], local: T[]): T[] {
+// 云端和本地都为空时：使用 fallback（mock 数据兜底，保证首次访问有演示数据）
+function mergeLists<T extends { id: string }>(remote: T[], local: T[], fallback: T[] = []): T[] {
   if (remote.length > 0) {
     // 云端有数据 → 云端是唯一数据源
     // 只保留本地被标记为 "pendingSync" 的数据（这些是之前云写入失败的新增数据）
@@ -137,8 +138,13 @@ function mergeLists<T extends { id: string }>(remote: T[], local: T[]): T[] {
     return remote
   }
   // 云端无数据 → 使用本地数据作为回退
-  console.log('[DataStore] 云端无数据，使用本地数据')
-  return local
+  if (local.length > 0) {
+    console.log('[DataStore] 云端无数据，使用本地数据')
+    return local
+  }
+  // 云端和本地都无数据 → fallback（mock 兜底，确保首次访问不显示空白）
+  console.log(`[DataStore] 云端和本地均无数据，使用 fallback（${fallback.length} 条）`)
+  return fallback
 }
 
 // Helper: reload all data from service (非阻塞)
@@ -158,9 +164,9 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void) {
     const localLinks = loadLocalLinks()
     const localSubs = loadLocal<SubCategory[]>('subcategories', [])
     
-    // 关键：云端数据优先！只有云端为空时才用本地，否则云端是唯一数据源
-    const mergedCategories = mergeLists(categories, localCats)
-    const mergedLinks = mergeLists(links, localLinks)
+    // 关键：云端数据优先！云端为空时用本地，都为空时 fallback 到 mock 数据
+    const mergedCategories = mergeLists(categories, localCats, mockCategories as Category[])
+    const mergedLinks = mergeLists(links, localLinks, mockLinks as LinkItem[])
     const mergedSubCategories = mergeLists(subCategories, localSubs)
     
     // 同步到 localStorage 作为本地缓存（下次打开加速加载）
