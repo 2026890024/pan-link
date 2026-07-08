@@ -492,7 +492,6 @@ export default function SearchPage() {
                         )}
                       </div>
                     </div>
-                    {link.is_pinned && null}
                     {/* 快速操作按钮 */}
                     <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                       <button

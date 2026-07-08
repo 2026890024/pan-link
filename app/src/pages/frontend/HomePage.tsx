@@ -298,7 +298,6 @@ export default function HomePage() {
                     <div className="font-medium text-sm text-gray-800 truncate">{link.name}</div>
                     <div className="text-xs text-gray-400 truncate">{link.description}</div>
                   </div>
-                  {link.is_pinned && <Star className="w-3 h-3 text-amber-400 fill-amber-400 flex-shrink-0" />}
                 </button>
               ))}
               <button
@@ -584,11 +583,6 @@ export default function HomePage() {
                                   <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm sm:truncate leading-tight">
                                     {link.name}
                                   </h3>
-                                  {link.is_pinned && (
-                                    <span className="flex-shrink-0 px-2 py-0.5 bg-amber-50 text-amber-600 text-[10px] rounded-full font-medium flex items-center gap-1 border border-amber-100">
-                                      <Star className="w-2.5 h-2.5 fill-amber-400" /> 置顶
-                                    </span>
-                                  )}
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1 leading-relaxed line-clamp-2 sm:truncate">{link.description}</p>
                               </div>
@@ -640,9 +634,6 @@ export default function HomePage() {
                                   <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm truncate">
                                     {link.name}
                                   </h3>
-                                  {link.is_pinned && (
-                                    <Star className="w-3 h-3 text-amber-400 flex-shrink-0 fill-amber-400" />
-                                  )}
                                 </div>
                                 <p className="text-xs text-gray-500 truncate mt-0.5">{link.description}</p>
                               </div>

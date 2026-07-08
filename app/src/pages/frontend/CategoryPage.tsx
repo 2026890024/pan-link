@@ -204,13 +204,6 @@ export default function CategoryPage() {
             {sortedLinks.map((link, index) => (
               <motion.div key={link.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
                 <div onClick={() => setSelectedLink(link)} className="block glass rounded-xl card-hover overflow-hidden group cursor-pointer relative">
-                  {link.is_pinned && (
-                    <div className="absolute top-2 left-2 z-10">
-                      <span className="px-2 py-0.5 bg-amber-500/90 text-white text-[10px] rounded-full flex items-center gap-1 font-medium">
-                        <Pin className="w-2.5 h-2.5" /> 置顶
-                      </span>
-                    </div>
-                  )}
                   <div className="aspect-video bg-gradient-to-br from-brand-50/50 to-brand-100/50 relative flex items-center justify-center">
                     <div className="flex items-center justify-center">{getLinkIcon(link)}</div>
                     {isExpiredLink(link) && (
@@ -259,11 +252,6 @@ export default function CategoryPage() {
             {sortedLinks.map((link, index) => (
               <motion.div key={link.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.03 }}>
                 <div onClick={() => setSelectedLink(link)} className="flex items-center gap-4 p-4 glass rounded-xl card-hover group cursor-pointer">
-                  {link.is_pinned && (
-                    <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-[10px] rounded-full flex items-center gap-1 border border-amber-100 font-medium">
-                      <Pin className="w-2.5 h-2.5" /> 置顶
-                    </span>
-                  )}
                   <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
                     {getLinkIcon(link)}
                   </div>
