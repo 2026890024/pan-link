@@ -481,7 +481,7 @@ export default function SearchPage() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.04 }}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-4 glass rounded-xl card-hover group cursor-pointer"
+                    className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-4 glass rounded-xl card-hover group cursor-pointer"
                     onClick={() => setSelectedLink(link)}
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0 w-full">
