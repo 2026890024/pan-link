@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search as SearchIcon,
-  Pin,
   History,
   X,
   TrendingUp,
@@ -266,7 +265,7 @@ export default function SearchPage() {
         <form onSubmit={handleSearch} className="relative">
           <div className="absolute -inset-1 bg-gradient-to-r from-brand-400 via-brand-500 to-violet-500 rounded-2xl opacity-10 blur-md group-focus-within:opacity-25 transition-all duration-500" />
           <div className="relative">
-            <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-400" />
+            <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-500 z-10 pointer-events-none" />
             <input
               type="text"
               value={query}
