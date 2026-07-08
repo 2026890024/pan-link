@@ -30,7 +30,7 @@ export default function HomePage() {
   const urlCategory = searchParams.get('category') || null
   const urlSubCategory = searchParams.get('subcategory') || null
 
-  // 首页分类按钮：按可见性过滤 + sort_order 排序（展示全部）
+  // 首页分类按钮：按可见性过滤 + sort_order 排序
   const visibleCategories = useMemo(() => {
     try {
       const visibility: Record<string, boolean> = JSON.parse(
@@ -43,6 +43,27 @@ export default function HomePage() {
       return [...categories].sort((a, b) => a.sort_order - b.sort_order)
     }
   }, [categories])
+
+  // 子分类可见性过滤
+  const visibleSubCategories = useMemo(() => {
+    try {
+      const subVis: Record<string, boolean> = JSON.parse(
+        localStorage.getItem('homepage_subcategory_visibility') || '{}'
+      )
+      return subCategories
+        .filter(sc => {
+          // 父分类可见 + 子分类默认可见（除非显式隐藏）
+          const parentVisible = visibleCategories.some(c => c.id === sc.category_id)
+          if (!parentVisible) return false
+          return subVis[sc.id] !== false
+        })
+        .sort((a, b) => a.sort_order - b.sort_order)
+    } catch {
+      return subCategories.filter(sc =>
+        visibleCategories.some(c => c.id === sc.category_id)
+      ).sort((a, b) => a.sort_order - b.sort_order)
+    }
+  }, [subCategories, visibleCategories])
 
   const [searchQuery, setSearchQuery] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -142,7 +163,7 @@ export default function HomePage() {
   const paginatedLinks = filteredLinks.slice(startIndex, startIndex + itemsPerPage)
 
   const getSubCategories = (categoryId: string) => {
-    return subCategories.filter(sc => sc.category_id === categoryId).sort((a, b) => a.sort_order - b.sort_order)
+    return visibleSubCategories.filter(sc => sc.category_id === categoryId).sort((a, b) => a.sort_order - b.sort_order)
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -290,31 +311,37 @@ export default function HomePage() {
           )}
         </form>
 
-        {/* Quick Category Buttons - 展示全部 + 全部按钮 */}
-        <div className="flex items-center gap-2 sm:gap-2.5 mt-6 sm:mt-8 flex-wrap justify-center max-w-4xl">
-          <button
-            onClick={handleAllClick}
-            className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 whitespace-nowrap cursor-pointer ${
-              !selectedCategory
-                ? 'bg-brand-600 text-white shadow-button'
-                : 'bg-white/70 text-gray-600 hover:bg-gray-50 hover:text-brand-600 border border-gray-200 shadow-sm'
-            }`}
-          >
-            全部
-          </button>
-          {visibleCategories.map((cat) => (
+        {/* 快速搜索模块 */}
+        <div className="mt-6 sm:mt-8 w-full max-w-4xl">
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <Search className="w-4 h-4 text-brand-400" />
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-[0.15em]">快速搜索</span>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap justify-center">
             <button
-              key={cat.id}
-              onClick={() => handleCategoryClick(cat.id)}
+              onClick={handleAllClick}
               className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 whitespace-nowrap cursor-pointer ${
-                selectedCategory === cat.id
+                !selectedCategory
                   ? 'bg-brand-600 text-white shadow-button'
                   : 'bg-white/70 text-gray-600 hover:bg-gray-50 hover:text-brand-600 border border-gray-200 shadow-sm'
               }`}
             >
-              {cat.name}
+              全部
             </button>
-          ))}
+            {visibleCategories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => handleCategoryClick(cat.id)}
+                className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 whitespace-nowrap cursor-pointer ${
+                  selectedCategory === cat.id
+                    ? 'bg-brand-600 text-white shadow-button'
+                    : 'bg-white/70 text-gray-600 hover:bg-gray-50 hover:text-brand-600 border border-gray-200 shadow-sm'
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
