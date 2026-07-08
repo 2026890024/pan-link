@@ -7,13 +7,11 @@ import {
   History,
   X,
   TrendingUp,
-  FolderOpen,
   ArrowLeft,
   ChevronRight,
   Check,
   Download,
   Share2,
-  SlidersHorizontal,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { checkLinkStatus, copyToClipboard as copyUtil } from '@/lib/utils'
@@ -34,7 +32,6 @@ export default function SearchPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedLink, setSelectedLink] = useState<LinkItem | null>(null)
-  const [showFilters, setShowFilters] = useState(false)
   const itemsPerPage = 10
 
   // 加载搜索历史
@@ -292,119 +289,45 @@ export default function SearchPage() {
         </form>
       </motion.div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* 移动端筛选按钮 */}
-        {(hasSearched && results.length > 0) && (
-          <div className="lg:hidden">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2.5 glass rounded-xl text-sm font-medium text-brand-600 cursor-pointer hover:shadow-sm transition-all"
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-              筛选与排序
-              {(recentSearches.length > 0 || hotSearches.length > 0) && (
-                <span className="text-xs text-gray-400">（{filterCategory !== 'all' ? '已筛选' : `${results.length}条结果`}）</span>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* 侧边栏：移动端可折叠 */}
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+        {/* 侧边栏：仅桌面端且未搜索时显示 */}
         <motion.aside
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className={`lg:w-64 flex-shrink-0 ${showFilters ? 'block' : 'hidden'} lg:block`}
+          className={`${hasSearched ? 'hidden' : 'hidden lg:block'} lg:w-56 flex-shrink-0`}
         >
-          {/* 移动端关闭按钮 */}
-          <div className="flex items-center justify-between mb-3 lg:hidden">
-            <span className="text-sm font-semibold text-gray-700">筛选与排序</span>
-            <button
-              onClick={() => setShowFilters(false)}
-              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-            >
-              <X className="w-4 h-4 text-gray-400" />
-            </button>
-          </div>
-
-          {recentSearches.length > 0 && (
-            <div className="glass rounded-2xl p-5 mb-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
-                  <History className="w-4 h-4 text-gray-400" />
-                  搜索历史
+          {/* 未搜索时：显示搜索历史和热门搜索 */}
+          {!hasSearched && (
+            <>
+              {recentSearches.length > 0 && (
+                <div className="glass rounded-2xl p-5 mb-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+                      <History className="w-4 h-4 text-gray-400" />
+                      搜索历史
+                    </h3>
+                    <button onClick={handleClearHistory} className="text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">清空</button>
+                  </div>
+                  <div className="space-y-1.5">
+                    {recentSearches.map((term, index) => (
+                      <button key={index} onClick={() => handleRecentSearch(term)}
+                        className="block w-full text-left px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm cursor-pointer">{term}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="glass rounded-2xl p-5 mb-4">
+                <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-4 text-sm">
+                  <TrendingUp className="w-4 h-4 text-amber-400" />热门搜索
                 </h3>
-                <button
-                  onClick={handleClearHistory}
-                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                >
-                  清空
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  {hotSearches.map((term, index) => (
+                    <button key={index} onClick={() => handleRecentSearch(term)}
+                      className="px-3 py-2 bg-brand-50 hover:bg-brand-100 text-brand-600 hover:text-brand-700 rounded-full text-xs font-medium transition-colors cursor-pointer">{term}</button>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-1.5">
-                {recentSearches.map((term, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleRecentSearch(term)}
-                    className="block w-full text-left px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm cursor-pointer"
-                  >
-                    {term}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="glass rounded-2xl p-5 mb-4">
-            <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-4 text-sm">
-              <TrendingUp className="w-4 h-4 text-amber-400" />
-              热门搜索
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {hotSearches.map((term, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleRecentSearch(term)}
-                  className="px-3 py-2 bg-brand-50 hover:bg-brand-100 text-brand-600 hover:text-brand-700 rounded-full text-xs font-medium transition-colors cursor-pointer"
-                >
-                  {term}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 分类筛选 */}
-          {hasSearched && results.length > 0 && (
-            <div className="glass rounded-2xl p-5">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-4 text-sm">
-                <FolderOpen className="w-4 h-4 text-gray-400" />
-                分类筛选
-              </h3>
-              <div className="space-y-1">
-                <button
-                  onClick={() => setFilterCategory('all')}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 cursor-pointer ${
-                    filterCategory === 'all'
-                      ? 'bg-brand-50 text-brand-600 font-semibold'
-                      : 'text-gray-500 hover:bg-gray-50'
-                  }`}
-                >
-                  全部 ({results.length})
-                </button>
-                {categories.filter(c => categoryCounts[c.id]).map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setFilterCategory(cat.id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 cursor-pointer ${
-                      filterCategory === cat.id
-                        ? 'bg-brand-50 text-brand-600 font-semibold'
-                        : 'text-gray-500 hover:bg-gray-50'
-                    }`}
-                  >
-                    {cat.name} ({categoryCounts[cat.id]})
-                  </button>
-                ))}
-              </div>
-            </div>
+            </>
           )}
         </motion.aside>
 
@@ -414,32 +337,60 @@ export default function SearchPage() {
           transition={{ delay: 0.1 }}
           className="flex-1"
         >
-          {/* 结果统计 + 排序 */}
+          {/* 结果统计 + 排序 + 分类筛选 */}
           {!isSearching && hasSearched && results.length > 0 && (
-            <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
-              <div className="text-gray-500 text-sm">
-                {query ? (
-                  <span>找到 <strong className="text-brand-600">{results.length}</strong> 个与「{query}」相关的结果</span>
-                ) : (
-                  <span>共 <strong className="text-brand-600">{results.length}</strong> 个资源</span>
-                )}
+            <div className="space-y-3 mb-5">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="text-gray-500 text-sm flex-shrink-0">
+                  {query ? (
+                    <span>找到 <strong className="text-brand-600">{results.length}</strong> 个与「{query}」相关的结果</span>
+                  ) : (
+                    <span>共 <strong className="text-brand-600">{results.length}</strong> 个资源</span>
+                  )}
+                </div>
+                <div className="flex gap-1 sm:gap-1.5 flex-shrink-0">
+                  {[
+                    { value: 'relevance', label: '默认' },
+                    { value: 'recent', label: '最新' },
+                    { value: 'popular', label: '热门' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setSortBy(opt.value as 'relevance' | 'recent' | 'popular')}
+                      className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer whitespace-nowrap ${
+                        sortBy === opt.value
+                          ? 'bg-brand-600 text-white shadow-sm'
+                          : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex gap-1 sm:gap-1.5 flex-shrink-0">
-                {[
-                  { value: 'relevance', label: '默认' },
-                  { value: 'recent', label: '最新' },
-                  { value: 'popular', label: '热门' },
-                ].map((opt) => (
+              {/* 分类横向标签 */}
+              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+                <button
+                  onClick={() => setFilterCategory('all')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                    filterCategory === 'all'
+                      ? 'bg-brand-600 text-white shadow-sm'
+                      : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'
+                  }`}
+                >
+                  全部 ({results.length})
+                </button>
+                {categories.filter(c => categoryCounts[c.id]).map(cat => (
                   <button
-                    key={opt.value}
-                    onClick={() => setSortBy(opt.value as 'relevance' | 'recent' | 'popular')}
-                    className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                      sortBy === opt.value
+                    key={cat.id}
+                    onClick={() => setFilterCategory(cat.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                      filterCategory === cat.id
                         ? 'bg-brand-600 text-white shadow-sm'
                         : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'
                     }`}
                   >
-                    {opt.label}
+                    {cat.name} ({categoryCounts[cat.id]})
                   </button>
                 ))}
               </div>
