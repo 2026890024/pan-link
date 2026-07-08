@@ -4,11 +4,43 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>资源云 - 网盘资源聚合平台</title>
+    <title>Pan Link - 资源聚合</title>
     <meta name="description" content="一站式网盘资源聚合管理平台，高效管理和分享您的资源链接" />
+    <!-- DNS 预解析：加速 API 请求 -->
+    <link rel="dns-prefetch" href="//pan110.pages.dev" />
+    <!-- API 预热：在 HTML 下载时就开始解析域名 -->
+    <link rel="preconnect" href="https://pan110.pages.dev" crossorigin />
+    <link rel="stylesheet" href="/preloader.css" />
   </head>
   <body>
+    <!-- 预加载动画：JS 下载期间显示，消除白屏 -->
+    <div id="preloader"><div class="spinner"></div></div>
+    <div id="app-skeleton">
+      <div class="sk-header"></div>
+      <div class="sk-grid">
+        <div class="sk-card"></div><div class="sk-card"></div><div class="sk-card"></div>
+        <div class="sk-card"></div><div class="sk-card"></div><div class="sk-card"></div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- API 预热：在 HTML 解析阶段就触发请求，避免 React 渲染后再等待冷启动 -->
+    <script>
+      (function warmup() {
+        try { fetch('/api/health').catch(function(){}); } catch(e) {}
+      })();
+    </script>
+    <!-- JS 加载后隐藏预加载器 -->
+    <script>
+      // React 渲染完成后，root 中会有内容，自动移除 preloader
+      new MutationObserver(function() {
+        var root = document.getElementById('root');
+        if (root && root.children.length > 0) {
+          var p = document.getElementById('preloader');
+          if (p) { p.classList.add('done'); setTimeout(function(){ p.remove(); }, 300); }
+          this.disconnect();
+        }
+      }).observe(document.getElementById('root'), { childList: true, subtree: true });
+    </script>
   </body>
 </html>
