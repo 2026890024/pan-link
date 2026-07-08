@@ -6,11 +6,11 @@ import { useDataStore } from '@/store/useDataStore'
 
 // 前台页面 - 立即加载（用户访问频率最高）
 import HomePage from '@/pages/frontend/HomePage'
+import SearchPage from '@/pages/frontend/SearchPage'
 
 // 前台页面 - 懒加载
 const LinkDetailPage = lazy(() => import('@/pages/frontend/LinkDetailPage'))
 const CategoryPage = lazy(() => import('@/pages/frontend/CategoryPage'))
-const SearchPage = lazy(() => import('@/pages/frontend/SearchPage'))
 
 // 认证页面 - 懒加载
 const AdminLoginPage = lazy(() => import('@/pages/auth/AdminLoginPage'))
