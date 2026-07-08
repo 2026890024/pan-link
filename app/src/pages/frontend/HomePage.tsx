@@ -311,12 +311,8 @@ export default function HomePage() {
           )}
         </form>
 
-        {/* 快速搜索模块 */}
+        {/* 分类快速筛选按钮 */}
         <div className="mt-6 sm:mt-8 w-full max-w-4xl">
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <Search className="w-4 h-4 text-brand-400" />
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-[0.15em]">快速搜索</span>
-          </div>
           <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap justify-center">
             <button
               onClick={handleAllClick}
