@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { motion, AnimatePresence } from 'framer-motion'
@@ -196,16 +196,24 @@ export default function SearchPage() {
   }, [links])
 
   const getLinkIcon = (link: LinkItem) => {
-    if (link.icon) {
-      return (
+    if (!link.icon) {
+      return <LinkIcon link={link} size="md" />
+    }
+    return (
+      <div className="relative w-12 h-12 flex-shrink-0">
         <img
           src={link.icon}
           alt={link.name}
-          className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
+          className="w-12 h-12 rounded-xl object-cover absolute inset-0"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none'
+          }}
         />
-      )
-    }
-    return <LinkIcon link={link} size="md" />
+        <div className="absolute inset-0">
+          <LinkIcon link={link} size="md" />
+        </div>
+      </div>
+    )
   }
 
   // 分页
@@ -484,11 +492,7 @@ export default function SearchPage() {
                         )}
                       </div>
                     </div>
-                    {link.is_pinned && (
-                      <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-[10px] rounded-full flex items-center gap-1 flex-shrink-0 border border-amber-100 font-medium">
-                        <Pin className="w-2.5 h-2.5" /> 置顶
-                      </span>
-                    )}
+                    {link.is_pinned && null}
                     {/* 快速操作按钮 */}
                     <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                       <button
