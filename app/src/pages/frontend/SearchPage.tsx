@@ -416,7 +416,7 @@ export default function SearchPage() {
         >
           {/* 结果统计 + 排序 */}
           {!isSearching && hasSearched && results.length > 0 && (
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
               <div className="text-gray-500 text-sm">
                 {query ? (
                   <span>找到 <strong className="text-brand-600">{results.length}</strong> 个与「{query}」相关的结果</span>
@@ -424,15 +424,25 @@ export default function SearchPage() {
                   <span>共 <strong className="text-brand-600">{results.length}</strong> 个资源</span>
                 )}
               </div>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'relevance' | 'recent' | 'popular')}
-                className="px-3 py-2 glass rounded-xl text-sm text-brand-600 font-medium focus:outline-none cursor-pointer"
-              >
-                <option value="relevance">默认排序</option>
-                <option value="recent">最新优先</option>
-                <option value="popular">热门优先</option>
-              </select>
+              <div className="flex gap-1.5">
+                {[
+                  { value: 'relevance', label: '默认' },
+                  { value: 'recent', label: '最新' },
+                  { value: 'popular', label: '热门' },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setSortBy(opt.value as 'relevance' | 'recent' | 'popular')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer ${
+                      sortBy === opt.value
+                        ? 'bg-brand-600 text-white shadow-sm'
+                        : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -471,28 +481,30 @@ export default function SearchPage() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.04 }}
-                    className="flex items-center gap-4 p-4 glass rounded-xl card-hover group cursor-pointer"
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-4 glass rounded-xl card-hover group cursor-pointer"
                     onClick={() => setSelectedLink(link)}
                   >
-                    {getLinkIcon(link)}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-800 group-hover:text-brand-600 transition-colors truncate text-sm">
-                        {link.name}
-                      </h3>
-                      <p className="text-xs text-gray-500 truncate mt-0.5">{link.description}</p>
-                      <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
-                        <span className="px-2 py-0.5 bg-brand-50 rounded-full text-[10px] font-medium text-brand-500">
-                          {categories.find(c => c.id === link.category_id)?.name || '未分类'}
-                        </span>
-                        {link.subcategory_id && (
-                          <span className="px-2 py-0.5 bg-violet-50 text-violet-500 rounded-full text-[10px] font-medium">
-                            {getSubCategoryName(link.subcategory_id)}
+                    <div className="flex items-center gap-3 flex-1 min-w-0 w-full">
+                      {getLinkIcon(link)}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-800 group-hover:text-brand-600 transition-colors text-sm truncate">
+                          {link.name}
+                        </h3>
+                        <p className="text-xs text-gray-500 truncate mt-0.5 hidden sm:block">{link.description}</p>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
+                          <span className="px-2 py-0.5 bg-brand-50 rounded-full text-[10px] font-medium text-brand-500 whitespace-nowrap">
+                            {categories.find(c => c.id === link.category_id)?.name || '未分类'}
                           </span>
-                        )}
+                          {link.subcategory_id && (
+                            <span className="px-2 py-0.5 bg-violet-50 text-violet-500 rounded-full text-[10px] font-medium whitespace-nowrap">
+                              {getSubCategoryName(link.subcategory_id)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     {/* 快速操作按钮 */}
-                    <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5 flex-shrink-0 w-full sm:w-auto justify-end sm:justify-start" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
@@ -502,7 +514,8 @@ export default function SearchPage() {
                         title="访问下载"
                       >
                         <Download className="w-3 h-3" />
-                        访问下载
+                        <span className="hidden sm:inline">访问下载</span>
+                        <span className="sm:hidden">下载</span>
                       </button>
                       <button
                         onClick={(e) => {
@@ -513,7 +526,7 @@ export default function SearchPage() {
                         title="分享链接"
                       >
                         {copiedId === link.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Share2 className="w-3 h-3" />}
-                        分享
+                        <span className="hidden sm:inline">分享</span>
                       </button>
                     </div>
                   </motion.div>
