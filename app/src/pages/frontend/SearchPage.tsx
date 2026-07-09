@@ -620,13 +620,16 @@ export default function SearchPage() {
         {showCategoryPanel && (
           <>
             <motion.div
+              key="category-overlay"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
               className="fixed lg:hidden inset-0 z-40 bg-black/20"
               onClick={() => setShowCategoryPanel(false)}
             />
             <motion.div
+              key="category-panel"
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
