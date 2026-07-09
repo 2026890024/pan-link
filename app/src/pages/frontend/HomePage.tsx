@@ -251,21 +251,21 @@ export default function HomePage() {
   return (
     <div className="min-h-screen text-gray-900 flex flex-col">
       {/* Hero Section */}
-      <div className="gradient-hero flex flex-col items-center pt-16 sm:pt-24 px-4 pb-12 sm:pb-16">
+      <div className="gradient-hero flex flex-col items-center pt-10 sm:pt-24 px-4 pb-8 sm:pb-16">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-4 mb-6 sm:mb-8 group">
-          <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-brand-600 via-brand-500 to-violet-500 rounded-2xl flex items-center justify-center shadow-glass group-hover:shadow-glass-lg group-hover:scale-105 transition-all duration-500">
-            <svg viewBox="0 0 24 24" className="w-7 h-7 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2">
+        <Link to="/" className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-8 group">
+          <div className="w-11 h-11 sm:w-16 sm:h-16 bg-gradient-to-br from-brand-600 via-brand-500 to-violet-500 rounded-2xl flex items-center justify-center shadow-glass group-hover:shadow-glass-lg group-hover:scale-105 transition-all duration-500">
+            <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <span className="text-3xl sm:text-4xl font-bold text-gradient">
+          <span className="text-2xl sm:text-4xl font-bold text-gradient">
             资源云
           </span>
         </Link>
 
         {/* Subtitle */}
-        <p className="text-gray-500 text-sm sm:text-base mb-6 sm:mb-8">高效聚合 · 一站管理 · 轻松分享</p>
+        <p className="text-gray-500 text-xs sm:text-base mb-5 sm:mb-8">高效聚合 · 一站管理 · 轻松分享</p>
 
         {/* Search Bar */}
         <form onSubmit={handleSearch} className="w-full max-w-xl sm:max-w-2xl relative">
@@ -279,13 +279,13 @@ export default function HomePage() {
                 onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true) }}
                 onFocus={() => searchQuery.trim() && setShowSuggestions(true)}
                 placeholder="搜索您需要的资源..."
-                className="w-full px-5 py-3.5 sm:px-6 sm:py-4 pl-12 sm:pl-14 pr-24 sm:pr-28 rounded-full glass text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400/30 transition-all duration-300 text-sm sm:text-base shadow-glass"
+                className="w-full px-4 sm:px-6 py-3 sm:py-4 pl-11 sm:pl-14 pr-20 sm:pr-28 rounded-full glass text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400/30 transition-all duration-300 text-sm sm:text-base shadow-glass"
                 aria-label="搜索资源"
               />
-              <Search className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 text-brand-400 group-focus-within:text-brand-600 transition-colors duration-300" />
+              <Search className="absolute left-3.5 sm:left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 sm:w-6 sm:h-6 text-brand-400 group-focus-within:text-brand-600 transition-colors duration-300" />
               <button
                 type="submit"
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-5 sm:px-8 py-2 sm:py-2.5 bg-gradient-to-r from-brand-600 to-brand-500 text-white text-sm rounded-full hover:from-brand-700 hover:to-brand-600 transition-all duration-300 font-semibold shadow-button hover:shadow-lg active:scale-95"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-4 sm:px-8 py-1.5 sm:py-2.5 bg-gradient-to-r from-brand-600 to-brand-500 text-white text-xs sm:text-sm rounded-full hover:from-brand-700 hover:to-brand-600 transition-all duration-300 font-semibold shadow-button hover:shadow-lg active:scale-95"
               >
                 搜索
               </button>
@@ -322,14 +322,14 @@ export default function HomePage() {
         </form>
 
         {/* 分类快速筛选按钮 */}
-        <div className="mt-6 sm:mt-8 w-full max-w-4xl">
-          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap justify-center">
+        <div className="mt-5 sm:mt-8 w-full max-w-4xl">
+          <div className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto sm:overflow-visible sm:flex-wrap sm:justify-center px-1 pb-1 scrollbar-none -mx-1 sm:mx-0">
             <button
               onClick={handleAllClick}
-              className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 whitespace-nowrap cursor-pointer ${
+              className={`flex-shrink-0 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 whitespace-nowrap cursor-pointer touch-manipulation min-h-[36px] sm:min-h-0 ${
                 !selectedCategory
                   ? 'bg-brand-600 text-white shadow-button'
-                  : 'bg-white/70 text-gray-600 hover:bg-gray-50 hover:text-brand-600 border border-gray-200 shadow-sm'
+                  : 'bg-white/70 text-gray-600 active:bg-gray-100 hover:bg-gray-50 hover:text-brand-600 border border-gray-200 shadow-sm'
               }`}
             >
               全部
@@ -338,10 +338,10 @@ export default function HomePage() {
               <button
                 key={cat.id}
                 onClick={() => handleCategoryClick(cat.id)}
-                className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 whitespace-nowrap cursor-pointer ${
+                className={`flex-shrink-0 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 whitespace-nowrap cursor-pointer touch-manipulation min-h-[36px] sm:min-h-0 ${
                   selectedCategory === cat.id
                     ? 'bg-brand-600 text-white shadow-button'
-                    : 'bg-white/70 text-gray-600 hover:bg-gray-50 hover:text-brand-600 border border-gray-200 shadow-sm'
+                    : 'bg-white/70 text-gray-600 active:bg-gray-100 hover:bg-gray-50 hover:text-brand-600 border border-gray-200 shadow-sm'
                 }`}
               >
                 {cat.name}
@@ -354,50 +354,50 @@ export default function HomePage() {
       {/* Mobile Menu Button (floating) */}
       <button
         onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-        className="fixed left-4 bottom-6 z-30 md:hidden px-4 py-3 bg-gradient-to-br from-brand-600 to-brand-500 text-white rounded-2xl shadow-glass flex items-center gap-2 hover:shadow-glass-lg active:scale-95 transition-all duration-300 cursor-pointer"
+        className="fixed left-4 bottom-6 z-30 md:hidden px-4 py-2.5 bg-gradient-to-br from-brand-600 to-brand-500 text-white rounded-full shadow-lg shadow-brand-500/30 flex items-center gap-2 hover:shadow-xl active:scale-95 transition-all duration-300 cursor-pointer touch-manipulation"
         aria-label="打开分类菜单"
       >
-        <Menu className="w-5 h-5" />
+        <Menu className="w-4.5 h-4.5" />
         <span className="text-sm font-medium">分类</span>
       </button>
 
       {/* Main Content - 直接显示 */}
-      <main className="max-w-7xl mx-auto px-4 py-6 w-full">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 w-full">
           <div className="flex gap-6">
             {/* Mobile Sidebar Overlay */}
           {showMobileSidebar && (
             <div
-              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              className="fixed inset-0 bg-black/40 z-40 md:hidden backdrop-blur-sm transition-all duration-300"
               onClick={() => setShowMobileSidebar(false)}
             />
           )}
 
           {/* Left Sidebar */}
           <div className={`
-            ${showMobileSidebar ? 'fixed left-0 top-0 h-full w-72 z-50 transform translate-x-0' : 'hidden md:block'}
-            md:static md:transform-none md:w-64 md:flex-shrink-0 animate-slide-up
+            ${showMobileSidebar ? 'fixed left-0 top-0 h-full w-[85vw] max-w-[300px] z-50 translate-x-0 shadow-2xl' : '-translate-x-full'}
+            md:static md:transform-none md:translate-x-0 md:w-64 md:flex-shrink-0 transition-transform duration-300 ease-out
           `}>
-            <div className="bg-white/80 backdrop-blur-xl h-full md:h-auto md:rounded-2xl shadow-glass border border-white/60 p-5 md:sticky md:top-24 overflow-y-auto">
+            <div className="bg-white h-full md:h-auto md:rounded-2xl md:shadow-sm md:border md:border-gray-100 p-4 sm:p-5 md:sticky md:top-24 overflow-y-auto">
               {/* Mobile Close Button */}
               <div className="flex justify-between items-center mb-5 md:hidden">
-                <span className="font-semibold text-gray-900 text-lg">资源分类</span>
+                <span className="font-bold text-gray-900 text-lg">资源分类</span>
                 <button
                   onClick={() => setShowMobileSidebar(false)}
-                  className="p-2 hover:bg-gray-100 rounded-xl transition-all duration-200 cursor-pointer"
+                  className="p-2.5 hover:bg-gray-100 rounded-xl transition-all duration-200 cursor-pointer touch-manipulation"
                   aria-label="关闭分类菜单"
                 >
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
-              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-4 px-2">资源分类</h3>
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-4 px-2 hidden md:block">资源分类</h3>
               <nav className="space-y-1" role="navigation" aria-label="资源分类导航">
                 {/* 全部 */}
                 <button
                   onClick={handleAllClick}
-                  className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2.5 cursor-pointer ${
+                  className={`w-full text-left px-3 py-3 sm:py-2.5 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2.5 cursor-pointer touch-manipulation ${
                     !selectedCategory
                       ? 'bg-brand-600 text-white shadow-button'
-                      : 'text-gray-700 hover:bg-gray-50'
+                      : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
                   }`}
                   aria-label="查看全部资源"
                   aria-current={!selectedCategory ? 'page' : undefined}
@@ -415,10 +415,10 @@ export default function HomePage() {
                       <div className="flex items-center">
                         <button
                           onClick={() => handleCategoryClick(category.id)}
-                          className={`flex-1 text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 flex items-center justify-between cursor-pointer ${
+                          className={`flex-1 text-left px-3 py-3 sm:py-2.5 rounded-xl text-sm font-medium transition-all duration-200 flex items-center justify-between cursor-pointer touch-manipulation ${
                             isSelected
                               ? 'bg-brand-600 text-white shadow-button'
-                              : 'text-gray-700 hover:bg-gray-50'
+                              : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
                           }`}
                         >
                           <div className="flex items-center gap-2.5">
@@ -431,7 +431,7 @@ export default function HomePage() {
                                 e.stopPropagation()
                                 setExpandedCategory(isExpanded ? null : category.id)
                               }}
-                              className={`p-1 rounded-lg transition-all duration-200 ${isSelected ? 'hover:bg-white/20' : 'hover:bg-brand-100'}`}
+                              className={`p-2 sm:p-1 rounded-lg transition-all duration-200 cursor-pointer touch-manipulation ${isSelected ? 'hover:bg-white/20' : 'hover:bg-brand-100 active:bg-brand-200'}`}
                             >
                               {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                             </span>
@@ -444,10 +444,10 @@ export default function HomePage() {
                         <div className="mt-1 ml-2 space-y-0.5 border-l-2 border-brand-100 pl-3">
                           <button
                             onClick={() => { setSelectedSubCategory(null); setCurrentPage(1); updateUrlParams(category.id, null) }}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-200 cursor-pointer ${
+                            className={`w-full text-left px-3 py-2.5 sm:py-2 rounded-lg text-xs transition-all duration-200 cursor-pointer touch-manipulation ${
                               selectedSubCategory === null && isSelected
                                 ? 'bg-brand-50 text-brand-600 font-semibold'
-                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700 active:bg-gray-100'
                             }`}
                           >
                             全部
@@ -461,10 +461,10 @@ export default function HomePage() {
                                 setCurrentPage(1)
                                 updateUrlParams(category.id, sc.id)
                               }}
-                              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-200 cursor-pointer ${
+                              className={`w-full text-left px-3 py-2.5 sm:py-2 rounded-lg text-xs transition-all duration-200 cursor-pointer touch-manipulation ${
                                 selectedSubCategory === sc.id
                                   ? 'bg-brand-50 text-brand-600 font-semibold'
-                                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700 active:bg-gray-100'
                               }`}
                             >
                               {sc.name}
@@ -492,32 +492,32 @@ export default function HomePage() {
               <>
             {/* Featured - 只在全部资源下显示 */}
             {!selectedCategory && !selectedSubCategory && featuredLinks.length > 0 && (
-              <div className="mb-8 animate-fade-in">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="p-2 bg-amber-50 rounded-xl border border-amber-100">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
+              <div className="mb-6 sm:mb-8 animate-fade-in">
+                <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-5">
+                  <div className="p-1.5 sm:p-2 bg-amber-50 rounded-xl border border-amber-100">
+                    <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500" />
                   </div>
-                  <h2 className="text-lg font-bold text-gray-900">精选推荐</h2>
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900">精选推荐</h2>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
                   {featuredLinks.map((link, idx) => (
                     <div
                       key={link.id}
                       onClick={() => setSelectedLink(link)}
-                      className={`group bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 card-hover cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
+                      className={`group bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-gray-100 card-hover cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
                     >
-                      <div className="flex flex-col gap-3">
+                      <div className="flex flex-col gap-2 sm:gap-3">
                         {getLinkIcon(link)}
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm truncate leading-tight">
+                          <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-xs sm:text-sm truncate leading-tight">
                             {link.name}
                           </h3>
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{link.description}</p>
+                          <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1 line-clamp-2 leading-relaxed">{link.description}</p>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-auto pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1 sm:gap-1.5 mt-auto pt-1.5 sm:pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleLinkClick(link) }}
-                            className="flex-1 py-2 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-1 shadow-sm hover:shadow-md font-medium min-h-[36px]"
+                            className="flex-1 py-1.5 sm:py-2 text-[11px] sm:text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-1 shadow-sm hover:shadow-md font-medium min-h-[32px] sm:min-h-[36px] touch-manipulation"
                             aria-label={`访问 ${link.name}`}
                           >
                             <Download className="w-3 h-3" />
@@ -525,7 +525,7 @@ export default function HomePage() {
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); shareLink(link) }}
-                            className="py-2 px-3 text-xs text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[36px]"
+                            className="py-1.5 sm:py-2 px-2 sm:px-3 text-[11px] sm:text-xs text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[32px] sm:min-h-[36px] touch-manipulation"
                             aria-label={`分享 ${link.name}`}
                           >
                             {copiedId === link.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Share2 className="w-3 h-3" />}
@@ -540,11 +540,11 @@ export default function HomePage() {
             )}
 
             {/* Links List */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-fade-in">
-              <div className="px-5 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-1 h-6 bg-gradient-to-b from-brand-500 to-brand-600 rounded-full"></div>
-                  <h2 className="text-lg font-bold text-gray-900">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-fade-in">
+              <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <div className="w-1 h-5 sm:h-6 bg-gradient-to-b from-brand-500 to-brand-600 rounded-full flex-shrink-0"></div>
+                  <h2 className="text-sm sm:text-lg font-bold text-gray-900 truncate">
                     {selectedSubCategory
                       ? getSubCategories(selectedCategory || '').find(sc => sc.id === selectedSubCategory)?.name || '资源列表'
                       : selectedCategory
@@ -552,42 +552,42 @@ export default function HomePage() {
                         : '全部资源'
                     }
                   </h2>
-                  <span className="px-2.5 py-0.5 bg-brand-50 rounded-full text-xs text-brand-500 font-semibold">{filteredLinks.length} 个</span>
+                  <span className="px-2 py-0.5 bg-brand-50 rounded-full text-[10px] sm:text-xs text-brand-500 font-semibold flex-shrink-0">{filteredLinks.length} 个</span>
                 </div>
-                <div className="flex items-center bg-brand-50 rounded-xl p-1 gap-0.5">
+                <div className="flex items-center bg-brand-50 rounded-xl p-1 gap-0.5 flex-shrink-0">
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`p-2 rounded-lg transition-all duration-200 cursor-pointer ${
+                    className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 cursor-pointer touch-manipulation ${
                       viewMode === 'list'
                         ? 'bg-white text-brand-600 shadow-sm'
                         : 'text-brand-400 hover:text-brand-600'
                     }`}
                     aria-label="列表视图"
                   >
-                    <List className="w-4 h-4" />
+                    <List className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </button>
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded-lg transition-all duration-200 cursor-pointer ${
+                    className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 cursor-pointer touch-manipulation ${
                       viewMode === 'grid'
                         ? 'bg-white text-brand-600 shadow-sm'
                         : 'text-brand-400 hover:text-brand-600'
                     }`}
                     aria-label="网格视图"
                   >
-                    <Grid className="w-4 h-4" />
+                    <Grid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </button>
                 </div>
               </div>
 
-              <div className="p-4 sm:p-6">
+              <div className="p-3 sm:p-6">
                 {filteredLinks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20">
-                    <div className="w-20 h-20 rounded-2xl bg-brand-50 flex items-center justify-center mb-5">
-                      <FolderOpen className="w-10 h-10 text-gray-400" />
+                  <div className="flex flex-col items-center justify-center py-16 sm:py-20">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-brand-50 flex items-center justify-center mb-4 sm:mb-5">
+                      <FolderOpen className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
                     </div>
-                    <p className="text-base font-semibold text-gray-500">暂无资源</p>
-                    <p className="text-sm text-gray-400 mt-1">该分类下还没有添加资源</p>
+                    <p className="text-sm sm:text-base font-semibold text-gray-500">暂无资源</p>
+                    <p className="text-xs sm:text-sm text-gray-400 mt-1">该分类下还没有添加资源</p>
                   </div>
                 ) : (
                   <>
@@ -604,7 +604,7 @@ export default function HomePage() {
                           {paginatedLinks.map((link) => (
                             <div
                               key={link.id}
-                              className="group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 cursor-pointer border border-transparent hover:border-gray-200"
+                              className="group flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 cursor-pointer border border-transparent hover:border-gray-200 active:bg-gray-100 touch-manipulation"
                               onClick={() => setSelectedLink(link)}
                             >
                               <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
@@ -615,16 +615,16 @@ export default function HomePage() {
                                       {link.name}
                                     </h3>
                                   </div>
-                                  <p className="text-xs text-gray-500 mt-1 leading-relaxed line-clamp-2 sm:truncate">{link.description}</p>
+                                  <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1 leading-relaxed line-clamp-2 sm:truncate">{link.description}</p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1.5 flex-shrink-0 sm:ml-auto" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-1.5 flex-shrink-0 w-full sm:w-auto" onClick={(e) => e.stopPropagation()}>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     handleLinkClick(link)
                                   }}
-                                  className="py-2 px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium min-h-[36px]"
+                                  className="flex-1 sm:flex-none py-2 sm:py-2 px-3 sm:px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-1 shadow-sm font-medium min-h-[36px] sm:min-h-[36px] touch-manipulation"
                                   aria-label={`访问 ${link.name}`}
                                 >
                                   <Download className="w-3 h-3" />
@@ -635,7 +635,7 @@ export default function HomePage() {
                                     e.stopPropagation()
                                     shareLink(link)
                                   }}
-                                  className="py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[36px]"
+                                  className="py-2 px-2.5 sm:px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[36px] sm:min-h-[36px] touch-manipulation"
                                   aria-label={`分享 ${link.name}`}
                                 >
                                   {copiedId === link.id ? (
@@ -656,15 +656,15 @@ export default function HomePage() {
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.98 }}
                           transition={{ duration: 0.25 }}
-                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
                         >
                           {paginatedLinks.map((link, idx) => (
                             <div
                               key={link.id}
                               onClick={() => setSelectedLink(link)}
-                              className={`group p-4 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm card-hover cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
+                              className={`group p-3 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm card-hover cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)} touch-manipulation`}
                             >
-                              <div className="flex items-center gap-3 mb-3">
+                              <div className="flex items-center gap-3 mb-2.5 sm:mb-3">
                                 {getLinkIcon(link)}
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5">
@@ -672,16 +672,16 @@ export default function HomePage() {
                                       {link.name}
                                     </h3>
                                   </div>
-                                  <p className="text-xs text-gray-500 truncate mt-0.5">{link.description}</p>
+                                  <p className="text-[11px] sm:text-xs text-gray-500 truncate mt-0.5">{link.description}</p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1.5 pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-1 sm:gap-1.5 pt-1.5 sm:pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     handleLinkClick(link)
                                   }}
-                                  className="flex-1 py-2 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-1 shadow-sm font-medium min-h-[36px]"
+                                  className="flex-1 py-1.5 sm:py-2 text-[11px] sm:text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-1 shadow-sm font-medium min-h-[34px] sm:min-h-[36px] touch-manipulation"
                                   aria-label={`访问 ${link.name}`}
                                 >
                                   <Download className="w-3 h-3" />
@@ -692,7 +692,7 @@ export default function HomePage() {
                                     e.stopPropagation()
                                     shareLink(link)
                                   }}
-                                  className="py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[36px]"
+                                  className="py-1.5 sm:py-2 px-2 sm:px-3 text-[11px] sm:text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[34px] sm:min-h-[36px] touch-manipulation"
                                   aria-label={`分享 ${link.name}`}
                                 >
                                   {copiedId === link.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Share2 className="w-3 h-3" />}
@@ -707,11 +707,11 @@ export default function HomePage() {
 
                     {/* 分页控件 */}
                     {totalPages > 1 && (
-                      <div className="flex items-center justify-center gap-2 mt-8">
+                      <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-6 sm:mt-8">
                         <button
                           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                           disabled={currentPage === 1}
-                          className="px-4 py-2 rounded-xl text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer"
+                          className="px-3 sm:px-4 py-2 sm:py-2 rounded-xl text-xs sm:text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer touch-manipulation"
                           aria-label="上一页"
                         >
                           上一页
@@ -721,16 +721,16 @@ export default function HomePage() {
                           .filter(page =>
                             page === 1 ||
                             page === totalPages ||
-                            Math.abs(page - currentPage) <= 2
+                            Math.abs(page - currentPage) <= 1
                           )
                           .map((page, index, array) => (
                             <span key={page}>
                               {index > 0 && array[index - 1] !== page - 1 && (
-                                <span className="px-1 text-gray-400">...</span>
+                                <span className="px-0.5 sm:px-1 text-gray-400 text-xs">...</span>
                               )}
                               <button
                                 onClick={() => setCurrentPage(page)}
-                                className={`w-9 h-9 rounded-xl text-sm transition-all duration-200 font-medium cursor-pointer ${
+                                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-all duration-200 font-medium cursor-pointer touch-manipulation ${
                                   currentPage === page
                                     ? 'bg-brand-600 text-white shadow-button'
                                     : 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-600'
@@ -746,7 +746,7 @@ export default function HomePage() {
                         <button
                           onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                           disabled={currentPage === totalPages}
-                          className="px-4 py-2 rounded-xl text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer"
+                          className="px-3 sm:px-4 py-2 sm:py-2 rounded-xl text-xs sm:text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer touch-manipulation"
                           aria-label="下一页"
                         >
                           下一页
@@ -764,28 +764,28 @@ export default function HomePage() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-12 pb-8">
+      <footer className="mt-8 sm:mt-12 pb-6 sm:pb-8">
         <div className="max-w-7xl mx-auto px-4">
           {/* Divider */}
-          <div className="flex items-center justify-center gap-4 mb-6">
+          <div className="flex items-center justify-center gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent flex-1"></div>
-            <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 rounded-full"></div>
             <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent flex-1"></div>
           </div>
           {/* Disclaimer */}
-          <div className="text-center mb-6 max-w-4xl mx-auto">
-            <p className="text-xs text-gray-400 leading-relaxed">
+          <div className="text-center mb-4 sm:mb-6 max-w-4xl mx-auto px-2">
+            <p className="text-[11px] sm:text-xs text-gray-400 leading-relaxed">
               免责申明：本站不以盈利为目的，下载资源均来源于网络，只做学习和交流使用，版权归原作者所有，若作商业用途请购买正版，由于未及时购买和付费发生的侵权行为，与本站无关。如果侵犯了您的合法权益，请联系站长删除。
             </p>
           </div>
           {/* Copyright */}
-          <div className="flex items-center justify-center gap-3 text-sm text-gray-400">
+          <div className="flex items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-400">
             <Link
               to="/admin-login"
-              className="w-8 h-8 bg-gradient-to-br from-brand-600 via-brand-500 to-violet-500 rounded-xl flex items-center justify-center hover:shadow-button transition-all duration-300 hover:scale-105 cursor-pointer"
+              className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-brand-600 via-brand-500 to-violet-500 rounded-xl flex items-center justify-center hover:shadow-button transition-all duration-300 hover:scale-105 cursor-pointer"
               title="进入后台管理"
             >
-              <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </Link>

@@ -28,6 +28,10 @@ export default function SearchPage() {
   const [results, setResults] = useState<LinkItem[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+
+  useEffect(() => {
+    document.title = query ? `搜索: ${query} - 资源云` : '搜索 - 资源云'
+  }, [query])
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'relevance' | 'recent' | 'popular'>('relevance')
   const [filterCategory, setFilterCategory] = useState<string>('all')
@@ -245,33 +249,32 @@ export default function SearchPage() {
   }, [results])
 
   return (
-    <div className="min-h-screen bg-[#F5F7FA] flex flex-col pb-24">
+    <div className="min-h-screen bg-[#FAFBFC] flex flex-col pb-20 sm:pb-24">
       {/* 顶部居中标题 */}
-      <div className="pt-6 pb-4 shrink-0">
-        <Link to="/" className="flex items-center justify-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-md">
-            <LayoutGrid className="w-5 h-5 text-white" />
+      <div className="pt-6 sm:pt-8 pb-3 sm:pb-4 shrink-0">
+        <Link to="/" className="flex items-center justify-center gap-2 sm:gap-2.5 group">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gray-900 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+            <LayoutGrid className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white" />
           </div>
-          <span className="font-bold text-xl text-gray-800">资源云</span>
+          <span className="font-bold text-lg sm:text-xl text-gray-800">资源云</span>
         </Link>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 w-full flex-1 flex gap-6">
-        {/* 左侧分类面板 - 桌面端显示，和首页一致 */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 w-full flex-1 flex gap-6">
+        {/* 左侧分类面板 - 桌面端显示 */}
         <div className="hidden lg:block w-64 flex-shrink-0">
-          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-100 p-5 sticky top-24">
-            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-4 px-2">资源分类</h3>
-            <nav className="space-y-1">
-              {/* 全部 */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sticky top-24">
+            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-4 px-2">浏览分类</h3>
+            <nav className="space-y-0.5">
               <button
                 onClick={() => { setFilterCategory('all'); setFilterSubCategory('all'); setExpandedCategory(null) }}
-                className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2.5 cursor-pointer ${
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 flex items-center gap-2.5 cursor-pointer ${
                   filterCategory === 'all'
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-gray-900 text-white'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
-                <FolderOpen className={`w-4 h-4 ${filterCategory === 'all' ? 'text-white/90' : 'text-brand-400'}`} />
+                <FolderOpen className={`w-4 h-4 ${filterCategory === 'all' ? 'text-white/70' : 'text-gray-400'}`} />
                 <span>全部资源</span>
               </button>
               {allCategories.map((category) => {
@@ -292,14 +295,14 @@ export default function SearchPage() {
                             setExpandedCategory(category.id)
                           }
                         }}
-                        className={`flex-1 text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 flex items-center justify-between cursor-pointer ${
+                        className={`flex-1 text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 flex items-center justify-between cursor-pointer ${
                           isSelected && filterSubCategory === 'all'
-                            ? 'bg-brand-600 text-white shadow-sm'
-                            : 'text-gray-700 hover:bg-gray-50'
+                            ? 'bg-gray-900 text-white'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                         }`}
                       >
                         <div className="flex items-center gap-2.5">
-                          <FolderOpen className={`w-4 h-4 ${isSelected && filterSubCategory === 'all' ? 'text-white/90' : 'text-brand-400'}`} />
+                          <FolderOpen className={`w-4 h-4 ${isSelected && filterSubCategory === 'all' ? 'text-white/70' : 'text-gray-400'}`} />
                           <span>{category.name}</span>
                         </div>
                         {subcategories.length > 0 && (
@@ -308,9 +311,9 @@ export default function SearchPage() {
                               e.stopPropagation()
                               setExpandedCategory(isExpanded ? null : category.id)
                             }}
-                            className={`p-1 rounded-lg transition-all duration-200 ${isSelected && filterSubCategory === 'all' ? 'hover:bg-white/20' : 'hover:bg-brand-100'}`}
+                            className={`p-1 rounded-lg transition-all duration-150 ${isSelected && filterSubCategory === 'all' ? 'hover:bg-white/20' : 'hover:bg-gray-100'}`}
                           >
-                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                            {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                           </span>
                         )}
                       </button>
@@ -318,12 +321,12 @@ export default function SearchPage() {
 
                     {/* 子分类 */}
                     {isExpanded && subcategories.length > 0 && (
-                      <div className="mt-1 ml-2 space-y-0.5 border-l-2 border-brand-100 pl-3">
+                      <div className="mt-1 ml-2 space-y-0.5 border-l-2 border-gray-100 pl-3">
                         <button
                           onClick={() => handleSubCategorySelect(category.id, 'all')}
-                          className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-200 cursor-pointer ${
+                          className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-150 cursor-pointer ${
                             filterSubCategory === 'all' && isSelected
-                              ? 'bg-brand-50 text-brand-600 font-semibold'
+                              ? 'bg-gray-100 text-gray-900 font-medium'
                               : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
                           }`}
                         >
@@ -333,9 +336,9 @@ export default function SearchPage() {
                           <button
                             key={sc.id}
                             onClick={() => handleSubCategorySelect(category.id, sc.id)}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-200 cursor-pointer ${
+                            className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-150 cursor-pointer ${
                               filterSubCategory === sc.id
-                                ? 'bg-brand-50 text-brand-600 font-semibold'
+                                ? 'bg-gray-100 text-gray-900 font-medium'
                                 : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
                             }`}
                           >
@@ -359,28 +362,28 @@ export default function SearchPage() {
           onSubmit={handleSearch}
           className="relative"
         >
-          <div className="flex items-center bg-white rounded-2xl shadow-sm border border-gray-200/60 px-4 py-3 focus-within:ring-2 focus-within:ring-brand-400/20 focus-within:border-brand-400/40 transition-all">
-            <SearchIcon className="w-5 h-5 text-gray-400 flex-shrink-0" />
+          <div className="flex items-center bg-white rounded-2xl shadow-sm border border-gray-100 px-3 sm:px-4 py-3 sm:py-3.5 focus-within:border-gray-200 focus-within:shadow-md transition-all duration-200">
+            <SearchIcon className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="搜索您需要的资源..."
-              className="flex-1 ml-3 bg-transparent outline-none text-base text-gray-800 placeholder:text-gray-400 min-w-0"
+              className="flex-1 ml-2.5 sm:ml-3 bg-transparent outline-none text-sm sm:text-base text-gray-800 placeholder:text-gray-400 min-w-0"
               aria-label="搜索资源"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery('')}
-                className="p-1.5 rounded-full hover:bg-gray-100 transition-colors mr-3 flex-shrink-0"
+                className="p-1.5 rounded-full hover:bg-gray-100 transition-colors mr-2 sm:mr-3 flex-shrink-0 touch-manipulation"
               >
-                <X className="w-4 h-4 text-gray-400" />
+                <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
               </button>
             )}
             <button
               type="submit"
-              className="px-5 py-2.5 bg-brand-500 text-white rounded-full font-medium text-sm hover:bg-brand-600 transition-all duration-200 flex-shrink-0 shadow-sm"
+              className="px-4 sm:px-5 py-2 sm:py-2.5 bg-brand-500 text-white rounded-full font-medium text-xs sm:text-sm hover:bg-brand-600 transition-all duration-200 flex-shrink-0 shadow-sm touch-manipulation"
             >
               搜索
             </button>
@@ -393,9 +396,9 @@ export default function SearchPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-5 mb-3 gap-2"
+              className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-4 sm:mt-5 mb-2 sm:mb-3 gap-2 sm:gap-2"
             >
-              <div className="text-sm text-gray-500">
+              <div className="text-xs sm:text-sm text-gray-500">
                 {query ? (
                   <span>找到 <strong className="text-brand-600">{results.length}</strong> 个与「{query}」相关的结果</span>
                 ) : (
@@ -403,7 +406,7 @@ export default function SearchPage() {
                 )}
               </div>
               {/* 排序按钮组 */}
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 overflow-x-auto scrollbar-none">
                 {[
                   { value: 'relevance' as const, label: '默认' },
                   { value: 'recent' as const, label: '最新' },
@@ -412,10 +415,10 @@ export default function SearchPage() {
                   <button
                     key={opt.value}
                     onClick={() => setSortBy(opt.value)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer touch-manipulation ${
                       sortBy === opt.value
                         ? 'bg-brand-600 text-white shadow-sm'
-                        : 'text-gray-500 hover:bg-gray-100'
+                        : 'text-gray-500 hover:bg-gray-100 active:bg-gray-200'
                     }`}
                     aria-label={`按${opt.label}排序`}
                     aria-pressed={sortBy === opt.value}
@@ -426,7 +429,7 @@ export default function SearchPage() {
                 {(filterCategory !== 'all' || filterSubCategory !== 'all') && (
                   <button
                     onClick={() => { setFilterCategory('all'); setFilterSubCategory('all') }}
-                    className="px-2.5 py-1.5 rounded-full text-xs font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all whitespace-nowrap cursor-pointer flex items-center gap-1"
+                    className="px-2.5 py-1.5 rounded-full text-xs font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all whitespace-nowrap cursor-pointer flex items-center gap-1 touch-manipulation"
                     aria-label="清空筛选"
                   >
                     <X className="w-3 h-3" />
@@ -456,16 +459,16 @@ export default function SearchPage() {
                 ))}
               </motion.div>
             ) : !hasSearched ? (
-              <motion.div key="idle" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
-                <SearchIcon className="w-14 h-14 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 text-base font-medium">输入关键词开始搜索</p>
-                <p className="text-gray-400 text-sm mt-1">支持搜索资源名称、别名、分类、标签</p>
+              <motion.div key="idle" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center py-16 sm:py-20">
+                <SearchIcon className="w-12 h-12 sm:w-14 sm:h-14 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 text-sm sm:text-base font-medium">输入关键词开始搜索</p>
+                <p className="text-gray-400 text-xs sm:text-sm mt-1">支持搜索资源名称、别名、分类、标签</p>
               </motion.div>
             ) : results.length === 0 ? (
-              <motion.div key="empty" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
-                <SearchIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500 text-base font-medium">没有找到相关资源</p>
-                <p className="text-gray-400 text-sm mt-1">尝试使用其他关键词搜索</p>
+              <motion.div key="empty" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center py-16 sm:py-20">
+                <SearchIcon className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-500 text-sm sm:text-base font-medium">没有找到相关资源</p>
+                <p className="text-gray-400 text-xs sm:text-sm mt-1">尝试使用其他关键词搜索</p>
               </motion.div>
             ) : (
               <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-2">
@@ -475,7 +478,7 @@ export default function SearchPage() {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.03 }}
-                    className="bg-white rounded-xl p-3.5 sm:p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group flex items-center gap-3"
+                    className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group flex items-center gap-2.5 sm:gap-3 touch-manipulation"
                     onClick={() => setSelectedLink(link)}
                   >
                     {/* 图标 */}
@@ -485,15 +488,15 @@ export default function SearchPage() {
 
                     {/* 信息 */}
                     <div className="flex-1 min-w-0 overflow-hidden">
-                      <h3 className="font-medium text-gray-800 text-sm truncate group-hover:text-brand-600 transition-colors">
+                      <h3 className="font-medium text-gray-800 text-xs sm:text-sm truncate group-hover:text-brand-600 transition-colors">
                         {link.name}
                       </h3>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-[11px] text-brand-500 bg-brand-50 px-1.5 py-0.5 rounded font-medium">
+                      <div className="flex items-center gap-1 mt-0.5 sm:mt-1">
+                        <span className="text-[10px] sm:text-[11px] text-brand-500 bg-brand-50 px-1.5 py-0.5 rounded font-medium">
                           {categories.find(c => c.id === link.category_id)?.name || '未分类'}
                         </span>
                         {link.subcategory_id && (
-                          <span className="text-[11px] text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded font-medium">
+                          <span className="text-[10px] sm:text-[11px] text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded font-medium">
                             {getSubCategoryName(link.subcategory_id)}
                           </span>
                         )}
@@ -501,16 +504,16 @@ export default function SearchPage() {
                     </div>
 
                     {/* 操作按钮 */}
-                    <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           handleLinkClick(link)
                         }}
-                        className="px-3 py-2 text-xs text-white bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 rounded-lg transition-all shadow-sm font-medium flex items-center gap-1 flex-shrink-0"
+                        className="px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-white bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 rounded-lg transition-all shadow-sm font-medium flex items-center gap-1 flex-shrink-0 touch-manipulation"
                         aria-label={`访问 ${link.name}`}
                       >
-                        <Download className="w-3.5 h-3.5" />
+                        <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         访问下载
                       </button>
                       <button
@@ -518,11 +521,11 @@ export default function SearchPage() {
                           e.stopPropagation()
                           shareLink(link)
                         }}
-                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-brand-600 transition-colors flex-shrink-0 px-2 py-2"
+                        className="flex items-center gap-1 text-[10px] sm:text-xs text-gray-400 hover:text-brand-600 transition-colors flex-shrink-0 px-1.5 sm:px-2 py-1.5 sm:py-2 touch-manipulation"
                         title="分享链接"
                       >
-                        <Share2 className="w-3.5 h-3.5" />
-                        <span>分享</span>
+                        <Share2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                        <span className="hidden sm:inline">分享</span>
                       </button>
                     </div>
                   </motion.div>
@@ -542,24 +545,24 @@ export default function SearchPage() {
 
           {/* 分页 */}
           {totalPages > 1 && hasSearched && results.length > 0 && !isSearching && (
-            <div className="flex items-center justify-center gap-1.5 mt-6">
+            <div className="flex items-center justify-center gap-1 sm:gap-1.5 mt-5 sm:mt-6">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-2 rounded-lg text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-gray-600"
+                className="px-3 py-2 rounded-xl text-xs sm:text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all font-medium text-gray-600 cursor-pointer touch-manipulation"
               >
                 上一页
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 2)
+                .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
                 .map((page, index, array) => (
                   <span key={page} className="flex items-center">
                     {index > 0 && array[index - 1] !== page - 1 && (
-                      <span className="px-1 text-gray-400 text-sm">...</span>
+                      <span className="px-0.5 text-gray-400 text-xs">...</span>
                     )}
                     <button
                       onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded-lg text-sm transition-all font-medium ${
+                      className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-all font-medium cursor-pointer touch-manipulation ${
                         currentPage === page
                           ? 'bg-brand-600 text-white shadow-sm'
                           : 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-600'
@@ -572,7 +575,7 @@ export default function SearchPage() {
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-2 rounded-lg text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-gray-600"
+                className="px-3 py-2 rounded-xl text-xs sm:text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all font-medium text-gray-600 cursor-pointer touch-manipulation"
               >
                 下一页
               </button>
@@ -580,23 +583,23 @@ export default function SearchPage() {
           )}
 
           {/* Footer - 始终在最底部 */}
-          <footer className="mt-auto pt-12 pb-4">
+          <footer className="mt-auto pt-10 sm:pt-12 pb-2 sm:pb-4">
             {/* Divider */}
-            <div className="flex items-center justify-center gap-4 mb-4">
+            <div className="flex items-center justify-center gap-3 sm:gap-4 mb-3 sm:mb-4">
               <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent flex-1"></div>
               <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
               <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent flex-1"></div>
             </div>
             {/* Disclaimer */}
-            <div className="text-center mb-4 max-w-2xl mx-auto">
-              <p className="text-[11px] text-gray-400 leading-relaxed">
+            <div className="text-center mb-3 sm:mb-4 max-w-2xl mx-auto px-2">
+              <p className="text-[10px] sm:text-[11px] text-gray-400 leading-relaxed">
                 免责申明：本站不以盈利为目的，下载资源均来源于网络，只做学习和交流使用，版权归原作者所有，若作商业用途请购买正版，由于未及时购买和付费发生的侵权行为，与本站无关。如果侵犯了您的合法权益，请联系站长删除。
               </p>
             </div>
             {/* Bottom Row */}
-            <div className="flex items-center justify-center gap-3 text-sm text-gray-400">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center">
-                <LayoutGrid className="w-3.5 h-3.5 text-white" />
+            <div className="flex items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-400">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center">
+                <LayoutGrid className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
               </div>
               <span className="font-medium text-gray-500">资源云</span>
               <span className="text-gray-300">·</span>
@@ -610,7 +613,7 @@ export default function SearchPage() {
       {/* 悬浮分类按钮 - 移动端显示 */}
       <button
         ref={floatBtnRef}
-        className="fixed lg:hidden z-50 w-12 h-12 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 shadow-lg shadow-brand-500/30 flex items-center justify-center text-white active:scale-95 transition-transform cursor-grab select-none touch-none"
+        className="fixed lg:hidden z-50 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 shadow-lg shadow-brand-500/30 flex items-center justify-center text-white active:scale-95 transition-transform cursor-grab select-none touch-manipulation"
         style={{ left: floatPos.x, bottom: floatPos.y }}
         onMouseDown={(e) => handleDragStart(e.clientX, e.clientY)}
         onMouseMove={(e) => handleDragMove(e.clientX, e.clientY)}
@@ -626,7 +629,7 @@ export default function SearchPage() {
         }}
         onTouchEnd={handleDragEnd}
       >
-        <Menu className="w-5 h-5" />
+        <Menu className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
       </button>
 
       {/* 分类面板 - 移动端显示 */}
@@ -648,7 +651,7 @@ export default function SearchPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              className="fixed lg:hidden z-50 bottom-24 left-4 right-4 sm:left-auto sm:right-4 sm:w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 max-h-[60vh] overflow-y-auto"
+              className="fixed lg:hidden z-50 bottom-20 sm:bottom-24 left-4 right-4 sm:left-auto sm:right-4 sm:w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 max-h-[55vh] sm:max-h-[60vh] overflow-y-auto"
               style={{
                 left: floatPos.x < window.innerWidth / 2 ? 16 : undefined,
                 right: floatPos.x >= window.innerWidth / 2 ? 16 : undefined,

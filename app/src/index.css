@@ -5,23 +5,73 @@
 @layer base {
   :root {
     --radius: 0.75rem;
+    --orb-1: #818CF8;
+    --orb-2: #A78BFA;
+    --orb-3: #F472B6;
   }
   * {
     @apply border-gray-200;
   }
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-[#FAFBFC] text-gray-900;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* 全局背景光球效果 */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(129, 140, 248, 0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 70%, rgba(167, 139, 250, 0.05) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 50% 40%, rgba(244, 114, 182, 0.03) 0%, transparent 50%);
+    animation: orbFloat 20s ease-in-out infinite;
+  }
+
+  /* 微妙噪点纹理层 */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.015;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+}
+
+/* ========== 全局光球动画 ========== */
+@keyframes orbFloat {
+  0%, 100% {
+    opacity: 0.7;
+    transform: scale(1) translate(0, 0);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1.05) translate(1%, -1%);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(0.97) translate(-0.5%, 1%);
+  }
+  75% {
+    opacity: 0.9;
+    transform: scale(1.02) translate(0.5%, -0.5%);
   }
 }
 
 /* 自定义滚动条 */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -29,23 +79,41 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 3px;
+  background: #e2e8f0;
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: #cbd5e1;
 }
 
 /* Firefox 滚动条 */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #d1d5db transparent;
+  scrollbar-color: #e2e8f0 transparent;
 }
 
 /* iOS 安全区域适配 */
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.safe-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* 隐藏滚动条但保持可滚动 */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 /* 尊重用户减少动画偏好 */
@@ -64,73 +132,121 @@
 }
 
 /* 触摸设备优化 */
-@media (hover: none) {
+@media (hover: none) and (pointer: coarse) {
+  /* 移动端禁用悬浮效果 */
   .card-hover:hover {
     transform: none;
     box-shadow: none;
   }
 }
 
-/* ========== 玻璃态效果 ========== */
+/* ========== 玻璃态效果 (Refined) ========== */
 .glass {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .glass-light {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(12px) saturate(150%);
-  -webkit-backdrop-filter: blur(12px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .glass-dark {
-  background: rgba(30, 27, 75, 0.85);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 13, 46, 0.85);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* ========== 渐变背景 ========== */
 .gradient-primary {
-  background: linear-gradient(135deg, #6366F1 0%, #818CF8 50%, #A5B4FC 100%);
+  background: linear-gradient(135deg, #6366F1 0%, #818CF8 50%, #A78BFA 100%);
 }
 
 .gradient-bg {
-  background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 50%, #FFFFFF 100%);
+  background: linear-gradient(180deg, #FAFBFC 0%, #F1F4F9 50%, #FFFFFF 100%);
 }
 
 .gradient-hero {
-  background: 
-    radial-gradient(ellipse 80% 80% at 50% -20%, rgba(99, 102, 241, 0.08), transparent),
-    radial-gradient(ellipse 60% 60% at 80% 50%, rgba(129, 140, 248, 0.05), transparent),
-    linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 50%, #FFFFFF 100%);
+  position: relative;
+  background: linear-gradient(180deg, #FAFBFC 0%, #F1F4F9 40%, #FFFFFF 100%);
+  overflow: hidden;
+}
+
+.gradient-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 70% at 30% 10%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 50% at 75% 30%, rgba(129, 140, 248, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 40% at 50% 80%, rgba(167, 139, 250, 0.06) 0%, transparent 50%);
+  animation: heroOrbPulse 10s ease-in-out infinite;
+}
+
+@keyframes heroOrbPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 .gradient-card {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.03) 0%, rgba(129, 140, 248, 0.01) 100%);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.04) 0%, rgba(167, 139, 250, 0.02) 50%, rgba(244, 114, 182, 0.01) 100%);
+}
+
+/* ========== Bento 网格系统 ========== */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  grid-auto-rows: minmax(120px, auto);
+}
+
+.bento-grid > .bento-span-2 {
+  grid-column: span 2;
+}
+
+.bento-grid > .bento-span-3 {
+  grid-column: span 3;
+}
+
+.bento-grid > .bento-row-2 {
+  grid-row: span 2;
+}
+
+.bento-cell {
+  @apply bg-white rounded-2xl border border-gray-100 p-5 overflow-hidden relative;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bento-cell:hover {
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+  transform: translateY(-1px);
 }
 
 /* ========== 动画 ========== */
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+  50% { transform: translateY(-8px); }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
+  from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: scale(1); }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -140,8 +256,27 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-  50% { box-shadow: 0 0 0 12px rgba(99, 102, 241, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.3); }
+  50% { box-shadow: 0 0 0 14px rgba(99, 102, 241, 0); }
+}
+
+@keyframes subtlePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+@keyframes lineProgress {
+  from { width: 0%; }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes borderGlow {
+  0%, 100% { border-color: rgba(99, 102, 241, 0.15); }
+  50% { border-color: rgba(99, 102, 241, 0.35); }
 }
 
 .animate-float {
@@ -149,19 +284,19 @@
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.4s ease-out forwards;
+  animation: fadeIn 0.35s ease-out forwards;
 }
 
 .animate-scale-in {
-  animation: scaleIn 0.3s ease-out forwards;
+  animation: scaleIn 0.25s ease-out forwards;
 }
 
 .animate-slide-up {
-  animation: slideUp 0.5s ease-out forwards;
+  animation: slideUp 0.4s ease-out forwards;
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, transparent 0%, rgba(100, 116, 139, 0.06) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(100, 116, 139, 0.05) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
@@ -170,34 +305,113 @@
   animation: pulse-glow 2s infinite;
 }
 
-/* ========== 错开动画延迟 ========== */
-.stagger-1 { animation-delay: 0.05s; }
-.stagger-2 { animation-delay: 0.1s; }
-.stagger-3 { animation-delay: 0.15s; }
-.stagger-4 { animation-delay: 0.2s; }
-.stagger-5 { animation-delay: 0.25s; }
+.animate-count-up {
+  animation: countUp 0.5s ease-out forwards;
+}
 
-/* ========== 卡片悬停效果 ========== */
+.animate-border-glow {
+  animation: borderGlow 3s ease-in-out infinite;
+}
+
+/* ========== 错开动画延迟 ========== */
+.stagger-1 { animation-delay: 0.04s; }
+.stagger-2 { animation-delay: 0.08s; }
+.stagger-3 { animation-delay: 0.12s; }
+.stagger-4 { animation-delay: 0.16s; }
+.stagger-5 { animation-delay: 0.2s; }
+.stagger-6 { animation-delay: 0.24s; }
+.stagger-7 { animation-delay: 0.28s; }
+.stagger-8 { animation-delay: 0.32s; }
+
+/* ========== 卡片悬停效果 (Enhanced) ========== */
 .card-hover {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .card-hover:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 40px -12px rgba(99, 102, 241, 0.2), 0 4px 12px -4px rgba(99, 102, 241, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px -8px rgba(99, 102, 241, 0.15), 0 2px 8px -2px rgba(99, 102, 241, 0.08);
+}
+
+/* 卡片悬停发光边框 */
+.card-glow {
+  position: relative;
+}
+.card-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.3);
+}
+.card-glow:hover::after {
+  opacity: 1;
 }
 
 /* ========== 自定义文本渐变 ========== */
 .text-gradient {
-  background: linear-gradient(135deg, #6366F1 0%, #818CF8 50%, #A5B4FC 100%);
+  background: linear-gradient(135deg, #6366F1 0%, #818CF8 40%, #A78BFA 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
+.text-gradient-warm {
+  background: linear-gradient(135deg, #6366F1 0%, #A78BFA 40%, #F472B6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ========== 光效边框 ========== */
+.glow-ring {
+  position: relative;
+}
+.glow-ring::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(129, 140, 248, 0.1), rgba(167, 139, 250, 0.3));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* ========== 渐变线 ========== */
+.gradient-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.15) 20%, rgba(167, 139, 250, 0.2) 50%, rgba(99, 102, 241, 0.15) 80%, transparent 100%);
+}
+
 /* ========== 骨架屏 ========== */
 .skeleton {
   @apply animate-pulse rounded-lg;
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background: linear-gradient(90deg, #e8ecf1 25%, #f1f4f8 50%, #e8ecf1 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
+}
+
+/* ========== 响应式 Bento 网格 ========== */
+@media (max-width: 1024px) {
+  .bento-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .bento-grid > .bento-span-3 {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+  }
+  .bento-grid > .bento-span-2,
+  .bento-grid > .bento-span-3 {
+    grid-column: span 1;
+  }
 }

@@ -28,11 +28,16 @@ export default function CategoryPage() {
   const [sortBy, setSortBy] = useState<'default' | 'recent' | 'popular'>('default')
   const [searchQuery, setSearchQuery] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const category = categories.find(c => c.id === id)
+
+  useEffect(() => {
+    document.title = category ? `${category.name} - 资源云` : '分类 - 资源云'
+  }, [category])
+
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedLink, setSelectedLink] = useState<LinkItem | null>(null)
   const itemsPerPage = 12
-
-  const category = categories.find((c) => c.id === id)
 
   // 键盘快捷键
   useEffect(() => {
@@ -119,29 +124,29 @@ export default function CategoryPage() {
   const getLinkIcon = (link: LinkItem) => <LinkIcon link={link} size="md" />
 
   return (
-    <div className="min-h-screen gradient-bg container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-[#FAFBFC] container mx-auto px-3 sm:px-4 py-4 sm:py-8">
       <motion.nav
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-2 text-sm text-gray-500 mb-6"
+        className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6 flex-wrap"
       >
-        <Link to="/" className="hover:text-brand-600 transition-colors">首页</Link>
-        <ChevronRight className="w-3.5 h-3.5" />
-        <span className="text-gray-700 font-medium">{category.name}</span>
+        <Link to="/" className="hover:text-gray-900 transition-colors">首页</Link>
+        <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+        <span className="text-gray-700 font-medium truncate">{category.name}</span>
       </motion.nav>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl p-6 sm:p-8 mb-6"
+        className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-8 mb-4 sm:mb-6 shadow-sm"
       >
-        <div className="flex items-center gap-5">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-brand-50 to-violet-50 flex items-center justify-center shadow-glass-sm">
-            <FolderOpen className="w-10 h-10 sm:w-14 sm:h-14 text-brand-500" />
+        <div className="flex items-center gap-4 sm:gap-5">
+          <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl bg-gray-50 flex items-center justify-center flex-shrink-0">
+            <FolderOpen className="w-9 h-9 sm:w-14 sm:h-14 text-gray-400" />
           </div>
-          <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{category.name}</h1>
-            <p className="text-gray-500 text-sm">共 {filteredLinks.length} 个资源{totalPages > 1 ? ` · 第 ${currentPage}/${totalPages} 页` : ''}</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-0.5 sm:mb-1">{category.name}</h1>
+            <p className="text-gray-500 text-xs sm:text-sm">共 {filteredLinks.length} 个资源{totalPages > 1 ? ` · 第 ${currentPage}/${totalPages} 页` : ''}</p>
           </div>
         </div>
       </motion.div>
@@ -150,7 +155,7 @@ export default function CategoryPage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6"
+        className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 mb-4 sm:mb-6"
       >
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -159,7 +164,7 @@ export default function CategoryPage() {
             placeholder="搜索该分类下的资源..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 glass rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 transition-all duration-200"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-100 rounded-xl text-sm focus:outline-none focus:border-gray-300 focus:shadow-sm transition-all duration-200"
             aria-label="搜索该分类下的资源"
           />
         </div>
@@ -168,24 +173,24 @@ export default function CategoryPage() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as 'default' | 'recent' | 'popular')}
-            className="px-3 py-2.5 glass rounded-xl text-sm text-brand-600 font-medium focus:outline-none cursor-pointer"
+            className="flex-1 sm:flex-none px-3 py-2.5 bg-white border border-gray-100 rounded-xl text-sm text-gray-600 font-medium focus:outline-none cursor-pointer"
           >
             <option value="default">默认排序</option>
             <option value="recent">最新优先</option>
             <option value="popular">热门优先</option>
           </select>
 
-          <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5 border border-gray-100">
+          <div className="flex items-center bg-gray-50 rounded-xl p-1 gap-0.5 flex-shrink-0">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-all duration-200 cursor-pointer ${viewMode === 'grid' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-400 hover:text-brand-600'}`}
+              className={`p-2 rounded-lg transition-all duration-150 cursor-pointer touch-manipulation ${viewMode === 'grid' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
               aria-label="网格视图"
             >
               <Grid3X3 className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg transition-all duration-200 cursor-pointer ${viewMode === 'list' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-400 hover:text-brand-600'}`}
+              className={`p-2 rounded-lg transition-all duration-150 cursor-pointer touch-manipulation ${viewMode === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
               aria-label="列表视图"
             >
               <List className="w-4 h-4" />
@@ -196,38 +201,38 @@ export default function CategoryPage() {
 
       <AnimatePresence mode="wait">
         {sortedLinks.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16 glass rounded-2xl">
-            <Filter className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 text-base font-medium">没有找到相关资源</p>
-            <p className="text-gray-400 text-sm mt-1">尝试其他关键词或浏览其他分类</p>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12 sm:py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
+            <Filter className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
+            <p className="text-gray-500 text-sm sm:text-base font-medium">没有找到相关资源</p>
+            <p className="text-gray-400 text-xs sm:text-sm mt-1">尝试其他关键词或浏览其他分类</p>
           </motion.div>
         ) : viewMode === 'grid' ? (
           <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+            className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4">
             {sortedLinks.map((link, index) => (
-              <motion.div key={link.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
-                <div onClick={() => setSelectedLink(link)} className="block glass rounded-xl card-hover overflow-hidden group cursor-pointer relative">
-                  <div className="aspect-video bg-gradient-to-br from-brand-50/50 to-brand-100/50 relative flex items-center justify-center">
+              <motion.div key={link.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
+                <div onClick={() => setSelectedLink(link)} className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:shadow-gray-900/5 hover:border-gray-200 transition-all duration-200 overflow-hidden group cursor-pointer relative touch-manipulation">
+                  <div className="aspect-video bg-gray-50 relative flex items-center justify-center">
                     <div className="flex items-center justify-center">{getLinkIcon(link)}</div>
                     {isExpiredLink(link) && (
-                      <span className="absolute top-2 right-2 px-2 py-0.5 bg-red-500/80 text-white text-[10px] rounded-full font-medium">已过期</span>
+                      <span className="absolute top-2 right-2 px-2 py-0.5 bg-red-500/90 text-white text-[10px] rounded-full font-medium">已过期</span>
                     )}
                   </div>
-                  <div className="p-4">
-                    <h3 className="font-medium text-gray-800 group-hover:text-brand-600 transition-colors line-clamp-2 mb-2 text-sm">{link.name}</h3>
-                    <div className="flex items-center justify-between text-xs text-gray-400">
+                  <div className="p-3 sm:p-4">
+                    <h3 className="font-medium text-gray-800 group-hover:text-gray-900 transition-colors line-clamp-2 mb-2 text-xs sm:text-sm">{link.name}</h3>
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs text-gray-400">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {getDaysRemaining(link.expires_at) === null ? '永久' : `${getDaysRemaining(link.expires_at)}天`}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1 mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           handleLinkClick(link)
                         }}
-                        className="flex-1 py-2 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-1 shadow-sm hover:shadow-md font-medium min-h-[36px]"
+                        className="flex-1 py-1.5 sm:py-2 text-[10px] sm:text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all duration-150 cursor-pointer flex items-center justify-center gap-1 min-h-[32px] sm:min-h-[36px] touch-manipulation"
                         title="访问下载"
                       >
                         <Download className="w-3 h-3" />
@@ -238,11 +243,10 @@ export default function CategoryPage() {
                           e.stopPropagation()
                           shareLink(link)
                         }}
-                        className="py-2 px-3 text-xs text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[36px]"
+                        className="py-1.5 sm:py-2 px-2 sm:px-3 text-[10px] sm:text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-1 min-h-[32px] sm:min-h-[36px] touch-manipulation"
                         title="分享链接"
                       >
                         {copiedId === link.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Share2 className="w-3 h-3" />}
-                        分享
                       </button>
                     </div>
                   </div>
@@ -251,29 +255,29 @@ export default function CategoryPage() {
             ))}
           </motion.div>
         ) : (
-          <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-2">
+          <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-1.5 sm:space-y-2">
             {sortedLinks.map((link, index) => (
-              <motion.div key={link.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.03 }}>
-                <div onClick={() => setSelectedLink(link)} className="flex items-center gap-4 p-4 glass rounded-xl card-hover group cursor-pointer">
-                  <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <motion.div key={link.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.03 }}>
+                <div onClick={() => setSelectedLink(link)} className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-150 group cursor-pointer touch-manipulation">
+                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
                     {getLinkIcon(link)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-gray-800 group-hover:text-brand-600 transition-colors truncate text-sm">{link.name}</h3>
-                    <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
+                    <h3 className="font-medium text-gray-800 group-hover:text-gray-900 transition-colors truncate text-xs sm:text-sm">{link.name}</h3>
+                    <div className="flex items-center gap-3 sm:gap-4 mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-gray-400">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {getDaysRemaining(link.expires_at) === null ? '永久有效' : `${getDaysRemaining(link.expires_at)}天后过期`}
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.preventDefault()}>
+                  <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0" onClick={(e) => e.preventDefault()}>
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
                         handleLinkClick(link)
                       }}
-                      className="py-2 px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium min-h-[36px]"
+                      className="py-1.5 sm:py-2 px-2.5 sm:px-3 text-[10px] sm:text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-1 min-h-[32px] sm:min-h-[36px] touch-manipulation"
                       title="访问下载"
                     >
                       <Download className="w-3 h-3" />
@@ -284,13 +288,12 @@ export default function CategoryPage() {
                         e.stopPropagation()
                         shareLink(link)
                       }}
-                      className="py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[36px]"
+                      className="py-1.5 sm:py-2 px-2 text-[10px] sm:text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-1 min-h-[32px] sm:min-h-[36px] touch-manipulation"
                       title="分享链接"
                     >
                       {copiedId === link.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Share2 className="w-3 h-3" />}
-                      分享
                     </button>
-                    <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-brand-500 transition-colors" />
+                    <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-300 group-hover:text-gray-500 transition-colors hidden sm:block" />
                   </div>
                 </div>
               </motion.div>
@@ -301,24 +304,24 @@ export default function CategoryPage() {
 
       {/* 分页控件 */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-8">
+        <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-6 sm:mt-8">
           <button
             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-4 py-2 rounded-xl text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer"
+            className="px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer touch-manipulation"
           >
             上一页
           </button>
           {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 2)
+            .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
             .map((page, index, array) => (
               <span key={page}>
                 {index > 0 && array[index - 1] !== page - 1 && (
-                  <span className="px-1 text-gray-400">...</span>
+                  <span className="px-0.5 text-gray-400 text-xs">...</span>
                 )}
                 <button
                   onClick={() => setCurrentPage(page)}
-                  className={`w-9 h-9 rounded-xl text-sm transition-all duration-200 font-medium cursor-pointer ${
+                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-all duration-200 font-medium cursor-pointer touch-manipulation ${
                     currentPage === page
                       ? 'bg-brand-600 text-white shadow-button'
                       : 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-600'
@@ -332,15 +335,15 @@ export default function CategoryPage() {
           <button
             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-4 py-2 rounded-xl text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer"
+            className="px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer touch-manipulation"
           >
             下一页
           </button>
         </div>
       )}
 
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="mt-10 text-center">
-        <Link to="/" className="inline-flex items-center gap-2 text-brand-500 hover:text-brand-600 font-medium transition-colors">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="mt-8 sm:mt-10 text-center">
+        <Link to="/" className="inline-flex items-center gap-2 text-brand-500 hover:text-brand-600 font-medium text-sm transition-colors">
           <ArrowLeft className="w-4 h-4" /> 返回首页
         </Link>
       </motion.div>
