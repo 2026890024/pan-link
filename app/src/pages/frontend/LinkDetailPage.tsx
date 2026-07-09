@@ -36,8 +36,8 @@ export default function LinkDetailPage() {
   const shareLinks = loadShareLinks()
   const shareLink = shareLinks.find(s => s.slug === slug)
 
-  const link = !shareLink ? (links.find((l) => l.slug === slug) || links[0]) : null
-  const category = link ? (categories.find((c) => c.id === link.category_id) || categories[0]) : null
+  const link = !shareLink ? links.find((l) => l.slug === slug) : null
+  const category = link ? categories.find((c) => c.id === link.category_id) : null
 
   const subcategory = link?.subcategory_id
     ? subCategories.find(sc => sc.id === link.subcategory_id)
@@ -139,7 +139,7 @@ export default function LinkDetailPage() {
               >
                 <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
                   {sharedLinkItem.icon ? (
-                    <img src={sharedLinkItem.icon} alt="" className="w-8 h-8 object-contain" />
+                    <img src={sharedLinkItem.icon} alt="" className="w-8 h-8 object-contain" loading="lazy" decoding="async" />
                   ) : (
                     <Gift className="w-5 h-5 text-brand-400" />
                   )}
@@ -190,7 +190,7 @@ export default function LinkDetailPage() {
   const getLinkIcon = () => {
     if (link.icon) {
       return (
-        <img src={link.icon} alt={link.name} className="w-20 h-20 object-contain" />
+        <img src={link.icon} alt={link.name} className="w-20 h-20 object-contain rounded-xl" loading="lazy" decoding="async" />
       )
     }
     return (
@@ -372,7 +372,7 @@ export default function LinkDetailPage() {
               <Link key={relatedLink.id} to={`/s/${relatedLink.slug}`} className="block p-4 glass rounded-xl card-hover group cursor-pointer">
                 <div className="flex items-center gap-3 mb-2">
                   {relatedLink.icon ? (
-                    <img src={relatedLink.icon} alt={relatedLink.name} className="w-8 h-8 object-contain rounded-lg" />
+                    <img src={relatedLink.icon} alt={relatedLink.name} className="w-8 h-8 object-contain rounded-lg" loading="lazy" decoding="async" />
                   ) : (
                     <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center">
                       <Gift className="w-4 h-4 text-brand-400" />

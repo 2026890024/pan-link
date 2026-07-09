@@ -41,6 +41,7 @@ export function LinkIcon({ link, size = 'md' }: LinkIconProps) {
         alt={link.title || link.name}
         className={`${sizeClasses[size]} rounded-xl object-cover flex-shrink-0 shadow-sm`}
         loading="lazy"
+        decoding="async"
       />
     )
   }

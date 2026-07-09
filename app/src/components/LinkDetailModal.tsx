@@ -83,7 +83,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
 
   const getLinkIcon = () => {
     if (link.icon) {
-      return <img src={link.icon} alt={link.name} className="w-16 h-16 rounded-xl object-cover shadow-sm" />
+      return <img src={link.icon} alt={link.name} className="w-16 h-16 rounded-xl object-cover shadow-sm" loading="lazy" decoding="async" />
     }
     return <LinkIcon link={link} size="lg" />
   }

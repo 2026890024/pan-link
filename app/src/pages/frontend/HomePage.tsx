@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search,
   Star,
@@ -18,6 +19,7 @@ import {
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { LinkIcon } from '@/components/LinkIcon'
 import LinkDetailModal from '@/components/LinkDetailModal'
+import { SkeletonList } from '@/components/ui/Skeleton'
 import { checkLinkStatus, copyToClipboard as copyUtil } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
@@ -88,6 +90,12 @@ export default function HomePage() {
   // 精选推荐开关（从 localStorage 读取，默认开启）
   const showFeaturedSection = localStorage.getItem('homepage_show_featured') !== 'false'
 
+  // SEO 标题
+  useEffect(() => { document.title = '资源云 - 一站式网盘资源聚合管理平台' }, [])
+
+  // 数据是否加载中
+  const isLoading = links.length === 0 && categories.length === 0
+
   // 过期资源过滤
   const isExpired = (link: LinkItem) => checkLinkStatus(link.expires_at || null) === 'expired'
 
@@ -147,20 +155,22 @@ export default function HomePage() {
     return () => document.removeEventListener('keydown', handler)
   }, [])
 
-  // 过期资源过滤 + 分类筛选
-  const filteredLinks = links
-    .filter(link => {
-      if (link.visible === false) return false
-      if (isExpired(link)) return false
-      const matchesCategory = selectedCategory ? link.category_id === selectedCategory : true
-      const matchesSubCategory = selectedSubCategory ? link.subcategory_id === selectedSubCategory : true
-      return matchesCategory && matchesSubCategory
-    })
-    .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || a.sort_order - b.sort_order)
+  // 过期资源过滤 + 分类筛选（memo 优化）
+  const filteredLinks = useMemo(() => {
+    return links
+      .filter(link => {
+        if (link.visible === false) return false
+        if (isExpired(link)) return false
+        const matchesCategory = selectedCategory ? link.category_id === selectedCategory : true
+        const matchesSubCategory = selectedSubCategory ? link.subcategory_id === selectedSubCategory : true
+        return matchesCategory && matchesSubCategory
+      })
+      .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || a.sort_order - b.sort_order)
+  }, [links, selectedCategory, selectedSubCategory])
 
   const totalPages = Math.ceil(filteredLinks.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedLinks = filteredLinks.slice(startIndex, startIndex + itemsPerPage)
+  const paginatedLinks = useMemo(() => filteredLinks.slice(startIndex, startIndex + itemsPerPage), [filteredLinks, startIndex])
 
   const getSubCategories = (categoryId: string) => {
     return visibleSubCategories.filter(sc => sc.category_id === categoryId).sort((a, b) => a.sort_order - b.sort_order)
@@ -270,6 +280,7 @@ export default function HomePage() {
                 onFocus={() => searchQuery.trim() && setShowSuggestions(true)}
                 placeholder="搜索您需要的资源..."
                 className="w-full px-5 py-3.5 sm:px-6 sm:py-4 pl-12 sm:pl-14 pr-24 sm:pr-28 rounded-full glass text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400/30 transition-all duration-300 text-sm sm:text-base shadow-glass"
+                aria-label="搜索资源"
               />
               <Search className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 text-brand-400 group-focus-within:text-brand-600 transition-colors duration-300" />
               <button
@@ -344,6 +355,7 @@ export default function HomePage() {
       <button
         onClick={() => setShowMobileSidebar(!showMobileSidebar)}
         className="fixed left-4 bottom-6 z-30 md:hidden px-4 py-3 bg-gradient-to-br from-brand-600 to-brand-500 text-white rounded-2xl shadow-glass flex items-center gap-2 hover:shadow-glass-lg active:scale-95 transition-all duration-300 cursor-pointer"
+        aria-label="打开分类菜单"
       >
         <Menu className="w-5 h-5" />
         <span className="text-sm font-medium">分类</span>
@@ -372,12 +384,13 @@ export default function HomePage() {
                 <button
                   onClick={() => setShowMobileSidebar(false)}
                   className="p-2 hover:bg-gray-100 rounded-xl transition-all duration-200 cursor-pointer"
+                  aria-label="关闭分类菜单"
                 >
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
               <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-4 px-2">资源分类</h3>
-              <nav className="space-y-1">
+              <nav className="space-y-1" role="navigation" aria-label="资源分类导航">
                 {/* 全部 */}
                 <button
                   onClick={handleAllClick}
@@ -386,6 +399,8 @@ export default function HomePage() {
                       ? 'bg-brand-600 text-white shadow-button'
                       : 'text-gray-700 hover:bg-gray-50'
                   }`}
+                  aria-label="查看全部资源"
+                  aria-current={!selectedCategory ? 'page' : undefined}
                 >
                   <FolderOpen className={`w-4 h-4 ${!selectedCategory ? 'text-white/90' : 'text-brand-400'}`} />
                   <span>全部资源</span>
@@ -466,6 +481,15 @@ export default function HomePage() {
 
           {/* Right Content */}
           <div className="flex-1 min-w-0">
+            {/* 数据加载骨架屏 */}
+            {isLoading ? (
+              <div className="animate-fade-in">
+                <div className="mb-8">
+                  <SkeletonList count={4} />
+                </div>
+              </div>
+            ) : (
+              <>
             {/* Featured - 只在全部资源下显示 */}
             {!selectedCategory && !selectedSubCategory && featuredLinks.length > 0 && (
               <div className="mb-8 animate-fade-in">
@@ -494,7 +518,7 @@ export default function HomePage() {
                           <button
                             onClick={(e) => { e.stopPropagation(); handleLinkClick(link) }}
                             className="flex-1 py-2 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-1 shadow-sm hover:shadow-md font-medium min-h-[36px]"
-                            title="访问下载"
+                            aria-label={`访问 ${link.name}`}
                           >
                             <Download className="w-3 h-3" />
                             访问下载
@@ -502,7 +526,7 @@ export default function HomePage() {
                           <button
                             onClick={(e) => { e.stopPropagation(); shareLink(link) }}
                             className="py-2 px-3 text-xs text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[36px]"
-                            title="分享链接"
+                            aria-label={`分享 ${link.name}`}
                           >
                             {copiedId === link.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Share2 className="w-3 h-3" />}
                             分享
@@ -538,7 +562,7 @@ export default function HomePage() {
                         ? 'bg-white text-brand-600 shadow-sm'
                         : 'text-brand-400 hover:text-brand-600'
                     }`}
-                    title="列表视图"
+                    aria-label="列表视图"
                   >
                     <List className="w-4 h-4" />
                   </button>
@@ -549,7 +573,7 @@ export default function HomePage() {
                         ? 'bg-white text-brand-600 shadow-sm'
                         : 'text-brand-400 hover:text-brand-600'
                     }`}
-                    title="网格视图"
+                    aria-label="网格视图"
                   >
                     <Grid className="w-4 h-4" />
                   </button>
@@ -567,105 +591,119 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <>
-                    {viewMode === 'list' ? (
-                      /* 列表视图 */
-                      <div className="space-y-2">
-                        {paginatedLinks.map((link) => (
-                          <div
-                            key={link.id}
-                            className="group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 cursor-pointer border border-transparent hover:border-gray-200"
-                            onClick={() => setSelectedLink(link)}
-                          >
-                            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                              {getLinkIcon(link)}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm sm:truncate leading-tight">
-                                    {link.name}
-                                  </h3>
+                    <AnimatePresence mode="wait">
+                      {viewMode === 'list' ? (
+                        <motion.div
+                          key="list-view"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="space-y-2"
+                        >
+                          {paginatedLinks.map((link) => (
+                            <div
+                              key={link.id}
+                              className="group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl hover:bg-gray-50 transition-all duration-200 cursor-pointer border border-transparent hover:border-gray-200"
+                              onClick={() => setSelectedLink(link)}
+                            >
+                              <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                                {getLinkIcon(link)}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm sm:truncate leading-tight">
+                                      {link.name}
+                                    </h3>
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-1 leading-relaxed line-clamp-2 sm:truncate">{link.description}</p>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1 leading-relaxed line-clamp-2 sm:truncate">{link.description}</p>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0 sm:ml-auto" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleLinkClick(link)
+                                  }}
+                                  className="py-2 px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium min-h-[36px]"
+                                  aria-label={`访问 ${link.name}`}
+                                >
+                                  <Download className="w-3 h-3" />
+                                  访问下载
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    shareLink(link)
+                                  }}
+                                  className="py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[36px]"
+                                  aria-label={`分享 ${link.name}`}
+                                >
+                                  {copiedId === link.id ? (
+                                    <Check className="w-3 h-3 text-emerald-500" />
+                                  ) : (
+                                    <Share2 className="w-3 h-3" />
+                                  )}
+                                  分享
+                                </button>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1.5 flex-shrink-0 sm:ml-auto" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleLinkClick(link)
-                                }}
-                                className="py-2 px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium min-h-[36px]"
-                                title="访问下载"
-                              >
-                                <Download className="w-3 h-3" />
-                                访问下载
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  shareLink(link)
-                                }}
-                                className="py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[36px]"
-                                title="分享链接"
-                              >
-                                {copiedId === link.id ? (
-                                  <Check className="w-3 h-3 text-emerald-500" />
-                                ) : (
-                                  <Share2 className="w-3 h-3" />
-                                )}
-                                分享
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      /* 网格视图 */
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {paginatedLinks.map((link, idx) => (
-                          <div
-                            key={link.id}
-                            onClick={() => setSelectedLink(link)}
-                            className={`group p-4 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm card-hover cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
-                          >
-                            <div className="flex items-center gap-3 mb-3">
-                              {getLinkIcon(link)}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5">
-                                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm truncate">
-                                    {link.name}
-                                  </h3>
+                          ))}
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="grid-view"
+                          initial={{ opacity: 0, scale: 0.98 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.98 }}
+                          transition={{ duration: 0.25 }}
+                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                        >
+                          {paginatedLinks.map((link, idx) => (
+                            <div
+                              key={link.id}
+                              onClick={() => setSelectedLink(link)}
+                              className={`group p-4 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm card-hover cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
+                            >
+                              <div className="flex items-center gap-3 mb-3">
+                                {getLinkIcon(link)}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm truncate">
+                                      {link.name}
+                                    </h3>
+                                  </div>
+                                  <p className="text-xs text-gray-500 truncate mt-0.5">{link.description}</p>
                                 </div>
-                                <p className="text-xs text-gray-500 truncate mt-0.5">{link.description}</p>
+                              </div>
+                              <div className="flex items-center gap-1.5 pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleLinkClick(link)
+                                  }}
+                                  className="flex-1 py-2 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-1 shadow-sm font-medium min-h-[36px]"
+                                  aria-label={`访问 ${link.name}`}
+                                >
+                                  <Download className="w-3 h-3" />
+                                  访问下载
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    shareLink(link)
+                                  }}
+                                  className="py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[36px]"
+                                  aria-label={`分享 ${link.name}`}
+                                >
+                                  {copiedId === link.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Share2 className="w-3 h-3" />}
+                                  分享
+                                </button>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1.5 pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleLinkClick(link)
-                                }}
-                                className="flex-1 py-2 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-1 shadow-sm font-medium min-h-[36px]"
-                                title="访问下载"
-                              >
-                                <Download className="w-3 h-3" />
-                                访问下载
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  shareLink(link)
-                                }}
-                                className="py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[36px]"
-                                title="分享链接"
-                              >
-                                {copiedId === link.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Share2 className="w-3 h-3" />}
-                                分享
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
 
                     {/* 分页控件 */}
                     {totalPages > 1 && (
@@ -674,6 +712,7 @@ export default function HomePage() {
                           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                           disabled={currentPage === 1}
                           className="px-4 py-2 rounded-xl text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer"
+                          aria-label="上一页"
                         >
                           上一页
                         </button>
@@ -696,6 +735,7 @@ export default function HomePage() {
                                     ? 'bg-brand-600 text-white shadow-button'
                                     : 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-600'
                                 }`}
+                                aria-label={`第 ${page} 页`}
                               >
                                 {page}
                               </button>
@@ -707,6 +747,7 @@ export default function HomePage() {
                           onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                           disabled={currentPage === totalPages}
                           className="px-4 py-2 rounded-xl text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer"
+                          aria-label="下一页"
                         >
                           下一页
                         </button>
@@ -716,6 +757,8 @@ export default function HomePage() {
                 )}
               </div>
             </div>
+            </>
+            )}
           </div>
         </div>
       </main>

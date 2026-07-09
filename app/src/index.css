@@ -37,6 +37,40 @@
   background: #9ca3af;
 }
 
+/* Firefox 滚动条 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+/* iOS 安全区域适配 */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* 尊重用户减少动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .card-hover:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) {
+  .card-hover:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
 /* ========== 玻璃态效果 ========== */
 .glass {
   background: rgba(255, 255, 255, 0.75);

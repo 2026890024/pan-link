@@ -367,6 +367,7 @@ export default function SearchPage() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="搜索您需要的资源..."
               className="flex-1 ml-3 bg-transparent outline-none text-base text-gray-800 placeholder:text-gray-400 min-w-0"
+              aria-label="搜索资源"
             />
             {query && (
               <button
@@ -416,10 +417,22 @@ export default function SearchPage() {
                         ? 'bg-brand-600 text-white shadow-sm'
                         : 'text-gray-500 hover:bg-gray-100'
                     }`}
+                    aria-label={`按${opt.label}排序`}
+                    aria-pressed={sortBy === opt.value}
                   >
                     {opt.label}
                   </button>
                 ))}
+                {(filterCategory !== 'all' || filterSubCategory !== 'all') && (
+                  <button
+                    onClick={() => { setFilterCategory('all'); setFilterSubCategory('all') }}
+                    className="px-2.5 py-1.5 rounded-full text-xs font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all whitespace-nowrap cursor-pointer flex items-center gap-1"
+                    aria-label="清空筛选"
+                  >
+                    <X className="w-3 h-3" />
+                    清空
+                  </button>
+                )}
               </div>
             </motion.div>
           )}
@@ -495,6 +508,7 @@ export default function SearchPage() {
                           handleLinkClick(link)
                         }}
                         className="px-3 py-2 text-xs text-white bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 rounded-lg transition-all shadow-sm font-medium flex items-center gap-1 flex-shrink-0"
+                        aria-label={`访问 ${link.name}`}
                       >
                         <Download className="w-3.5 h-3.5" />
                         访问下载
