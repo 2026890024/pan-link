@@ -166,7 +166,7 @@ export default function SearchPage() {
   }, [results])
 
   return (
-    <div className="min-h-screen bg-[#F5F7FA] pb-48">
+    <div className="min-h-screen bg-[#F5F7FA] pb-24">
       {/* 顶部居中标题 */}
       <div className="pt-6 pb-4">
         <Link to="/" className="flex items-center justify-center gap-2.5">
@@ -251,13 +251,13 @@ export default function SearchPage() {
           )}
         </AnimatePresence>
 
-        {/* 桌面端分类标签 */}
+        {/* 分类标签 */}
         <AnimatePresence>
           {!isSearching && hasSearched && results.length > 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="hidden lg:flex gap-2 overflow-x-auto pb-3 scrollbar-hide mb-1"
+              className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide mb-1"
             >
               <button
                 onClick={() => setFilterCategory('all')}
@@ -459,37 +459,6 @@ export default function SearchPage() {
           </footer>
         </div>
       </div>
-
-      {/* 底部分类导航（移动端固定） */}
-      {hasSearched && results.length > 0 && !isSearching && categories.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-t border-gray-100 lg:hidden">
-          <div className="flex items-center overflow-x-auto px-3 py-2 gap-1.5 scrollbar-hide max-w-3xl mx-auto">
-            <button
-              onClick={() => setFilterCategory('all')}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap flex-shrink-0 transition-all ${
-                filterCategory === 'all'
-                  ? 'bg-brand-50 text-brand-600 border border-brand-200'
-                  : 'bg-gray-50 text-gray-500 border border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              全部 ({results.length})
-            </button>
-            {categories.filter(c => categoryCounts[c.id]).map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setFilterCategory(cat.id)}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap flex-shrink-0 transition-all ${
-                  filterCategory === cat.id
-                    ? 'bg-brand-50 text-brand-600 border border-brand-200'
-                    : 'bg-gray-50 text-gray-500 border border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                {cat.name} ({categoryCounts[cat.id]})
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* 资源详情弹窗 */}
       {selectedLink && (
