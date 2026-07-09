@@ -39,9 +39,10 @@ export default function SearchPage() {
 
   // 悬浮按钮状态
   const [floatPos, setFloatPos] = useState({ x: 16, y: 80 })
-  const [isDragging, setIsDragging] = useState(false)
   const [showCategoryPanel, setShowCategoryPanel] = useState(false)
   const dragRef = useRef({ startX: 0, startY: 0, startLeft: 0, startBottom: 0, moved: false })
+  const isDraggingRef = useRef(false)
+  const dragEndTimeRef = useRef(0)
   const floatBtnRef = useRef<HTMLButtonElement>(null)
 
   // 所有分类（按sort_order排序，和首页一致）
@@ -166,7 +167,7 @@ export default function SearchPage() {
 
   // 悬浮按钮拖拽处理
   const handleDragStart = (clientX: number, clientY: number) => {
-    setIsDragging(true)
+    isDraggingRef.current = true
     dragRef.current = {
       startX: clientX,
       startY: clientY,
@@ -177,7 +178,7 @@ export default function SearchPage() {
   }
 
   const handleDragMove = (clientX: number, clientY: number) => {
-    if (!isDragging) return
+    if (!isDraggingRef.current) return
     const dx = clientX - dragRef.current.startX
     const dy = clientY - dragRef.current.startY
     // 移动超过5px视为拖拽
@@ -193,7 +194,11 @@ export default function SearchPage() {
   }
 
   const handleDragEnd = () => {
-    setIsDragging(false)
+    isDraggingRef.current = false
+    const now = Date.now()
+    // 防抖：触摸事件后会模拟触发 mouseup，400ms 内重复调用跳过
+    if (now - dragEndTimeRef.current < 400) return
+    dragEndTimeRef.current = now
     // 如果没有移动，视为点击事件，打开分类面板
     if (!dragRef.current.moved) {
       setShowCategoryPanel(!showCategoryPanel)
