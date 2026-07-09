@@ -326,7 +326,7 @@ export default function HomePage() {
           <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap justify-center">
             <button
               onClick={handleAllClick}
-              className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 whitespace-nowrap cursor-pointer ${
+              className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 whitespace-nowrap cursor-pointer ${
                 !selectedCategory
                   ? 'bg-brand-600 text-white shadow-button'
                   : 'bg-white/70 text-gray-600 hover:bg-gray-50 hover:text-brand-600 border border-gray-200 shadow-sm'
@@ -338,7 +338,7 @@ export default function HomePage() {
               <button
                 key={cat.id}
                 onClick={() => handleCategoryClick(cat.id)}
-                className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 whitespace-nowrap cursor-pointer ${
+                className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 whitespace-nowrap cursor-pointer ${
                   selectedCategory === cat.id
                     ? 'bg-brand-600 text-white shadow-button'
                     : 'bg-white/70 text-gray-600 hover:bg-gray-50 hover:text-brand-600 border border-gray-200 shadow-sm'
