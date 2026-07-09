@@ -4,14 +4,12 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search as SearchIcon,
-  History,
   X,
-  TrendingUp,
-  ArrowLeft,
-  ChevronRight,
   Check,
   Download,
   Share2,
+  ChevronDown,
+  LayoutGrid,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { checkLinkStatus, copyToClipboard as copyUtil } from '@/lib/utils'
@@ -24,7 +22,6 @@ export default function SearchPage() {
   const { links, categories, subCategories, incrementClicks } = useDataStore()
   const [query, setQuery] = useState(searchParams.get('q') || '')
   const [results, setResults] = useState<LinkItem[]>([])
-  const [recentSearches, setRecentSearches] = useState<string[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -32,13 +29,8 @@ export default function SearchPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedLink, setSelectedLink] = useState<LinkItem | null>(null)
+  const [showSortMenu, setShowSortMenu] = useState(false)
   const itemsPerPage = 10
-
-  // 加载搜索历史
-  useEffect(() => {
-    const history = localStorage.getItem('recentSearches')
-    if (history) setRecentSearches(JSON.parse(history))
-  }, [])
 
   // 如果从首页带了搜索词进来，自动搜索
   useEffect(() => {
@@ -49,17 +41,15 @@ export default function SearchPage() {
     }
   }, [searchParams])
 
-  // 获取子分类名称
   const getSubCategoryName = (subcategoryId: string) => {
     if (!subcategoryId) return ''
     const sub = subCategories.find(sc => sc.id === subcategoryId)
     return sub ? sub.name : ''
   }
 
-  // 过期过滤
   const isExpired = (link: LinkItem) => checkLinkStatus(link.expires_at || null) === 'expired'
 
-  // 执行搜索（实时搜索，有输入即搜）
+  // 执行搜索
   useEffect(() => {
     if (!query.trim()) {
       setResults([])
@@ -114,25 +104,8 @@ export default function SearchPage() {
     e.preventDefault()
     if (query.trim()) {
       setHasSearched(true)
-      const newHistory = [query, ...recentSearches.filter((s) => s !== query)].slice(0, 10)
-      setRecentSearches(newHistory)
-      localStorage.setItem('recentSearches', JSON.stringify(newHistory))
       setSearchParams({ q: query })
     }
-  }
-
-  const handleRecentSearch = (term: string) => {
-    setQuery(term)
-    setHasSearched(true)
-    const newHistory = [term, ...recentSearches.filter((s) => s !== term)].slice(0, 10)
-    setRecentSearches(newHistory)
-    localStorage.setItem('recentSearches', JSON.stringify(newHistory))
-    setSearchParams({ q: term })
-  }
-
-  const handleClearHistory = () => {
-    setRecentSearches([])
-    localStorage.removeItem('recentSearches')
   }
 
   const handleLinkClick = (link: LinkItem) => {
@@ -140,7 +113,6 @@ export default function SearchPage() {
     window.open(link.url, '_blank', 'noopener,noreferrer')
   }
 
-  // 分享：手机端用系统分享面板，桌面端复制链接
   const shareLink = async (link: LinkItem) => {
     const shareUrl = `${window.location.origin}/s/${link.slug}`
     if (navigator.share) {
@@ -157,59 +129,19 @@ export default function SearchPage() {
       const success = await copyUtil(link.url)
       if (success) {
         setCopiedId(link.id)
-        toast.success('链接已复制')
+        toast.success('已添加到剪贴板', {
+          style: {
+            borderRadius: '12px',
+            background: '#1F2937',
+            color: '#F9FAFB',
+            fontSize: '14px',
+          },
+        })
         setTimeout(() => setCopiedId(null), 2000)
       } else {
         toast.error('复制失败')
       }
     }
-  }
-
-  // 键盘快捷键
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
-        e.preventDefault()
-        const input = document.querySelector<HTMLInputElement>('input[type="text"]')
-        input?.focus()
-      }
-      if (e.key === 'Escape' && document.activeElement?.tagName === 'INPUT') {
-        setQuery('')
-        ;(document.activeElement as HTMLInputElement)?.blur()
-      }
-    }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [])
-
-  // 动态热门搜索：取点击量最高的5个资源的名称
-  const hotSearches = useMemo(() => {
-    return links
-      .filter(l => l.visible !== false && !isExpired(l))
-      .sort((a, b) => b.click_count - a.click_count)
-      .slice(0, 6)
-      .map(l => l.name.length > 10 ? l.name.slice(0, 10) + '...' : l.name)
-  }, [links])
-
-  const getLinkIcon = (link: LinkItem) => {
-    if (!link.icon) {
-      return <LinkIcon link={link} size="md" />
-    }
-    return (
-      <div className="relative w-12 h-12 flex-shrink-0">
-        <img
-          src={link.icon}
-          alt={link.name}
-          className="w-12 h-12 rounded-xl object-cover absolute inset-0"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none'
-          }}
-        />
-        <div className="absolute inset-0">
-          <LinkIcon link={link} size="md" />
-        </div>
-      </div>
-    )
   }
 
   // 分页
@@ -233,177 +165,168 @@ export default function SearchPage() {
     return counts
   }, [results])
 
-  return (
-    <div className="min-h-screen gradient-bg container mx-auto px-4 py-8 max-w-5xl">
-      {/* 面包屑导航 */}
-      <motion.nav
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-2 text-sm text-gray-500 mb-6"
-      >
-        <Link to="/" className="hover:text-brand-600 transition-colors inline-flex items-center gap-1">
-          <ArrowLeft className="w-3.5 h-3.5" /> 首页
-        </Link>
-        <ChevronRight className="w-3.5 h-3.5" />
-        <span className="text-gray-700 font-medium">搜索</span>
-        {query && (
-          <>
-            <ChevronRight className="w-3.5 h-3.5" />
-            <span className="text-brand-600 font-medium truncate max-w-[120px] sm:max-w-[200px]">{query}</span>
-          </>
-        )}
-      </motion.nav>
+  const sortLabel = { relevance: '默认排序', recent: '最新发布', popular: '最热下载' }[sortBy]
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
-        <form onSubmit={handleSearch} className="relative">
-          <div className="absolute -inset-1 bg-gradient-to-r from-brand-400 via-brand-500 to-violet-500 rounded-2xl opacity-10 blur-md group-focus-within:opacity-25 transition-all duration-500" />
-          <div className="relative">
-            <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-500 z-10 pointer-events-none" />
+  return (
+    <div className="min-h-screen bg-[#F5F7FA] pb-24">
+      {/* 顶部导航栏 */}
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-sm">
+              <LayoutGrid className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-bold text-lg text-gray-800">资源云</span>
+          </Link>
+          <Link to="/" className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+            <SearchIcon className="w-5 h-5 text-gray-500" />
+          </Link>
+        </div>
+      </header>
+
+      <div className="max-w-3xl mx-auto px-4 pt-6">
+        {/* 搜索框 */}
+        <motion.form
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          onSubmit={handleSearch}
+          className="relative"
+        >
+          <div className="flex items-center bg-white rounded-2xl shadow-sm border border-gray-200/60 px-4 py-3 focus-within:ring-2 focus-within:ring-brand-400/20 focus-within:border-brand-400/40 transition-all">
+            <SearchIcon className="w-5 h-5 text-gray-400 flex-shrink-0" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜索资源名称、别名、分类、标签..."
-              className="w-full pl-14 pr-14 py-4 sm:py-5 glass rounded-2xl text-base sm:text-lg focus:outline-none focus:ring-2 focus:ring-brand-400/30 transition-all duration-200 shadow-glass-sm"
+              placeholder="搜索您需要的资源..."
+              className="flex-1 ml-3 bg-transparent outline-none text-base text-gray-800 placeholder:text-gray-400"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery('')}
-                className="absolute right-20 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-brand-50 transition-colors cursor-pointer"
+                className="p-1.5 rounded-full hover:bg-gray-100 transition-colors mr-2"
               >
-                <X className="w-4 h-4 text-brand-400" />
+                <X className="w-4 h-4 text-gray-400" />
               </button>
             )}
             <button
               type="submit"
-              className="absolute right-3 top-1/2 -translate-y-1/2 px-5 py-2.5 bg-gradient-to-r from-brand-600 to-brand-500 text-white rounded-xl font-semibold text-sm hover:shadow-button transition-all duration-200 cursor-pointer"
+              className="px-5 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-xl font-medium text-sm hover:shadow-button transition-all duration-200 flex-shrink-0"
             >
               搜索
             </button>
           </div>
-        </form>
-      </motion.div>
+        </motion.form>
 
-      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-        {/* 侧边栏：仅桌面端且未搜索时显示 */}
-        <motion.aside
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className={`${hasSearched ? 'hidden' : 'hidden lg:block'} lg:w-56 flex-shrink-0`}
-        >
-          {/* 未搜索时：显示搜索历史和热门搜索 */}
-          {!hasSearched && (
-            <>
-              {recentSearches.length > 0 && (
-                <div className="glass rounded-2xl p-5 mb-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
-                      <History className="w-4 h-4 text-gray-400" />
-                      搜索历史
-                    </h3>
-                    <button onClick={handleClearHistory} className="text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">清空</button>
-                  </div>
-                  <div className="space-y-1.5">
-                    {recentSearches.map((term, index) => (
-                      <button key={index} onClick={() => handleRecentSearch(term)}
-                        className="block w-full text-left px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm cursor-pointer">{term}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="glass rounded-2xl p-5 mb-4">
-                <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-4 text-sm">
-                  <TrendingUp className="w-4 h-4 text-amber-400" />热门搜索
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {hotSearches.map((term, index) => (
-                    <button key={index} onClick={() => handleRecentSearch(term)}
-                      className="px-3 py-2 bg-brand-50 hover:bg-brand-100 text-brand-600 hover:text-brand-700 rounded-full text-xs font-medium transition-colors cursor-pointer">{term}</button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </motion.aside>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          className="flex-1"
-        >
-          {/* 结果统计 + 排序 + 分类筛选 */}
+        {/* 结果统计 + 排序 */}
+        <AnimatePresence>
           {!isSearching && hasSearched && results.length > 0 && (
-            <div className="space-y-3 mb-5">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="text-gray-500 text-sm flex-shrink-0">
-                  {query ? (
-                    <span>找到 <strong className="text-brand-600">{results.length}</strong> 个与「{query}」相关的结果</span>
-                  ) : (
-                    <span>共 <strong className="text-brand-600">{results.length}</strong> 个资源</span>
-                  )}
-                </div>
-                <div className="flex gap-1 sm:gap-1.5 flex-shrink-0">
-                  {[
-                    { value: 'relevance', label: '默认' },
-                    { value: 'recent', label: '最新' },
-                    { value: 'popular', label: '热门' },
-                  ].map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setSortBy(opt.value as 'relevance' | 'recent' | 'popular')}
-                      className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                        sortBy === opt.value
-                          ? 'bg-brand-600 text-white shadow-sm'
-                          : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center justify-between mt-5 mb-3"
+            >
+              <div className="text-sm text-gray-500">
+                {query ? (
+                  <span>找到 <strong className="text-brand-600">{results.length}</strong> 个与「{query}」相关的结果</span>
+                ) : (
+                  <span>共 <strong className="text-brand-600">{results.length}</strong> 个资源</span>
+                )}
               </div>
-              {/* 分类横向标签 */}
-              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+              {/* 排序下拉 */}
+              <div className="relative">
                 <button
-                  onClick={() => setFilterCategory('all')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                    filterCategory === 'all'
+                  onClick={() => setShowSortMenu(!showSortMenu)}
+                  className="flex items-center gap-1 text-sm text-brand-600 font-medium hover:bg-brand-50 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  {sortLabel}
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showSortMenu ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {showSortMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50 overflow-hidden"
+                      >
+                        {[
+                          { value: 'relevance' as const, label: '默认排序' },
+                          { value: 'recent' as const, label: '最新发布' },
+                          { value: 'popular' as const, label: '最热下载' },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => {
+                              setSortBy(opt.value)
+                              setShowSortMenu(false)
+                            }}
+                            className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                              sortBy === opt.value
+                                ? 'text-brand-600 bg-brand-50 font-medium'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 分类横向标签 */}
+        <AnimatePresence>
+          {!isSearching && hasSearched && results.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide mb-1"
+            >
+              <button
+                onClick={() => setFilterCategory('all')}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+                  filterCategory === 'all'
+                    ? 'bg-brand-600 text-white shadow-sm'
+                    : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-200'
+                }`}
+              >
+                全部 ({results.length})
+              </button>
+              {categories.filter(c => categoryCounts[c.id]).map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => setFilterCategory(cat.id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+                    filterCategory === cat.id
                       ? 'bg-brand-600 text-white shadow-sm'
-                      : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'
+                      : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-200'
                   }`}
                 >
-                  全部 ({results.length})
+                  {cat.name} ({categoryCounts[cat.id]})
                 </button>
-                {categories.filter(c => categoryCounts[c.id]).map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setFilterCategory(cat.id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                      filterCategory === cat.id
-                        ? 'bg-brand-600 text-white shadow-sm'
-                        : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'
-                    }`}
-                  >
-                    {cat.name} ({categoryCounts[cat.id]})
-                  </button>
-                ))}
-              </div>
-            </div>
+              ))}
+            </motion.div>
           )}
+        </AnimatePresence>
 
+        {/* 结果列表 */}
+        <div className="mt-2">
           <AnimatePresence mode="wait">
             {isSearching ? (
-              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-2">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="glass rounded-xl p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 skeleton rounded-xl" />
+                  <div key={i} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 skeleton rounded-lg" />
                       <div className="flex-1 space-y-2">
                         <div className="h-4 skeleton rounded w-3/4" />
                         <div className="h-3 skeleton rounded w-1/2" />
@@ -413,14 +336,14 @@ export default function SearchPage() {
                 ))}
               </motion.div>
             ) : !hasSearched ? (
-              <motion.div key="idle" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-16 glass rounded-2xl">
-                <SearchIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <motion.div key="idle" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
+                <SearchIcon className="w-14 h-14 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500 text-base font-medium">输入关键词开始搜索</p>
                 <p className="text-gray-400 text-sm mt-1">支持搜索资源名称、别名、分类、标签</p>
               </motion.div>
             ) : results.length === 0 ? (
-              <motion.div key="empty" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-16 glass rounded-2xl">
-                <SearchIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <motion.div key="empty" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
+                <SearchIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-gray-500 text-base font-medium">没有找到相关资源</p>
                 <p className="text-gray-400 text-sm mt-1">尝试使用其他关键词搜索</p>
               </motion.div>
@@ -429,54 +352,60 @@ export default function SearchPage() {
                 {paginatedResults.map((link, index) => (
                   <motion.div
                     key={link.id}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.04 }}
-                    className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-4 glass rounded-xl card-hover group cursor-pointer"
+                    transition={{ delay: index * 0.03 }}
+                    className="bg-white rounded-xl p-3.5 sm:p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group flex items-center gap-3"
                     onClick={() => setSelectedLink(link)}
                   >
-                    <div className="flex items-center gap-3 flex-1 min-w-0 w-full overflow-hidden">
-                      {getLinkIcon(link)}
-                      <div className="flex-1 min-w-0 overflow-hidden">
-                        <h3 className="font-medium text-gray-800 group-hover:text-brand-600 transition-colors text-sm truncate">
-                          {link.name}
-                        </h3>
-                        <p className="text-xs text-gray-500 truncate mt-0.5 hidden sm:block">{link.description}</p>
-                        <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-400 overflow-hidden">
-                          <span className="px-1.5 py-0.5 bg-brand-50 rounded-full text-[10px] font-medium text-brand-500 whitespace-nowrap flex-shrink-0">
-                            {categories.find(c => c.id === link.category_id)?.name || '未分类'}
+                    {/* 图标 */}
+                    <div className="flex-shrink-0">
+                      <LinkIcon link={link} size="md" />
+                    </div>
+
+                    {/* 信息 */}
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <h3 className="font-medium text-gray-800 text-sm truncate group-hover:text-brand-600 transition-colors">
+                        {link.name}
+                      </h3>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[11px] text-brand-500 bg-brand-50 px-1.5 py-0.5 rounded font-medium">
+                          {categories.find(c => c.id === link.category_id)?.name || '未分类'}
+                        </span>
+                        {link.subcategory_id && (
+                          <span className="text-[11px] text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded font-medium">
+                            {getSubCategoryName(link.subcategory_id)}
                           </span>
-                          {link.subcategory_id && (
-                            <span className="px-1.5 py-0.5 bg-violet-50 text-violet-500 rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">
-                              {getSubCategoryName(link.subcategory_id)}
-                            </span>
-                          )}
-                        </div>
+                        )}
                       </div>
                     </div>
-                    {/* 快速操作按钮 */}
-                    <div className="flex items-center gap-1.5 flex-shrink-0 w-full sm:w-auto justify-end sm:justify-start" onClick={(e) => e.stopPropagation()}>
+
+                    {/* 操作按钮 */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           handleLinkClick(link)
                         }}
-                        className="py-2 px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium min-h-[36px] flex-shrink-0"
-                        title="访问下载"
+                        className="px-3 py-2 text-xs text-white bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 rounded-lg transition-all shadow-sm font-medium flex items-center gap-1 flex-shrink-0"
                       >
-                        <Download className="w-3.5 h-3.5 sm:w-3 sm:h-3 flex-shrink-0" />
+                        <Download className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">访问下载</span>
+                        <span className="sm:hidden">下载</span>
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           shareLink(link)
                         }}
-                        className="py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[36px] flex-shrink-0"
+                        className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all flex-shrink-0"
                         title="分享链接"
                       >
-                        {copiedId === link.id ? <Check className="w-3.5 h-3.5 sm:w-3 sm:h-3 text-emerald-500 flex-shrink-0" /> : <Share2 className="w-3.5 h-3.5 sm:w-3 sm:h-3 flex-shrink-0" />}
-                        <span className="hidden sm:inline">分享</span>
+                        {copiedId === link.id ? (
+                          <Check className="w-4 h-4 text-emerald-500" />
+                        ) : (
+                          <Share2 className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
                   </motion.div>
@@ -485,71 +414,82 @@ export default function SearchPage() {
             )}
           </AnimatePresence>
 
-          {/* 分页控件 */}
+          {/* 分页 */}
           {totalPages > 1 && hasSearched && results.length > 0 && !isSearching && (
-            <div className="flex items-center justify-center gap-2 mt-6">
+            <div className="flex items-center justify-center gap-1.5 mt-6">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-4 py-2 rounded-xl text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer"
+                className="px-3 py-2 rounded-lg text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-gray-600"
               >
                 上一页
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1)
                 .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 2)
                 .map((page, index, array) => (
-                  <span key={page}>
+                  <span key={page} className="flex items-center">
                     {index > 0 && array[index - 1] !== page - 1 && (
-                      <span className="px-1 text-gray-400">...</span>
+                      <span className="px-1 text-gray-400 text-sm">...</span>
                     )}
                     <button
                       onClick={() => setCurrentPage(page)}
-                      className={`w-9 h-9 rounded-xl text-sm transition-all duration-200 font-medium cursor-pointer ${
+                      className={`w-8 h-8 rounded-lg text-sm transition-all font-medium ${
                         currentPage === page
-                          ? 'bg-brand-600 text-white shadow-button'
+                          ? 'bg-brand-600 text-white shadow-sm'
                           : 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-600'
                       }`}
                     >
                       {page}
                     </button>
                   </span>
-                ))
-              }
+                ))}
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 rounded-xl text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer"
+                className="px-3 py-2 rounded-lg text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-gray-600"
               >
                 下一页
               </button>
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
 
-      {/* 返回首页按钮 */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="mt-10 text-center"
-      >
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-brand-500 hover:text-brand-600 font-medium transition-colors px-4 py-2 rounded-xl hover:bg-brand-50"
-        >
-          <ArrowLeft className="w-4 h-4" /> 返回首页
-        </Link>
-      </motion.div>
+      {/* 底部分类导航（移动端固定） */}
+      {categories.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] lg:hidden">
+          <div className="flex items-center overflow-x-auto px-2 py-2 gap-1 scrollbar-hide">
+            <button
+              onClick={() => setFilterCategory('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-all ${
+                filterCategory === 'all'
+                  ? 'bg-brand-600 text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              全部分类
+            </button>
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setFilterCategory(cat.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-all ${
+                  filterCategory === cat.id
+                    ? 'bg-brand-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 资源详情弹窗 */}
       {selectedLink && (
         <LinkDetailModal link={selectedLink} onClose={() => setSelectedLink(null)} />
       )}
-
     </div>
   )
 }
-
-
-
