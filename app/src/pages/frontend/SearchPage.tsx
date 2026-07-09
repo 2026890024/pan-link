@@ -32,11 +32,12 @@ export default function SearchPage() {
   const [selectedLink, setSelectedLink] = useState<LinkItem | null>(null)
   const itemsPerPage = 10
 
-  // 悬浮按钮拖拽状态
-  const [floatPos, setFloatPos] = useState({ x: 16, y: 0 })
+  // 悬浮按钮状态
+  const [floatPos, setFloatPos] = useState({ x: 16, y: 80 })
   const [isDragging, setIsDragging] = useState(false)
-  const dragRef = useRef({ startX: 0, startY: 0, startLeft: 0, startBottom: 0 })
-  const floatBtnRef = useRef<HTMLAnchorElement>(null)
+  const [showCategoryPanel, setShowCategoryPanel] = useState(false)
+  const dragRef = useRef({ startX: 0, startY: 0, startLeft: 0, startBottom: 0, moved: false })
+  const floatBtnRef = useRef<HTMLButtonElement>(null)
 
   // 如果从首页带了搜索词进来，自动搜索
   useEffect(() => {
@@ -158,6 +159,7 @@ export default function SearchPage() {
       startY: clientY,
       startLeft: floatPos.x,
       startBottom: floatPos.y,
+      moved: false,
     }
   }
 
@@ -165,10 +167,13 @@ export default function SearchPage() {
     if (!isDragging) return
     const dx = clientX - dragRef.current.startX
     const dy = clientY - dragRef.current.startY
+    // 移动超过5px视为拖拽
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      dragRef.current.moved = true
+    }
     const vw = window.innerWidth
     const vh = window.innerHeight
     const btnSize = 48
-    // 限制在可视区域内
     const newX = Math.max(0, Math.min(vw - btnSize, dragRef.current.startLeft + dx))
     const newY = Math.max(0, Math.min(vh - btnSize, dragRef.current.startBottom - dy))
     setFloatPos({ x: newX, y: newY })
@@ -176,6 +181,15 @@ export default function SearchPage() {
 
   const handleDragEnd = () => {
     setIsDragging(false)
+    // 如果没有移动，视为点击事件，打开分类面板
+    if (!dragRef.current.moved) {
+      setShowCategoryPanel(!showCategoryPanel)
+    }
+  }
+
+  const handleCategorySelect = (catId: string) => {
+    setFilterCategory(catId)
+    setShowCategoryPanel(false)
   }
 
   // 分页
@@ -453,11 +467,10 @@ export default function SearchPage() {
       </div>
 
       {/* 悬浮分类按钮 - 可拖拽 */}
-      <Link
+      <button
         ref={floatBtnRef}
-        to="/"
-        className="fixed z-50 w-12 h-12 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 shadow-lg shadow-brand-500/30 flex items-center justify-center text-white active:scale-95 transition-transform cursor-pointer select-none touch-none"
-        style={{ left: floatPos.x, bottom: floatPos.y || 80 }}
+        className="fixed z-50 w-12 h-12 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 shadow-lg shadow-brand-500/30 flex items-center justify-center text-white active:scale-95 transition-transform cursor-grab select-none touch-none"
+        style={{ left: floatPos.x, bottom: floatPos.y }}
         onMouseDown={(e) => handleDragStart(e.clientX, e.clientY)}
         onMouseMove={(e) => handleDragMove(e.clientX, e.clientY)}
         onMouseUp={handleDragEnd}
@@ -473,7 +486,70 @@ export default function SearchPage() {
         onTouchEnd={handleDragEnd}
       >
         <Menu className="w-5 h-5" />
-      </Link>
+      </button>
+
+      {/* 分类面板 */}
+      <AnimatePresence>
+        {showCategoryPanel && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/20"
+              onClick={() => setShowCategoryPanel(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              className="fixed z-50 bottom-24 left-4 right-4 sm:left-auto sm:right-4 sm:w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 max-h-[60vh] overflow-y-auto"
+              style={{
+                left: floatPos.x < window.innerWidth / 2 ? 16 : undefined,
+                right: floatPos.x >= window.innerWidth / 2 ? 16 : undefined,
+              }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-gray-800 text-sm">选择分类</h3>
+                <button
+                  onClick={() => setShowCategoryPanel(false)}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                <button
+                  onClick={() => handleCategorySelect('all')}
+                  className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-between ${
+                    filterCategory === 'all'
+                      ? 'bg-brand-50 text-brand-600 border border-brand-200'
+                      : 'text-gray-600 hover:bg-gray-50 border border-transparent'
+                  }`}
+                >
+                  <span>全部</span>
+                  <span className="text-xs text-gray-400">{results.length}</span>
+                </button>
+                {categories.filter(c => categoryCounts[c.id]).map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleCategorySelect(cat.id)}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-between ${
+                      filterCategory === cat.id
+                        ? 'bg-brand-50 text-brand-600 border border-brand-200'
+                        : 'text-gray-600 hover:bg-gray-50 border border-transparent'
+                    }`}
+                  >
+                    <span>{cat.name}</span>
+                    <span className="text-xs text-gray-400">{categoryCounts[cat.id]}</span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* 资源详情弹窗 */}
       {selectedLink && (
