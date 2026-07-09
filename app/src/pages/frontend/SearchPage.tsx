@@ -10,6 +10,7 @@ import {
   Share2,
   ArrowLeft,
   LayoutGrid,
+  Menu,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { checkLinkStatus, copyToClipboard as copyUtil } from '@/lib/utils'
@@ -165,7 +166,7 @@ export default function SearchPage() {
   }, [results])
 
   return (
-    <div className="min-h-screen bg-[#F5F7FA] pb-24">
+    <div className="min-h-screen bg-[#F5F7FA] pb-48">
       {/* 顶部居中标题 */}
       <div className="pt-6 pb-4">
         <Link to="/" className="flex items-center justify-center gap-2.5">
@@ -424,34 +425,66 @@ export default function SearchPage() {
               </button>
             </div>
           )}
+
+          {/* Footer */}
+          <footer className="mt-12 pb-4">
+            {/* Divider */}
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent flex-1"></div>
+              <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
+              <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent flex-1"></div>
+            </div>
+            {/* Disclaimer */}
+            <div className="text-center mb-4 max-w-2xl mx-auto">
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                免责申明：本站不以盈利为目的，下载资源均来源于网络，只做学习和交流使用，版权归原作者所有，若作商业用途请购买正版，由于未及时购买和付费发生的侵权行为，与本站无关。如果侵犯了您的合法权益，请联系站长删除。
+              </p>
+            </div>
+            {/* Bottom Row */}
+            <div className="flex items-center justify-center gap-3 text-sm text-gray-400">
+              <Link
+                to="/"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-500 text-white rounded-full text-xs font-medium hover:bg-brand-600 transition-colors cursor-pointer"
+              >
+                <Menu className="w-3.5 h-3.5" />
+                分类
+              </Link>
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center">
+                <LayoutGrid className="w-3.5 h-3.5 text-white" />
+              </div>
+              <span className="font-medium text-gray-500">资源云</span>
+              <span className="text-gray-300">·</span>
+              <span className="text-gray-400">© 2026</span>
+            </div>
+          </footer>
         </div>
       </div>
 
       {/* 底部分类导航（移动端固定） */}
-      {categories.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-100 lg:hidden">
-          <div className="flex items-center overflow-x-auto px-3 py-2.5 gap-2 scrollbar-hide">
+      {hasSearched && results.length > 0 && !isSearching && categories.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-t border-gray-100 lg:hidden">
+          <div className="flex items-center overflow-x-auto px-3 py-2 gap-1.5 scrollbar-hide max-w-3xl mx-auto">
             <button
               onClick={() => setFilterCategory('all')}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-all ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap flex-shrink-0 transition-all ${
                 filterCategory === 'all'
-                  ? 'bg-brand-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  ? 'bg-brand-50 text-brand-600 border border-brand-200'
+                  : 'bg-gray-50 text-gray-500 border border-gray-200 hover:border-gray-300'
               }`}
             >
-              全部分类
+              全部 ({results.length})
             </button>
-            {categories.map(cat => (
+            {categories.filter(c => categoryCounts[c.id]).map(cat => (
               <button
                 key={cat.id}
                 onClick={() => setFilterCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-all ${
+                className={`px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap flex-shrink-0 transition-all ${
                   filterCategory === cat.id
-                    ? 'bg-brand-600 text-white'
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'bg-brand-50 text-brand-600 border border-brand-200'
+                    : 'bg-gray-50 text-gray-500 border border-gray-200 hover:border-gray-300'
                 }`}
               >
-                {cat.name}
+                {cat.name} ({categoryCounts[cat.id]})
               </button>
             ))}
           </div>
