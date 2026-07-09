@@ -8,6 +8,7 @@ import {
   Check,
   Download,
   Share2,
+  ArrowLeft,
   LayoutGrid,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
@@ -165,22 +166,17 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-24">
-      {/* 顶部导航栏 */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-sm">
-              <LayoutGrid className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-lg text-gray-800">资源云</span>
-          </Link>
-          <Link to="/" className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-            <SearchIcon className="w-5 h-5 text-gray-500" />
-          </Link>
-        </div>
-      </header>
+      {/* 顶部居中标题 */}
+      <div className="pt-6 pb-4">
+        <Link to="/" className="flex items-center justify-center gap-2.5">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-md">
+            <LayoutGrid className="w-5 h-5 text-white" />
+          </div>
+          <span className="font-bold text-xl text-gray-800">资源云</span>
+        </Link>
+      </div>
 
-      <div className="max-w-3xl mx-auto px-4 pt-6">
+      <div className="max-w-3xl mx-auto px-4">
         {/* 搜索框 */}
         <motion.form
           initial={{ opacity: 0, y: 10 }}
@@ -254,13 +250,13 @@ export default function SearchPage() {
           )}
         </AnimatePresence>
 
-        {/* 分类横向标签 */}
+        {/* 桌面端分类标签 */}
         <AnimatePresence>
           {!isSearching && hasSearched && results.length > 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide mb-1"
+              className="hidden lg:flex gap-2 overflow-x-auto pb-3 scrollbar-hide mb-1"
             >
               <button
                 onClick={() => setFilterCategory('all')}
@@ -361,22 +357,18 @@ export default function SearchPage() {
                         className="px-3 py-2 text-xs text-white bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 rounded-lg transition-all shadow-sm font-medium flex items-center gap-1 flex-shrink-0"
                       >
                         <Download className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">访问下载</span>
-                        <span className="sm:hidden">下载</span>
+                        访问下载
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           shareLink(link)
                         }}
-                        className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all flex-shrink-0"
+                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-brand-600 transition-colors flex-shrink-0 px-2 py-2"
                         title="分享链接"
                       >
-                        {copiedId === link.id ? (
-                          <Check className="w-4 h-4 text-emerald-500" />
-                        ) : (
-                          <Share2 className="w-4 h-4" />
-                        )}
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>分享</span>
                       </button>
                     </div>
                   </motion.div>
@@ -384,6 +376,15 @@ export default function SearchPage() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* 返回首页 */}
+          {hasSearched && results.length > 0 && !isSearching && (
+            <div className="mt-8 text-center">
+              <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-brand-500 hover:text-brand-600 transition-colors font-medium">
+                <ArrowLeft className="w-4 h-4" /> 返回首页
+              </Link>
+            </div>
+          )}
 
           {/* 分页 */}
           {totalPages > 1 && hasSearched && results.length > 0 && !isSearching && (
