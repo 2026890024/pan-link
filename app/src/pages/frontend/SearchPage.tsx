@@ -11,6 +11,9 @@ import {
   ArrowLeft,
   LayoutGrid,
   Menu,
+  FolderOpen,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { checkLinkStatus, copyToClipboard as copyUtil } from '@/lib/utils'
@@ -28,6 +31,8 @@ export default function SearchPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'relevance' | 'recent' | 'popular'>('relevance')
   const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [filterSubCategory, setFilterSubCategory] = useState<string>('all')
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedLink, setSelectedLink] = useState<LinkItem | null>(null)
   const itemsPerPage = 10
@@ -94,6 +99,9 @@ export default function SearchPage() {
 
       if (filterCategory !== 'all') {
         filtered = filtered.filter(link => link.category_id === filterCategory)
+      }
+      if (filterSubCategory !== 'all') {
+        filtered = filtered.filter(link => link.subcategory_id === filterSubCategory)
       }
 
       if (sortBy === 'popular') {
@@ -192,11 +200,6 @@ export default function SearchPage() {
     }
   }
 
-  const handleCategorySelect = (catId: string) => {
-    setFilterCategory(catId)
-    setShowCategoryPanel(false)
-  }
-
   // 分页
   const totalPages = Math.ceil(results.length / itemsPerPage)
   const paginatedResults = useMemo(() => {
@@ -204,8 +207,26 @@ export default function SearchPage() {
     return results.slice(start, start + itemsPerPage)
   }, [results, currentPage])
 
-  // 切换分类时重置页码
-  useEffect(() => { setCurrentPage(1) }, [filterCategory])
+  // 切换分类时重置页码和子分类
+  useEffect(() => { setCurrentPage(1); setFilterSubCategory('all') }, [filterCategory])
+  useEffect(() => { setCurrentPage(1) }, [filterSubCategory])
+
+  // 获取子分类
+  const getSubCategories = (categoryId: string) => {
+    return subCategories.filter(sc => sc.category_id === categoryId).sort((a, b) => a.sort_order - b.sort_order)
+  }
+
+  const handleCategorySelect = (catId: string) => {
+    setFilterCategory(catId)
+    setFilterSubCategory('all')
+    setShowCategoryPanel(false)
+  }
+
+  const handleSubCategorySelect = (catId: string, subId: string) => {
+    setFilterCategory(catId)
+    setFilterSubCategory(subId)
+    setShowCategoryPanel(false)
+  }
 
   // 分类统计
   const categoryCounts = useMemo(() => {
@@ -230,7 +251,102 @@ export default function SearchPage() {
         </Link>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 w-full flex-1 flex flex-col">
+      <div className="max-w-7xl mx-auto px-4 w-full flex-1 flex gap-6">
+        {/* 左侧分类面板 - 桌面端显示，和首页一致 */}
+        <div className="hidden lg:block w-64 flex-shrink-0">
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-100 p-5 sticky top-24">
+            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-4 px-2">资源分类</h3>
+            <nav className="space-y-1">
+              {/* 全部 */}
+              <button
+                onClick={() => { setFilterCategory('all'); setFilterSubCategory('all'); setExpandedCategory(null) }}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2.5 cursor-pointer ${
+                  filterCategory === 'all'
+                    ? 'bg-brand-600 text-white shadow-sm'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <FolderOpen className={`w-4 h-4 ${filterCategory === 'all' ? 'text-white/90' : 'text-brand-400'}`} />
+                <span>全部资源</span>
+              </button>
+              {allCategories.map((category) => {
+                const subcategories = getSubCategories(category.id)
+                const isExpanded = expandedCategory === category.id
+                const isSelected = filterCategory === category.id
+
+                return (
+                  <div key={category.id}>
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => {
+                          if (filterCategory === category.id) {
+                            setExpandedCategory(isExpanded ? null : category.id)
+                          } else {
+                            setFilterCategory(category.id)
+                            setFilterSubCategory('all')
+                            setExpandedCategory(category.id)
+                          }
+                        }}
+                        className={`flex-1 text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 flex items-center justify-between cursor-pointer ${
+                          isSelected && filterSubCategory === 'all'
+                            ? 'bg-brand-600 text-white shadow-sm'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <FolderOpen className={`w-4 h-4 ${isSelected && filterSubCategory === 'all' ? 'text-white/90' : 'text-brand-400'}`} />
+                          <span>{category.name}</span>
+                        </div>
+                        {subcategories.length > 0 && (
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setExpandedCategory(isExpanded ? null : category.id)
+                            }}
+                            className={`p-1 rounded-lg transition-all duration-200 ${isSelected && filterSubCategory === 'all' ? 'hover:bg-white/20' : 'hover:bg-brand-100'}`}
+                          >
+                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* 子分类 */}
+                    {isExpanded && subcategories.length > 0 && (
+                      <div className="mt-1 ml-2 space-y-0.5 border-l-2 border-brand-100 pl-3">
+                        <button
+                          onClick={() => handleSubCategorySelect(category.id, 'all')}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-200 cursor-pointer ${
+                            filterSubCategory === 'all' && isSelected
+                              ? 'bg-brand-50 text-brand-600 font-semibold'
+                              : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                          }`}
+                        >
+                          全部
+                        </button>
+                        {subcategories.map(sc => (
+                          <button
+                            key={sc.id}
+                            onClick={() => handleSubCategorySelect(category.id, sc.id)}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-200 cursor-pointer ${
+                              filterSubCategory === sc.id
+                                ? 'bg-brand-50 text-brand-600 font-semibold'
+                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                            }`}
+                          >
+                            {sc.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </nav>
+          </div>
+        </div>
+
+        <div className="flex-1 max-w-3xl mx-auto w-full flex flex-col">
         {/* 搜索框 */}
         <motion.form
           initial={{ opacity: 0, y: 10 }}
@@ -300,41 +416,6 @@ export default function SearchPage() {
                   </button>
                 ))}
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* 桌面端分类标签 */}
-        <AnimatePresence>
-          {!isSearching && hasSearched && results.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="hidden lg:flex gap-2 overflow-x-auto pb-3 scrollbar-hide mb-1"
-            >
-              <button
-                onClick={() => setFilterCategory('all')}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
-                  filterCategory === 'all'
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-200'
-                }`}
-              >
-                全部 ({results.length})
-              </button>
-              {allCategories.map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => setFilterCategory(cat.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
-                    filterCategory === cat.id
-                      ? 'bg-brand-600 text-white shadow-sm'
-                      : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-200'
-                  }`}
-                >
-                  {cat.name} ({categoryCounts[cat.id] || 0})
-                </button>
-              ))}
             </motion.div>
           )}
         </AnimatePresence>
@@ -505,11 +586,12 @@ export default function SearchPage() {
           </footer>
         </div>
       </div>
+      </div>
 
-      {/* 悬浮分类按钮 - 可拖拽 */}
+      {/* 悬浮分类按钮 - 移动端显示 */}
       <button
         ref={floatBtnRef}
-        className="fixed z-50 w-12 h-12 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 shadow-lg shadow-brand-500/30 flex items-center justify-center text-white active:scale-95 transition-transform cursor-grab select-none touch-none"
+        className="fixed lg:hidden z-50 w-12 h-12 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 shadow-lg shadow-brand-500/30 flex items-center justify-center text-white active:scale-95 transition-transform cursor-grab select-none touch-none"
         style={{ left: floatPos.x, bottom: floatPos.y }}
         onMouseDown={(e) => handleDragStart(e.clientX, e.clientY)}
         onMouseMove={(e) => handleDragMove(e.clientX, e.clientY)}
@@ -528,7 +610,7 @@ export default function SearchPage() {
         <Menu className="w-5 h-5" />
       </button>
 
-      {/* 分类面板 */}
+      {/* 分类面板 - 移动端显示 */}
       <AnimatePresence>
         {showCategoryPanel && (
           <>
@@ -536,7 +618,7 @@ export default function SearchPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/20"
+              className="fixed lg:hidden inset-0 z-40 bg-black/20"
               onClick={() => setShowCategoryPanel(false)}
             />
             <motion.div
@@ -544,7 +626,7 @@ export default function SearchPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              className="fixed z-50 bottom-24 left-4 right-4 sm:left-auto sm:right-4 sm:w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 max-h-[60vh] overflow-y-auto"
+              className="fixed lg:hidden z-50 bottom-24 left-4 right-4 sm:left-auto sm:right-4 sm:w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 max-h-[60vh] overflow-y-auto"
               style={{
                 left: floatPos.x < window.innerWidth / 2 ? 16 : undefined,
                 right: floatPos.x >= window.innerWidth / 2 ? 16 : undefined,
