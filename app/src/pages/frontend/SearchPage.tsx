@@ -191,20 +191,20 @@ export default function SearchPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="搜索您需要的资源..."
-              className="flex-1 ml-3 bg-transparent outline-none text-base text-gray-800 placeholder:text-gray-400"
+              className="flex-1 ml-3 bg-transparent outline-none text-base text-gray-800 placeholder:text-gray-400 min-w-0"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery('')}
-                className="p-1.5 rounded-full hover:bg-gray-100 transition-colors mr-2"
+                className="p-1.5 rounded-full hover:bg-gray-100 transition-colors mr-3 flex-shrink-0"
               >
                 <X className="w-4 h-4 text-gray-400" />
               </button>
             )}
             <button
               type="submit"
-              className="px-5 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-xl font-medium text-sm hover:shadow-button transition-all duration-200 flex-shrink-0"
+              className="px-5 py-2.5 bg-brand-500 text-white rounded-full font-medium text-sm hover:bg-brand-600 transition-all duration-200 flex-shrink-0 shadow-sm"
             >
               搜索
             </button>
@@ -217,7 +217,7 @@ export default function SearchPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center justify-between mt-5 mb-3"
+              className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-5 mb-3 gap-2"
             >
               <div className="text-sm text-gray-500">
                 {query ? (
@@ -227,7 +227,7 @@ export default function SearchPage() {
                 )}
               </div>
               {/* 排序按钮组 */}
-              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                 {[
                   { value: 'relevance' as const, label: '默认' },
                   { value: 'recent' as const, label: '最新' },
@@ -429,11 +429,11 @@ export default function SearchPage() {
 
       {/* 底部分类导航（移动端固定） */}
       {categories.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] lg:hidden">
-          <div className="flex items-center overflow-x-auto px-2 py-2 gap-1 scrollbar-hide">
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-100 lg:hidden">
+          <div className="flex items-center overflow-x-auto px-3 py-2.5 gap-2 scrollbar-hide">
             <button
               onClick={() => setFilterCategory('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-all ${
+              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-all ${
                 filterCategory === 'all'
                   ? 'bg-brand-600 text-white'
                   : 'text-gray-600 hover:bg-gray-100'
@@ -445,7 +445,7 @@ export default function SearchPage() {
               <button
                 key={cat.id}
                 onClick={() => setFilterCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-all ${
+                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-all ${
                   filterCategory === cat.id
                     ? 'bg-brand-600 text-white'
                     : 'text-gray-600 hover:bg-gray-100'

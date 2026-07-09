@@ -5,11 +5,12 @@ export default function PublicLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const isHomePage = location.pathname === '/'
+  const isSearchPage = location.pathname === '/search'
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* 全局导航栏 - 首页不显示（首页有自己的顶栏） */}
-      {!isHomePage && (
+      {/* 全局导航栏 - 首页和搜索页不显示（它们有自己的顶栏） */}
+      {!isHomePage && !isSearchPage && (
         <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-gray-100">
           <div className="container mx-auto px-4 h-14 flex items-center justify-between">
             {/* Logo / 品牌 */}
