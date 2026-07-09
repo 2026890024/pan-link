@@ -39,6 +39,11 @@ export default function SearchPage() {
   const dragRef = useRef({ startX: 0, startY: 0, startLeft: 0, startBottom: 0, moved: false })
   const floatBtnRef = useRef<HTMLButtonElement>(null)
 
+  // 所有分类（按sort_order排序，和首页一致）
+  const allCategories = useMemo(() => {
+    return [...categories].sort((a, b) => a.sort_order - b.sort_order)
+  }, [categories])
+
   // 如果从首页带了搜索词进来，自动搜索
   useEffect(() => {
     const q = searchParams.get('q')
@@ -214,9 +219,9 @@ export default function SearchPage() {
   }, [results])
 
   return (
-    <div className="min-h-screen bg-[#F5F7FA] pb-24">
+    <div className="min-h-screen bg-[#F5F7FA] flex flex-col pb-24">
       {/* 顶部居中标题 */}
-      <div className="pt-6 pb-4">
+      <div className="pt-6 pb-4 shrink-0">
         <Link to="/" className="flex items-center justify-center gap-2.5">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-md">
             <LayoutGrid className="w-5 h-5 text-white" />
@@ -225,7 +230,7 @@ export default function SearchPage() {
         </Link>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4">
+      <div className="max-w-3xl mx-auto px-4 w-full flex-1 flex flex-col">
         {/* 搜索框 */}
         <motion.form
           initial={{ opacity: 0, y: 10 }}
@@ -299,8 +304,43 @@ export default function SearchPage() {
           )}
         </AnimatePresence>
 
+        {/* 桌面端分类标签 */}
+        <AnimatePresence>
+          {!isSearching && hasSearched && results.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="hidden lg:flex gap-2 overflow-x-auto pb-3 scrollbar-hide mb-1"
+            >
+              <button
+                onClick={() => setFilterCategory('all')}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+                  filterCategory === 'all'
+                    ? 'bg-brand-600 text-white shadow-sm'
+                    : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-200'
+                }`}
+              >
+                全部 ({results.length})
+              </button>
+              {allCategories.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => setFilterCategory(cat.id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+                    filterCategory === cat.id
+                      ? 'bg-brand-600 text-white shadow-sm'
+                      : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-200'
+                  }`}
+                >
+                  {cat.name} ({categoryCounts[cat.id] || 0})
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* 结果列表 */}
-        <div className="mt-2">
+        <div className="mt-2 flex-1 flex flex-col">
           <AnimatePresence mode="wait">
             {isSearching ? (
               <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-2">
@@ -439,8 +479,8 @@ export default function SearchPage() {
             </div>
           )}
 
-          {/* Footer */}
-          <footer className="mt-12 pb-4">
+          {/* Footer - 始终在最底部 */}
+          <footer className="mt-auto pt-12 pb-4">
             {/* Divider */}
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent flex-1"></div>
@@ -531,7 +571,7 @@ export default function SearchPage() {
                   <span>全部</span>
                   <span className="text-xs text-gray-400">{results.length}</span>
                 </button>
-                {categories.filter(c => categoryCounts[c.id]).map(cat => (
+                {allCategories.map(cat => (
                   <button
                     key={cat.id}
                     onClick={() => handleCategorySelect(cat.id)}
@@ -542,7 +582,7 @@ export default function SearchPage() {
                     }`}
                   >
                     <span>{cat.name}</span>
-                    <span className="text-xs text-gray-400">{categoryCounts[cat.id]}</span>
+                    <span className="text-xs text-gray-400">{categoryCounts[cat.id] || 0}</span>
                   </button>
                 ))}
               </div>
