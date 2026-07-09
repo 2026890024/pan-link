@@ -8,7 +8,6 @@ import {
   Check,
   Download,
   Share2,
-  ChevronDown,
   LayoutGrid,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
@@ -29,7 +28,6 @@ export default function SearchPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedLink, setSelectedLink] = useState<LinkItem | null>(null)
-  const [showSortMenu, setShowSortMenu] = useState(false)
   const itemsPerPage = 10
 
   // 如果从首页带了搜索词进来，自动搜索
@@ -165,8 +163,6 @@ export default function SearchPage() {
     return counts
   }, [results])
 
-  const sortLabel = { relevance: '默认排序', recent: '最新发布', popular: '最热下载' }[sortBy]
-
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-24">
       {/* 顶部导航栏 */}
@@ -234,50 +230,25 @@ export default function SearchPage() {
                   <span>共 <strong className="text-brand-600">{results.length}</strong> 个资源</span>
                 )}
               </div>
-              {/* 排序下拉 */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowSortMenu(!showSortMenu)}
-                  className="flex items-center gap-1 text-sm text-brand-600 font-medium hover:bg-brand-50 px-3 py-1.5 rounded-lg transition-colors"
-                >
-                  {sortLabel}
-                  <ChevronDown className={`w-4 h-4 transition-transform ${showSortMenu ? 'rotate-180' : ''}`} />
-                </button>
-                <AnimatePresence>
-                  {showSortMenu && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
-                      <motion.div
-                        initial={{ opacity: 0, y: -4, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -4, scale: 0.95 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50 overflow-hidden"
-                      >
-                        {[
-                          { value: 'relevance' as const, label: '默认排序' },
-                          { value: 'recent' as const, label: '最新发布' },
-                          { value: 'popular' as const, label: '最热下载' },
-                        ].map((opt) => (
-                          <button
-                            key={opt.value}
-                            onClick={() => {
-                              setSortBy(opt.value)
-                              setShowSortMenu(false)
-                            }}
-                            className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                              sortBy === opt.value
-                                ? 'text-brand-600 bg-brand-50 font-medium'
-                                : 'text-gray-600 hover:bg-gray-50'
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
+              {/* 排序按钮组 */}
+              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                {[
+                  { value: 'relevance' as const, label: '默认' },
+                  { value: 'recent' as const, label: '最新' },
+                  { value: 'popular' as const, label: '热门' },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setSortBy(opt.value)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
+                      sortBy === opt.value
+                        ? 'bg-brand-600 text-white shadow-sm'
+                        : 'text-gray-500 hover:bg-gray-100'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
             </motion.div>
           )}
