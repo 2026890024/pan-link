@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { motion, AnimatePresence } from 'framer-motion'
@@ -31,6 +31,12 @@ export default function SearchPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedLink, setSelectedLink] = useState<LinkItem | null>(null)
   const itemsPerPage = 10
+
+  // 悬浮按钮拖拽状态
+  const [floatPos, setFloatPos] = useState({ x: 16, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const dragRef = useRef({ startX: 0, startY: 0, startLeft: 0, startBottom: 0 })
+  const floatBtnRef = useRef<HTMLAnchorElement>(null)
 
   // 如果从首页带了搜索词进来，自动搜索
   useEffect(() => {
@@ -144,6 +150,34 @@ export default function SearchPage() {
     }
   }
 
+  // 悬浮按钮拖拽处理
+  const handleDragStart = (clientX: number, clientY: number) => {
+    setIsDragging(true)
+    dragRef.current = {
+      startX: clientX,
+      startY: clientY,
+      startLeft: floatPos.x,
+      startBottom: floatPos.y,
+    }
+  }
+
+  const handleDragMove = (clientX: number, clientY: number) => {
+    if (!isDragging) return
+    const dx = clientX - dragRef.current.startX
+    const dy = clientY - dragRef.current.startY
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const btnSize = 48
+    // 限制在可视区域内
+    const newX = Math.max(0, Math.min(vw - btnSize, dragRef.current.startLeft + dx))
+    const newY = Math.max(0, Math.min(vh - btnSize, dragRef.current.startBottom - dy))
+    setFloatPos({ x: newX, y: newY })
+  }
+
+  const handleDragEnd = () => {
+    setIsDragging(false)
+  }
+
   // 分页
   const totalPages = Math.ceil(results.length / itemsPerPage)
   const paginatedResults = useMemo(() => {
@@ -247,41 +281,6 @@ export default function SearchPage() {
                   </button>
                 ))}
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* 分类标签 */}
-        <AnimatePresence>
-          {!isSearching && hasSearched && results.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide mb-1"
-            >
-              <button
-                onClick={() => setFilterCategory('all')}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
-                  filterCategory === 'all'
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-200'
-                }`}
-              >
-                全部 ({results.length})
-              </button>
-              {categories.filter(c => categoryCounts[c.id]).map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => setFilterCategory(cat.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
-                    filterCategory === cat.id
-                      ? 'bg-brand-600 text-white shadow-sm'
-                      : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-200'
-                  }`}
-                >
-                  {cat.name} ({categoryCounts[cat.id]})
-                </button>
-              ))}
             </motion.div>
           )}
         </AnimatePresence>
@@ -442,13 +441,6 @@ export default function SearchPage() {
             </div>
             {/* Bottom Row */}
             <div className="flex items-center justify-center gap-3 text-sm text-gray-400">
-              <Link
-                to="/"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-500 text-white rounded-full text-xs font-medium hover:bg-brand-600 transition-colors cursor-pointer"
-              >
-                <Menu className="w-3.5 h-3.5" />
-                分类
-              </Link>
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center">
                 <LayoutGrid className="w-3.5 h-3.5 text-white" />
               </div>
@@ -459,6 +451,29 @@ export default function SearchPage() {
           </footer>
         </div>
       </div>
+
+      {/* 悬浮分类按钮 - 可拖拽 */}
+      <Link
+        ref={floatBtnRef}
+        to="/"
+        className="fixed z-50 w-12 h-12 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 shadow-lg shadow-brand-500/30 flex items-center justify-center text-white active:scale-95 transition-transform cursor-pointer select-none touch-none"
+        style={{ left: floatPos.x, bottom: floatPos.y || 80 }}
+        onMouseDown={(e) => handleDragStart(e.clientX, e.clientY)}
+        onMouseMove={(e) => handleDragMove(e.clientX, e.clientY)}
+        onMouseUp={handleDragEnd}
+        onMouseLeave={handleDragEnd}
+        onTouchStart={(e) => {
+          e.preventDefault()
+          handleDragStart(e.touches[0].clientX, e.touches[0].clientY)
+        }}
+        onTouchMove={(e) => {
+          e.preventDefault()
+          handleDragMove(e.touches[0].clientX, e.touches[0].clientY)
+        }}
+        onTouchEnd={handleDragEnd}
+      >
+        <Menu className="w-5 h-5" />
+      </Link>
 
       {/* 资源详情弹窗 */}
       {selectedLink && (
