@@ -60,7 +60,7 @@ export default function PublicLayout() {
 function LogoIcon({ logoType, logoUrl }: { logoType: string; logoUrl?: string }) {
   if (logoType === 'image' && logoUrl) {
     return (
-      <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-white">
+      <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-transparent">
         <img
           src={logoUrl}
           alt="Logo"

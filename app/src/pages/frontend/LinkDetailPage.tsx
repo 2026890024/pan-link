@@ -13,7 +13,7 @@ import {
   FolderOpen,
   Download,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useDataStore } from '@/store/useDataStore'
 import { getDaysRemaining, copyToClipboard, checkLinkStatus } from '@/lib/utils'
 import toast from 'react-hot-toast'
@@ -38,6 +38,16 @@ export default function LinkDetailPage() {
 
   const link = !shareLink ? links.find((l) => l.slug === slug) : null
   const category = link ? categories.find((c) => c.id === link.category_id) : null
+
+  useEffect(() => {
+    if (shareLink) {
+      document.title = `${shareLink.name} - 资源云`
+    } else if (link) {
+      document.title = `${link.name} - 资源云`
+    } else {
+      document.title = '链接不存在 - 资源云'
+    }
+  }, [shareLink, link])
 
   const subcategory = link?.subcategory_id
     ? subCategories.find(sc => sc.id === link.subcategory_id)
@@ -96,57 +106,57 @@ export default function LinkDetailPage() {
     const sharedLinks = links.filter(l => (shareLink.linkIds || []).includes(l.id) && l.visible !== false)
     
     return (
-      <div className="min-h-screen gradient-bg container mx-auto px-4 py-8 max-w-4xl">
+      <div className="min-h-screen gradient-bg container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-4xl">
         <motion.nav
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 text-sm text-gray-500 mb-6"
+          className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6"
         >
           <Link to="/" className="hover:text-brand-600 transition-colors inline-flex items-center gap-1">
-            <ArrowLeft className="w-3.5 h-3.5" /> 首页
+            <ArrowLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> 首页
           </Link>
-          <ChevronRight className="w-3.5 h-3.5" />
+          <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
           <span className="text-gray-700 font-medium">分享合集</span>
         </motion.nav>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-2xl p-6 sm:p-8 mb-6"
+          className="glass rounded-2xl p-4 sm:p-8 mb-4 sm:mb-6"
         >
-          <div className="flex items-center gap-4 mb-2">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-50 to-violet-50 flex items-center justify-center">
-              <Share2 className="w-7 h-7 text-brand-500" />
+          <div className="flex items-center gap-3 sm:gap-4 mb-2">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-brand-50 to-violet-50 flex items-center justify-center flex-shrink-0">
+              <Share2 className="w-6 h-6 sm:w-7 sm:h-7 text-brand-500" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{shareLink.name}</h1>
-              <p className="text-sm text-gray-500 mt-1">{sharedLinks.length} 个资源</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{shareLink.name}</h1>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">{sharedLinks.length} 个资源</p>
             </div>
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="space-y-3">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="space-y-2 sm:space-y-3">
           {sharedLinks.length === 0 ? (
             <div className="text-center py-12 glass rounded-2xl">
-              <FolderOpen className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500">该合集暂无可用的资源链接</p>
+              <FolderOpen className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500 text-sm sm:text-base">该合集暂无可用的资源链接</p>
             </div>
           ) : (
             sharedLinks.map((sharedLinkItem) => (
               <div
                 key={sharedLinkItem.id}
-                className="flex items-center gap-4 p-4 glass rounded-xl hover:shadow-md transition-all"
+                className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 glass rounded-xl hover:shadow-md transition-all"
               >
-                <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
                   {sharedLinkItem.icon ? (
-                    <img src={sharedLinkItem.icon} alt="" className="w-8 h-8 object-contain" loading="lazy" decoding="async" />
+                    <img src={sharedLinkItem.icon} alt="" className="w-7 h-7 sm:w-8 sm:h-8 object-contain" loading="lazy" decoding="async" />
                   ) : (
-                    <Gift className="w-5 h-5 text-brand-400" />
+                    <Gift className="w-4 h-4 sm:w-5 sm:h-5 text-brand-400" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-gray-800 truncate text-sm">{sharedLinkItem.name}</h3>
-                  <p className="text-xs text-gray-500 truncate mt-0.5">{sharedLinkItem.description || sharedLinkItem.url}</p>
+                  <h3 className="font-medium text-gray-800 truncate text-xs sm:text-sm">{sharedLinkItem.name}</h3>
+                  <p className="text-[10px] sm:text-xs text-gray-500 truncate mt-0.5">{sharedLinkItem.description || sharedLinkItem.url}</p>
                 </div>
                 <button
                   onClick={(e) => {
@@ -154,7 +164,7 @@ export default function LinkDetailPage() {
                     incrementClicks(sharedLinkItem.id)
                     window.open(sharedLinkItem.url, '_blank', 'noopener,noreferrer')
                   }}
-                  className="px-4 py-2 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 rounded-lg hover:from-brand-700 hover:to-brand-600 transition-all cursor-pointer flex items-center gap-1 flex-shrink-0"
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 rounded-lg hover:from-brand-700 hover:to-brand-600 transition-all cursor-pointer flex items-center gap-1 flex-shrink-0 touch-manipulation"
                 >
                   <Download className="w-3 h-3" />
                   访问下载
@@ -164,8 +174,8 @@ export default function LinkDetailPage() {
           )}
         </motion.div>
 
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="mt-10 text-center">
-          <Link to="/" className="inline-flex items-center gap-2 text-brand-500 hover:text-brand-600 font-medium transition-colors">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="mt-8 sm:mt-10 text-center">
+          <Link to="/" className="inline-flex items-center gap-2 text-brand-500 hover:text-brand-600 font-medium text-sm transition-colors">
             <ArrowLeft className="w-4 h-4" /> 返回首页
           </Link>
         </motion.div>
@@ -201,26 +211,26 @@ export default function LinkDetailPage() {
   }
 
   return (
-    <div className="min-h-screen gradient-bg container mx-auto px-4 py-8 max-w-4xl">
+    <div className="min-h-screen bg-[#FAFBFC] container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-4xl">
       <motion.nav
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-2 text-sm text-gray-500 mb-6 flex-wrap"
+        className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6 flex-wrap"
       >
-        <Link to="/" className="hover:text-brand-600 transition-colors">首页</Link>
-        <ChevronRight className="w-3.5 h-3.5" />
+        <Link to="/" className="hover:text-gray-900 transition-colors">首页</Link>
+        <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
         {category && (
-          <Link to={`/category/${category.id}`} className="hover:text-brand-600 transition-colors">
+          <Link to={`/category/${category.id}`} className="hover:text-gray-900 transition-colors truncate">
             {category.name}
           </Link>
         )}
         {subcategory && (
           <>
-            <ChevronRight className="w-3.5 h-3.5" />
-            <span className="text-gray-500 font-medium">{subcategory.name}</span>
+            <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+            <span className="text-gray-500 font-medium truncate">{subcategory.name}</span>
           </>
         )}
-        <ChevronRight className="w-3.5 h-3.5" />
+        <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
         <span className="text-gray-700 font-medium truncate">{link.name}</span>
       </motion.nav>
 
@@ -228,30 +238,31 @@ export default function LinkDetailPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="glass rounded-2xl sm:rounded-3xl overflow-hidden"
+        className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm"
       >
+        <div className={`h-1 bg-gradient-to-r ${status === 'expired' ? 'from-red-500 to-red-400' : 'from-gray-700 via-gray-500 to-gray-400'}`} />
         <div className={`h-1.5 bg-gradient-to-r ${status === 'expired' ? 'from-red-500 to-red-400' : 'from-brand-600 via-brand-500 to-violet-500'}`} />
 
-        <div className="p-6 sm:p-8">
-          <div className="text-center mb-8">
+        <div className="p-4 sm:p-8">
+          <div className="text-center mb-6 sm:mb-8">
             <motion.div
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: 'spring' }}
-              className="w-28 h-28 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-brand-50 to-violet-50 flex items-center justify-center shadow-glass"
+              className="w-20 h-20 sm:w-28 sm:h-28 mx-auto mb-4 sm:mb-6 rounded-2xl bg-gradient-to-br from-brand-50 to-violet-50 flex items-center justify-center shadow-glass"
             >
               {getLinkIcon()}
             </motion.div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">{link.name}</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">{link.name}</h1>
 
             {subcategory && (
-              <span className="px-3 py-1 bg-brand-50 text-brand-600 rounded-full text-sm font-medium">{subcategory.name}</span>
+              <span className="px-2.5 sm:px-3 py-0.5 sm:py-1 bg-brand-50 text-brand-600 rounded-full text-xs sm:text-sm font-medium">{subcategory.name}</span>
             )}
 
             {link.tags && link.tags.length > 0 && (
-              <div className="flex items-center justify-center gap-2 flex-wrap mt-3">
+              <div className="flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap mt-2 sm:mt-3">
                 {link.tags.map((tag) => (
-                  <span key={tag.id} className="px-3 py-1 rounded-full text-sm font-medium" style={{ backgroundColor: `${tag.color}20`, color: tag.color }}>
+                  <span key={tag.id} className="px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium" style={{ backgroundColor: `${tag.color}20`, color: tag.color }}>
                     {tag.name}
                   </span>
                 ))}
@@ -287,46 +298,46 @@ export default function LinkDetailPage() {
             </motion.div>
           )}
 
-          <div className="space-y-3 mb-6">
-            <div className="p-4 bg-brand-50/50 rounded-2xl border border-brand-50">
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">链接地址</label>
+          <div className="space-y-2.5 sm:space-y-3 mb-5 sm:mb-6">
+            <div className="p-3 sm:p-4 bg-brand-50/50 rounded-2xl border border-brand-50">
+              <label className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 sm:mb-2 block">链接地址</label>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <input type="text" value={link.url} readOnly
-                  className="flex-1 bg-white px-4 py-2.5 rounded-xl border border-gray-200 font-mono text-xs text-gray-700 truncate" />
+                  className="flex-1 bg-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-gray-200 font-mono text-[11px] sm:text-xs text-gray-700 truncate" />
                 <button onClick={() => handleCopy(link.url, 'url')}
-                  className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl transition-colors flex items-center justify-center gap-2 text-sm font-medium cursor-pointer">
-                  {copiedField === 'url' ? (<><Check className="w-4 h-4" /> 已复制</>) : (<><Copy className="w-4 h-4" /> 复制</>)}
+                  className="px-4 py-2 sm:py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl transition-colors flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium cursor-pointer touch-manipulation">
+                  {copiedField === 'url' ? (<><Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> 已复制</>) : (<><Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> 复制</>)}
                 </button>
               </div>
             </div>
 
             {link.extract_code && (
-              <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100">
-                <label className="text-xs font-semibold text-amber-500 uppercase tracking-wider mb-2 block">提取码</label>
+              <div className="p-3 sm:p-4 bg-amber-50/50 rounded-2xl border border-amber-100">
+                <label className="text-[10px] sm:text-xs font-semibold text-amber-500 uppercase tracking-wider mb-1.5 sm:mb-2 block">提取码</label>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <input type="text" value={link.extract_code} readOnly
-                    className="flex-1 bg-white px-4 py-2.5 rounded-xl border border-amber-100 font-mono text-xl text-center tracking-[0.3em] uppercase font-bold text-amber-700" />
+                    className="flex-1 bg-white px-4 py-2 sm:py-2.5 rounded-xl border border-amber-100 font-mono text-lg sm:text-xl text-center tracking-[0.3em] uppercase font-bold text-amber-700" />
                   <button onClick={() => handleCopy(link.extract_code!, 'code')}
-                    className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors flex items-center justify-center gap-2 text-sm font-medium cursor-pointer">
-                    {copiedField === 'code' ? (<><Check className="w-4 h-4" /> 已复制</>) : (<><Copy className="w-4 h-4" /> 一键复制</>)}
+                    className="px-4 py-2 sm:py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium cursor-pointer touch-manipulation">
+                    {copiedField === 'code' ? (<><Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> 已复制</>) : (<><Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> 一键复制</>)}
                   </button>
                 </div>
               </div>
             )}
 
-            <div className="p-4 bg-brand-50/50 rounded-2xl border border-brand-50">
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">有效期</label>
-              <div className="flex items-center justify-between">
-                <span className="text-base font-semibold text-gray-800">
+            <div className="p-3 sm:p-4 bg-brand-50/50 rounded-2xl border border-brand-50">
+              <label className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 sm:mb-2 block">有效期</label>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 sm:gap-2">
+                <span className="text-sm sm:text-base font-semibold text-gray-800">
                   {daysRemaining === null ? (
-                    <span className="text-emerald-600 flex items-center gap-2"><Check className="w-5 h-5" /> 永久有效</span>
+                    <span className="text-emerald-600 flex items-center gap-1.5 sm:gap-2"><Check className="w-4 h-4 sm:w-5 sm:h-5" /> 永久有效</span>
                   ) : status === 'expired' ? (
-                    <span className="text-red-600 flex items-center gap-2"><AlertTriangle className="w-5 h-5" /> 已过期</span>
+                    <span className="text-red-600 flex items-center gap-1.5 sm:gap-2"><AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" /> 已过期</span>
                   ) : (
                     `剩余 ${daysRemaining} 天`
                   )}
                 </span>
-                <span className="text-sm text-gray-400">创建于 {new Date(link.created_at).toLocaleDateString('zh-CN')}</span>
+                <span className="text-[11px] sm:text-sm text-gray-400">创建于 {new Date(link.created_at).toLocaleDateString('zh-CN')}</span>
               </div>
             </div>
           </div>
@@ -334,23 +345,23 @@ export default function LinkDetailPage() {
 
 
 
-          <div className="space-y-3">
+          <div className="space-y-2.5 sm:space-y-3">
             <motion.button
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleVisit}
-              className={`w-full py-3.5 rounded-2xl font-semibold text-base flex items-center justify-center gap-2.5 shadow-button hover:shadow-glass transition-all duration-300 cursor-pointer ${
+              className={`w-full py-3 sm:py-3.5 rounded-2xl font-semibold text-sm sm:text-base flex items-center justify-center gap-2 sm:gap-2.5 shadow-button hover:shadow-glass transition-all duration-300 cursor-pointer touch-manipulation ${
                 status === 'expired'
                   ? 'bg-gray-400 text-white cursor-not-allowed'
                   : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white'
               }`}
               disabled={status === 'expired'}
             >
-              <ExternalLink className="w-5 h-5" />
+              <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5" />
               {status === 'expired' ? '链接已过期' : '立即访问'}
             </motion.button>
             <button onClick={handleShare}
-              className="w-full py-3 bg-brand-50 text-brand-600 rounded-xl font-medium text-sm flex items-center justify-center gap-2 hover:bg-brand-100 transition-all duration-200 border border-transparent cursor-pointer">
+              className="w-full py-3 bg-brand-50 text-brand-600 rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-2 hover:bg-brand-100 transition-all duration-200 border border-transparent cursor-pointer touch-manipulation">
               <Share2 className="w-4 h-4" /> 分享
             </button>
           </div>
@@ -362,23 +373,23 @@ export default function LinkDetailPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mt-8"
+          className="mt-6 sm:mt-8"
         >
-          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Gift className="w-5 h-5 text-brand-500" /> 相关推荐
+          <h2 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+            <Gift className="w-4 h-4 sm:w-5 sm:h-5 text-brand-500" /> 相关推荐
           </h2>
-          <div className="grid sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
             {relatedLinks.map((relatedLink) => (
-              <Link key={relatedLink.id} to={`/s/${relatedLink.slug}`} className="block p-4 glass rounded-xl card-hover group cursor-pointer">
-                <div className="flex items-center gap-3 mb-2">
+              <Link key={relatedLink.id} to={`/s/${relatedLink.slug}`} className="block p-3 sm:p-4 glass rounded-xl card-hover group cursor-pointer touch-manipulation">
+                <div className="flex items-center gap-2.5 sm:gap-3 mb-1.5 sm:mb-2">
                   {relatedLink.icon ? (
-                    <img src={relatedLink.icon} alt={relatedLink.name} className="w-8 h-8 object-contain rounded-lg" loading="lazy" decoding="async" />
+                    <img src={relatedLink.icon} alt={relatedLink.name} className="w-7 h-7 sm:w-8 sm:h-8 object-contain rounded-lg" loading="lazy" decoding="async" />
                   ) : (
-                    <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center">
-                      <Gift className="w-4 h-4 text-brand-400" />
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-brand-100 flex items-center justify-center">
+                      <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-brand-400" />
                     </div>
                   )}
-                  <h3 className="font-medium text-gray-800 group-hover:text-brand-600 transition-colors truncate flex-1 text-sm">{relatedLink.name}</h3>
+                  <h3 className="font-medium text-gray-800 group-hover:text-brand-600 transition-colors truncate flex-1 text-xs sm:text-sm">{relatedLink.name}</h3>
                 </div>
               </Link>
             ))}
@@ -386,8 +397,8 @@ export default function LinkDetailPage() {
         </motion.section>
       )}
 
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="mt-10 text-center">
-        <Link to={category ? `/category/${category.id}` : '/'} className="inline-flex items-center gap-2 text-brand-500 hover:text-brand-600 font-medium transition-colors">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="mt-8 sm:mt-10 text-center">
+        <Link to={category ? `/category/${category.id}` : '/'} className="inline-flex items-center gap-2 text-brand-500 hover:text-brand-600 font-medium text-sm transition-colors">
           <ArrowLeft className="w-4 h-4" /> 返回{category?.name || '首页'}
         </Link>
       </motion.div>
