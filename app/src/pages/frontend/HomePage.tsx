@@ -39,6 +39,9 @@ export default function HomePage() {
   const logoType = siteSettings.settings.current_logo_type || 'text'
   const logoUrl = siteSettings.settings.current_logo_url || ''
 
+  // 链接图标渲染函数
+  const getLinkIcon = (link: LinkItem) => <LinkIcon link={link} size="md" />
+
   // URL 参数读取分类/子分类
   const urlCategory = searchParams.get('category') || null
   const urlSubCategory = searchParams.get('subcategory') || null
@@ -275,7 +278,7 @@ export default function HomePage() {
         {/* Logo */}
         <Link to="/" onClick={handleClearSearch} className="flex items-center gap-4 mb-6 sm:mb-8 group">
           {logoType === 'image' && logoUrl ? (
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center overflow-hidden bg-white shadow-glass group-hover:shadow-glass-lg group-hover:scale-105 transition-all duration-500">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center overflow-hidden bg-transparent shadow-glass group-hover:shadow-glass-lg group-hover:scale-105 transition-all duration-500">
               <img src={logoUrl} alt={siteName} className="w-full h-full object-contain" />
             </div>
           ) : (
@@ -625,12 +628,18 @@ export default function HomePage() {
           <div className="flex items-center justify-center gap-3 text-sm text-gray-400">
             <Link
               to="/admin-login"
-              className="w-8 h-8 bg-gradient-to-br from-brand-600 via-brand-500 to-violet-500 rounded-xl flex items-center justify-center hover:shadow-button transition-all duration-300 hover:scale-105 cursor-pointer"
+              className="w-8 h-8 rounded-xl flex items-center justify-center hover:shadow-button transition-all duration-300 hover:scale-105 cursor-pointer overflow-hidden bg-transparent"
               title="进入后台管理"
             >
-              <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              {logoType === 'image' && logoUrl ? (
+                <img src={logoUrl} alt={siteName} className="w-full h-full object-contain rounded-xl" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-brand-600 via-brand-500 to-violet-500 rounded-xl flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              )}
             </Link>
             <span className="font-medium text-gray-500">{siteName}</span>
             <span className="text-gray-300">·</span>

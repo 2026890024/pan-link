@@ -283,6 +283,78 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       return jsonResponse({ success: true }, 200, corsHeaders);
     }
 
+    // ====== SITE SETTINGS ======
+
+    // GET /api/site-settings
+    if (path === '/api/site-settings' && request.method === 'GET') {
+      const result = await env.DB.prepare('SELECT key, value FROM site_settings').all();
+      const settings: Record<string, unknown> = {};
+      if (result.results) {
+        for (const row of result.results as Array<{ key: string; value: string }>) {
+          try { settings[row.key] = JSON.parse(row.value); } catch { settings[row.key] = row.value; }
+        }
+      }
+      return jsonResponse(settings, 200, corsHeaders);
+    }
+
+    // PUT /api/site-settings
+    if (path === '/api/site-settings' && request.method === 'PUT') {
+      const body = await request.json<Record<string, unknown>>();
+      const now = new Date().toISOString();
+      for (const [key, value] of Object.entries(body)) {
+        const jsonValue = typeof value === 'string' ? value : JSON.stringify(value);
+        await env.DB.prepare(
+          `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+        ).bind(key, jsonValue, now).run();
+      }
+      return jsonResponse({ success: true }, 200, corsHeaders);
+    }
+
+    // POST /api/site-settings/logo
+    if (path === '/api/site-settings/logo' && request.method === 'POST') {
+      const body = await request.json<{ url: string; name: string }>();
+      const logoKey = 'logo_library';
+      const result = await env.DB.prepare('SELECT value FROM site_settings WHERE key = ?').bind(logoKey).first();
+      const library: Array<{ url: string; name: string; added_at: string }> = result
+        ? JSON.parse((result as { value: string }).value || '[]')
+        : [];
+      library.push({
+        url: body.url || '',
+        name: body.name || `Logo ${library.length + 1}`,
+        added_at: new Date().toISOString(),
+      });
+      const now = new Date().toISOString();
+      await env.DB.prepare(
+        `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+      ).bind(logoKey, JSON.stringify(library), now).run();
+      return jsonResponse({ success: true, library }, 200, corsHeaders);
+    }
+
+    // DELETE /api/site-settings/logo
+    if (path === '/api/site-settings/logo' && request.method === 'DELETE') {
+      const urlToDelete = url.searchParams.get('url');
+      const indexToDelete = url.searchParams.get('index');
+      const logoKey = 'logo_library';
+      const result = await env.DB.prepare('SELECT value FROM site_settings WHERE key = ?').bind(logoKey).first();
+      let library: Array<{ url: string; name: string; added_at: string }> = result
+        ? JSON.parse((result as { value: string }).value || '[]')
+        : [];
+      if (urlToDelete) {
+        library = library.filter(l => l.url !== urlToDelete);
+      } else if (indexToDelete !== null) {
+        const idx = parseInt(indexToDelete, 10);
+        if (!isNaN(idx) && idx >= 0 && idx < library.length) library.splice(idx, 1);
+      }
+      const now = new Date().toISOString();
+      await env.DB.prepare(
+        `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+      ).bind(logoKey, JSON.stringify(library), now).run();
+      return jsonResponse({ success: true, library }, 200, corsHeaders);
+    }
+
     // Default 404
     return jsonResponse({ error: 'Not found' }, 404, corsHeaders);
 

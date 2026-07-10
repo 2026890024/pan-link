@@ -36,8 +36,8 @@ export default function AdminLayout() {
 
   // 动态 Logo/颜色
   const siteSettings = useSiteSettingsStore()
+  const siteName = siteSettings.settings.site_name || '资源云'
   const logoType = siteSettings.settings.current_logo_type || 'text'
-  const logoText = siteSettings.settings.current_logo_text || '管理后台'
 
   // 加载站点设置
   useEffect(() => {
@@ -105,7 +105,7 @@ export default function AdminLayout() {
         <div className="flex items-center h-16 px-4 border-b border-gray-100">
           <Link to="/admin" className="flex items-center gap-3 overflow-hidden">
             {logoType === 'image' && siteSettings.settings.current_logo_url ? (
-              <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center bg-white flex-shrink-0">
+              <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center bg-transparent flex-shrink-0">
                 <img
                   src={siteSettings.settings.current_logo_url}
                   alt="Logo"
@@ -119,7 +119,7 @@ export default function AdminLayout() {
               </div>
             )}
             {sidebarOpen && (
-              <span className="font-bold text-gray-900 text-base whitespace-nowrap">{logoText}</span>
+              <span className="font-bold text-gray-900 text-base whitespace-nowrap">{siteName}</span>
             )}
           </Link>
           <button
