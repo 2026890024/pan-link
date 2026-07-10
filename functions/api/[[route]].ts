@@ -11,12 +11,16 @@ interface Env {
 export const onRequest: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
 
-  // CORS headers
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  };
+    // CORS headers
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    };
+    // 缓存策略：GET 请求缓存 60 秒，减少重复查询延迟
+    const cacheHeaders = request.method === 'GET' ? {
+      'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
+    } : {};
 
   // Handle preflight
   if (request.method === 'OPTIONS') {
@@ -29,7 +33,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     // ====== Health Check ======
     if (path === '/api/health') {
-      return jsonResponse({ status: 'ok', db: env.DB ? 'connected' : 'missing' }, 200, corsHeaders);
+      return jsonResponse({ status: 'ok', db: env.DB ? 'connected' : 'missing' }, 200, corsHeaders, true);
     }
 
     // ====== CATEGORIES ======
@@ -37,7 +41,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // GET /api/categories
     if (path === '/api/categories' && request.method === 'GET') {
       const result = await env.DB.prepare('SELECT * FROM categories ORDER BY sort_order ASC').all();
-      return jsonResponse(result.results || [], 200, corsHeaders);
+      return jsonResponse(result.results || [], 200, corsHeaders, true);
     }
 
     // POST /api/categories
@@ -60,7 +64,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         now
       ).run();
 
-      return jsonResponse({ success: true, id }, 201, corsHeaders);
+      return jsonResponse({ success: true, id }, 201, corsHeaders, false);
     }
 
     // PUT /api/categories/:id
@@ -73,14 +77,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         `UPDATE categories SET name=?, logo_url=?, sort_order=?, updated_at=? WHERE id=?`
       ).bind((body.name as string) || '', (body.logo_url as string) || null, (body.sort_order as number) || 0, now, catId).run();
 
-      return jsonResponse({ success: true }, 200, corsHeaders);
+      return jsonResponse({ success: true }, 200, corsHeaders, false);
     }
 
     // DELETE /api/categories/:id
     if (matchPath(path, '/api/categories/:id') && request.method === 'DELETE') {
       const catId = extractParam(path, '/api/categories/:id');
       await env.DB.prepare('DELETE FROM categories WHERE id=?').bind(catId).run();
-      return jsonResponse({ success: true }, 200, corsHeaders);
+      return jsonResponse({ success: true }, 200, corsHeaders, false);
     }
 
     // ====== LINKS ======
@@ -108,7 +112,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const stmt = env.DB.prepare(query);
       for (const p of params) stmt.bind(p as string);
       const result = await stmt.all();
-      return jsonResponse(result.results || [], 200, corsHeaders);
+      return jsonResponse(result.results || [], 200, corsHeaders, true);
     }
 
     // GET /api/links/public
@@ -154,10 +158,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           }
         } catch (_e) { /* ignore */ }
 
-        return jsonResponse(result.results?.[0] || null, 200, corsHeaders);
+        return jsonResponse(result.results?.[0] || null, 200, corsHeaders, true);
       }
 
-      return jsonResponse(result.results || [], 200, corsHeaders);
+      return jsonResponse(result.results || [], 200, corsHeaders, true);
     }
 
     // GET /api/links/stats
@@ -174,7 +178,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         total_categories: (catsResult as Record<string, number>)?.total || 0,
         pinned_links: (pinnedResult as Record<string, number>)?.total || 0,
         favorited_links: (favResult as Record<string, number>)?.total || 0,
-      }, 200, corsHeaders);
+      }, 200, corsHeaders, true);
     }
 
     // POST /api/links
@@ -215,7 +219,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       ).run();
 
       const link = await env.DB.prepare('SELECT * FROM links WHERE id = ?').bind(id).first();
-      return jsonResponse(link, 201, corsHeaders);
+      return jsonResponse(link, 201, corsHeaders, false);
     }
 
     // PUT /api/links/:id
@@ -244,14 +248,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         await env.DB.prepare(`UPDATE links SET ${fields.join(', ')} WHERE id = ?`).bind(...values).run();
       }
 
-      return jsonResponse({ success: true }, 200, corsHeaders);
+      return jsonResponse({ success: true }, 200, corsHeaders, false);
     }
 
     // DELETE /api/links/:id
     if (matchPath(path, '/api/links/:id') && request.method === 'DELETE') {
       const linkId = extractParam(path, '/api/links/:id');
       await env.DB.prepare('DELETE FROM links WHERE id = ?').bind(linkId).run();
-      return jsonResponse({ success: true }, 200, corsHeaders);
+      return jsonResponse({ success: true }, 200, corsHeaders, false);
     }
 
     // ====== TAGS ======
@@ -259,7 +263,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // GET /api/tags
     if (path === '/api/tags' && request.method === 'GET') {
       const result = await env.DB.prepare('SELECT * FROM tags ORDER BY name ASC').all();
-      return jsonResponse(result.results || [], 200, corsHeaders);
+      return jsonResponse(result.results || [], 200, corsHeaders, true);
     }
 
     // POST /api/tags
@@ -273,22 +277,104 @@ export const onRequest: PagesFunction<Env> = async (context) => {
          VALUES (?, ?, ?, ?, ?, ?)`
       ).bind(id, (body.user_id as string) || '', (body.name as string) || '', (body.color as string) || '#6B7280', now, now).run();
 
-      return jsonResponse({ success: true, id }, 201, corsHeaders);
+      return jsonResponse({ success: true, id }, 201, corsHeaders, false);
     }
 
     // DELETE /api/tags/:id
     if (matchPath(path, '/api/tags/:id') && request.method === 'DELETE') {
       const tagId = extractParam(path, '/api/tags/:id');
       await env.DB.prepare('DELETE FROM tags WHERE id = ?').bind(tagId).run();
-      return jsonResponse({ success: true }, 200, corsHeaders);
+      return jsonResponse({ success: true }, 200, corsHeaders, false);
+    }
+
+    // ====== SITE SETTINGS ======
+
+    // GET /api/site-settings - 获取所有站点设置
+    if (path === '/api/site-settings' && request.method === 'GET') {
+      const result = await env.DB.prepare('SELECT key, value FROM site_settings').all();
+      const settings: Record<string, unknown> = {};
+      if (result.results) {
+        for (const row of result.results as Array<{ key: string; value: string }>) {
+          try { settings[row.key] = JSON.parse(row.value); } catch { settings[row.key] = row.value; }
+        }
+      }
+      return jsonResponse(settings, 200, corsHeaders, true);
+    }
+
+    // PUT /api/site-settings - 更新站点设置
+    if (path === '/api/site-settings' && request.method === 'PUT') {
+      const body = await request.json<Record<string, unknown>>();
+      const now = new Date().toISOString();
+
+      for (const [key, value] of Object.entries(body)) {
+        const jsonValue = typeof value === 'string' ? value : JSON.stringify(value);
+        await env.DB.prepare(
+          `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+        ).bind(key, jsonValue, now).run();
+      }
+
+      return jsonResponse({ success: true }, 200, corsHeaders, false);
+    }
+
+    // POST /api/site-settings/logo - 添加 Logo 到库
+    if (path === '/api/site-settings/logo' && request.method === 'POST') {
+      const body = await request.json<{ url: string; name: string }>();
+      const logoKey = 'logo_library';
+      const result = await env.DB.prepare('SELECT value FROM site_settings WHERE key = ?').bind(logoKey).first();
+      const library: Array<{ url: string; name: string; added_at: string }> = result
+        ? JSON.parse((result as { value: string }).value || '[]')
+        : [];
+
+      library.push({
+        url: body.url || '',
+        name: body.name || `Logo ${library.length + 1}`,
+        added_at: new Date().toISOString(),
+      });
+
+      const now = new Date().toISOString();
+      await env.DB.prepare(
+        `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+      ).bind(logoKey, JSON.stringify(library), now).run();
+
+      return jsonResponse({ success: true, library }, 200, corsHeaders, false);
+    }
+
+    // DELETE /api/site-settings/logo - 从库中删除 Logo
+    if (path === '/api/site-settings/logo' && request.method === 'DELETE') {
+      const urlToDelete = url.searchParams.get('url');
+      const indexToDelete = url.searchParams.get('index');
+      const logoKey = 'logo_library';
+      const result = await env.DB.prepare('SELECT value FROM site_settings WHERE key = ?').bind(logoKey).first();
+      let library: Array<{ url: string; name: string; added_at: string }> = result
+        ? JSON.parse((result as { value: string }).value || '[]')
+        : [];
+
+      if (urlToDelete) {
+        library = library.filter(l => l.url !== urlToDelete);
+      } else if (indexToDelete !== null) {
+        const idx = parseInt(indexToDelete, 10);
+        if (!isNaN(idx) && idx >= 0 && idx < library.length) {
+          library.splice(idx, 1);
+        }
+      }
+
+      const now = new Date().toISOString();
+      await env.DB.prepare(
+        `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+      ).bind(logoKey, JSON.stringify(library), now).run();
+
+      return jsonResponse({ success: true, library }, 200, corsHeaders, false);
     }
 
     // Default 404
-    return jsonResponse({ error: 'Not found' }, 404, corsHeaders);
+    return jsonResponse({ error: 'Not found' }, 404, corsHeaders, false);
 
   } catch (err) {
     console.error('[pan-link API] Error:', err);
-    return jsonResponse({ error: (err as Error).message || 'Internal server error' }, 500, corsHeaders);
+    return jsonResponse({ error: (err as Error).message || 'Internal server error' }, 500, corsHeaders, false);
   }
 };
 
@@ -321,9 +407,14 @@ async function getMaxSort(env: Env): Promise<number> {
   } catch { return 0; }
 }
 
-function jsonResponse(data: unknown, status: number, headers: Record<string, string>): Response {
+function jsonResponse(data: unknown, status: number, extraHeaders: Record<string, string>, useCache: boolean): Response {
+  // 合并 CORS + 缓存头
+  const cacheHeaders = useCache ? {
+    'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
+  } : {};
+  const allHeaders = { ...extraHeaders, ...cacheHeaders };
   return new Response(JSON.stringify(data, null, 2), {
     status,
-    headers: { ...headers, 'Content-Type': 'application/json' },
+    headers: { ...allHeaders, 'Content-Type': 'application/json' },
   });
 }

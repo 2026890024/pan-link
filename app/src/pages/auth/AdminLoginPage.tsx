@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Lock, User, Eye, EyeOff, LogIn, ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
+import { applyBrandColors } from '@/lib/colors'
 
 export default function AdminLoginPage() {
   const navigate = useNavigate()
@@ -12,6 +14,23 @@ export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasCustomCred, setHasCustomCred] = useState(false)
+
+  // 动态 Logo/站点名
+  const siteSettings = useSiteSettingsStore()
+  const logoType = siteSettings.settings.current_logo_type || 'text'
+  const logoUrl = siteSettings.settings.current_logo_url || ''
+  const logoText = siteSettings.settings.current_logo_text || '管理后台'
+  const siteDesc = siteSettings.settings.site_description || ''
+
+  useEffect(() => {
+    siteSettings.loadSettings()
+  }, [])
+
+  // 动态颜色注入
+  useEffect(() => {
+    const colors = siteSettings.getCurrentColors()
+    if (colors.primary) applyBrandColors(colors.primary)
+  }, [siteSettings.settings.current_colors])
 
   // 检查是否设置了自定义凭证
   useEffect(() => {
@@ -58,13 +77,24 @@ export default function AdminLoginPage() {
         {/* Logo */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-3xl shadow-lg shadow-gray-200/50 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center">
-              <Lock className="w-6 h-6 text-white" />
-            </div>
+            {logoType === 'image' && logoUrl ? (
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden">
+                <img
+                  src={logoUrl}
+                  alt={logoText}
+                  className="w-full h-full object-contain"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              </div>
+            ) : (
+              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center">
+                <Lock className="w-6 h-6 text-white" />
+              </div>
+            )}
           </div>
-          <h1 className="text-2xl font-semibold text-gray-900">管理后台</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">{logoText}</h1>
           <p className="text-gray-400 mt-2 text-sm">
-            {hasCustomCred ? '使用已设置的自定义凭证登录' : '使用默认凭证或已设置的凭证登录'}
+            {siteDesc || (hasCustomCred ? '使用已设置的自定义凭证登录' : '使用默认凭证或已设置的凭证登录')}
           </p>
         </div>
 

@@ -584,3 +584,142 @@ function deleteLocalDriveType(id: string): void {
   storage.driveTypes = storage.driveTypes.filter(dt => dt.id !== id)
   saveStorage(storage)
 }
+
+// ============ Site Settings API ============
+
+export interface LogoItem {
+  url: string
+  name: string
+  added_at: string
+}
+
+export interface ColorScheme {
+  name: string
+  primary: string
+  secondary: string
+  accent: string
+  lightest: string
+  darkest: string
+  saved_at: string
+}
+
+export interface SiteSettings {
+  current_logo_type?: 'text' | 'image'
+  current_logo_text?: string
+  current_logo_url?: string
+  logo_library?: LogoItem[]
+  current_colors?: Omit<ColorScheme, 'name' | 'saved_at'>
+  color_history?: ColorScheme[]
+  site_name?: string
+  site_description?: string
+}
+
+// 本地 site settings 回退
+const SS_KEY = 'panlink_site_settings'
+
+function getLocalSiteSettings(): SiteSettings {
+  try {
+    const raw = localStorage.getItem(SS_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return {
+    current_logo_type: 'text',
+    current_logo_text: 'Pan Link',
+    current_logo_url: '',
+    logo_library: [],
+    current_colors: {
+      primary: '#6366F1',
+      secondary: '#818CF8',
+      accent: '#A5B4FC',
+      lightest: '#F5F3FF',
+      darkest: '#1E1B4B',
+    },
+    color_history: [],
+    site_name: '资源云',
+    site_description: '一站式网盘资源聚合管理平台',
+  }
+}
+
+function saveLocalSiteSettings(settings: SiteSettings): void {
+  try {
+    localStorage.setItem(SS_KEY, JSON.stringify(settings))
+  } catch { /* ignore */ }
+}
+
+export async function fetchSiteSettings(): Promise<SiteSettings> {
+  if (!isCloudApiConfigured()) return getLocalSiteSettings()
+  try {
+    const data = await apiFetch<SiteSettings>('/api/site-settings')
+    return { ...getLocalSiteSettings(), ...data }
+  } catch (err) {
+    console.error('[DataService] fetchSiteSettings error:', err)
+    return getLocalSiteSettings()
+  }
+}
+
+export async function updateSiteSettings(updates: Partial<SiteSettings>): Promise<void> {
+  const local = getLocalSiteSettings()
+  const merged = { ...local, ...updates }
+  saveLocalSiteSettings(merged)
+
+  if (!isCloudApiConfigured()) return
+  try {
+    // 转换为 key-value 格式发送给 API
+    const payload: Record<string, string> = {}
+    for (const [key, value] of Object.entries(updates)) {
+      payload[key] = typeof value === 'string' ? value : JSON.stringify(value)
+    }
+    await apiFetch('/api/site-settings', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+  } catch (err) {
+    console.error('[DataService] updateSiteSettings error:', err)
+  }
+}
+
+export async function addLogoToLibrary(url: string, name: string): Promise<LogoItem[]> {
+  const local = getLocalSiteSettings()
+  const library = local.logo_library || []
+  const newLogo: LogoItem = { url, name, added_at: new Date().toISOString() }
+  local.logo_library = [...library, newLogo]
+  saveLocalSiteSettings(local)
+
+  if (!isCloudApiConfigured()) return local.logo_library
+  try {
+    const data = await apiFetch<{ success: boolean; library: LogoItem[] }>('/api/site-settings/logo', {
+      method: 'POST',
+      body: JSON.stringify({ url, name }),
+    })
+    return data.library
+  } catch (err) {
+    console.error('[DataService] addLogoToLibrary error:', err)
+    return local.logo_library
+  }
+}
+
+export async function deleteLogoFromLibrary(urlOrIndex: string | number): Promise<LogoItem[]> {
+  const local = getLocalSiteSettings()
+  let library = local.logo_library || []
+  if (typeof urlOrIndex === 'number') {
+    library = library.filter((_, i) => i !== urlOrIndex)
+  } else {
+    library = library.filter(l => l.url !== urlOrIndex)
+  }
+  local.logo_library = library
+  saveLocalSiteSettings(local)
+
+  if (!isCloudApiConfigured()) return library
+  try {
+    const params = typeof urlOrIndex === 'number'
+      ? `?index=${urlOrIndex}`
+      : `?url=${encodeURIComponent(urlOrIndex)}`
+    const data = await apiFetch<{ success: boolean; library: LogoItem[] }>(`/api/site-settings/logo${params}`, {
+      method: 'DELETE',
+    })
+    return data.library
+  } catch (err) {
+    console.error('[DataService] deleteLogoFromLibrary error:', err)
+    return library
+  }
+}

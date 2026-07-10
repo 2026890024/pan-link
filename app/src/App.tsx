@@ -3,6 +3,8 @@ import { Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useDataStore } from '@/store/useDataStore'
+import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
+import { applyBrandColors } from '@/lib/colors'
 
 // 前台页面 - 立即加载（用户访问频率最高）
 import HomePage from '@/pages/frontend/HomePage'
@@ -23,6 +25,7 @@ const ProfilePage = lazy(() => import('@/pages/admin/ProfilePage'))
 const AccountSettingsPage = lazy(() => import('@/pages/admin/AccountSettingsPage'))
 const DataManagementPage = lazy(() => import('@/pages/admin/DataManagementPage'))
 const HomepageSettingsPage = lazy(() => import('@/pages/admin/HomepageSettingsPage'))
+const SiteSettingsPage = lazy(() => import('@/pages/admin/SiteSettingsPage'))
 const AdminLayout = lazy(() => import('@/layouts/AdminLayout'))
 const AdminAuthGuard = lazy(() => import('@/components/AdminAuthGuard'))
 import PublicLayout from '@/layouts/PublicLayout'
@@ -41,11 +44,29 @@ function PageLoading() {
 
 function App() {
   const { initialize, initialized } = useDataStore()
+  const siteSettings = useSiteSettingsStore()
 
   useEffect(() => {
     // 后台静默加载，不阻塞页面渲染
     initialize()
   }, [initialize])
+
+  // 加载站点设置并注入动态配色
+  useEffect(() => {
+    siteSettings.loadSettings()
+  }, [])
+
+  // 监听颜色变化，实时注入 CSS
+  useEffect(() => {
+    const colors = siteSettings.getCurrentColors()
+    if (colors.primary) {
+      applyBrandColors(colors.primary)
+    }
+    // 更新页面 title
+    if (siteSettings.settings.site_name) {
+      document.title = `${siteSettings.settings.site_name} - ${siteSettings.settings.site_description || ''}`
+    }
+  }, [siteSettings.settings.current_colors, siteSettings.settings.site_name])
 
   return (
     <ErrorBoundary>
@@ -85,6 +106,7 @@ function App() {
               <Route path="account" element={<AccountSettingsPage />} />
               <Route path="data" element={<DataManagementPage />} />
               <Route path="homepage-settings" element={<HomepageSettingsPage />} />
+              <Route path="site-settings" element={<SiteSettingsPage />} />
             </Route>
           </Route>
         </Routes>

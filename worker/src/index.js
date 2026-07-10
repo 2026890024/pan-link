@@ -12,6 +12,19 @@ export default {
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     };
+    // 缓存策略：GET 请求缓存 60 秒
+    const cacheHeaders = request.method === 'GET' ? {
+      'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
+    } : {};
+
+    // 局部响应函数，自动合并缓存头
+    const jsonResponse = (data, status, extraHeaders) => {
+      const allHeaders = { ...extraHeaders, ...cacheHeaders };
+      return new Response(JSON.stringify(data, null, 2), {
+        status,
+        headers: { ...allHeaders, 'Content-Type': 'application/json' },
+      });
+    };
 
     // Handle preflight
     if (request.method === 'OPTIONS') {
@@ -274,6 +287,74 @@ export default {
         return jsonResponse({ success: true, id }, 201, corsHeaders);
       }
 
+      // ====== SITE SETTINGS ======
+
+      // GET /api/site-settings
+      if (path === '/api/site-settings' && request.method === 'GET') {
+        const result = await env.DB.prepare('SELECT key, value FROM site_settings').all();
+        const settings = {};
+        if (result.results) {
+          for (const row of result.results) {
+            try { settings[row.key] = JSON.parse(row.value); } catch { settings[row.key] = row.value; }
+          }
+        }
+        return jsonResponse(settings, 200, corsHeaders);
+      }
+
+      // PUT /api/site-settings
+      if (path === '/api/site-settings' && request.method === 'PUT') {
+        const body = await request.json();
+        const now = new Date().toISOString();
+        for (const [key, value] of Object.entries(body)) {
+          const jsonValue = typeof value === 'string' ? value : JSON.stringify(value);
+          await env.DB.prepare(
+            `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+          ).bind(key, jsonValue, now).run();
+        }
+        return jsonResponse({ success: true }, 200, corsHeaders);
+      }
+
+      // POST /api/site-settings/logo
+      if (path === '/api/site-settings/logo' && request.method === 'POST') {
+        const body = await request.json();
+        const logoKey = 'logo_library';
+        const result = await env.DB.prepare('SELECT value FROM site_settings WHERE key = ?').bind(logoKey).first();
+        const library = result ? JSON.parse(result.value || '[]') : [];
+        library.push({
+          url: body.url || '',
+          name: body.name || `Logo ${library.length + 1}`,
+          added_at: new Date().toISOString(),
+        });
+        const now = new Date().toISOString();
+        await env.DB.prepare(
+          `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+        ).bind(logoKey, JSON.stringify(library), now).run();
+        return jsonResponse({ success: true, library }, 200, corsHeaders);
+      }
+
+      // DELETE /api/site-settings/logo
+      if (path === '/api/site-settings/logo' && request.method === 'DELETE') {
+        const urlToDelete = url.searchParams.get('url');
+        const indexToDelete = url.searchParams.get('index');
+        const logoKey = 'logo_library';
+        const result = await env.DB.prepare('SELECT value FROM site_settings WHERE key = ?').bind(logoKey).first();
+        let library = result ? JSON.parse(result.value || '[]') : [];
+        if (urlToDelete) {
+          library = library.filter(l => l.url !== urlToDelete);
+        } else if (indexToDelete !== null) {
+          const idx = parseInt(indexToDelete, 10);
+          if (!isNaN(idx) && idx >= 0 && idx < library.length) library.splice(idx, 1);
+        }
+        const now = new Date().toISOString();
+        await env.DB.prepare(
+          `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+        ).bind(logoKey, JSON.stringify(library), now).run();
+        return jsonResponse({ success: true, library }, 200, corsHeaders);
+      }
+
       // Default 404
       return jsonResponse({ error: 'Not found' }, 404, corsHeaders);
 
@@ -312,9 +393,3 @@ async function getMaxSort(env) {
   } catch { return 0; }
 }
 
-function jsonResponse(data, status, headers) {
-  return new Response(JSON.stringify(data, null, 2), {
-    status,
-    headers: { ...headers, 'Content-Type': 'application/json' },
-  });
-}

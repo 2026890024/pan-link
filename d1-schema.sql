@@ -70,6 +70,24 @@ CREATE TABLE IF NOT EXISTS link_tags (
   FOREIGN KEY (tag_id) REFERENCES tags(id)
 );
 
+-- 站点设置表（Logo 库 + 配色管理）
+CREATE TABLE IF NOT EXISTS site_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- 预设默认设置
+INSERT OR IGNORE INTO site_settings (key, value) VALUES
+  ('current_logo_type', '"text"'),
+  ('current_logo_text', '"Pan Link"'),
+  ('current_logo_url', '""'),
+  ('logo_library', '[]'),
+  ('current_colors', '{"primary":"#6366F1","secondary":"#818CF8","accent":"#A5B4FC","lightest":"#F5F3FF","darkest":"#1E1B4B"}'),
+  ('color_history', '[]'),
+  ('site_name', '"资源云"'),
+  ('site_description', '"一站式网盘资源聚合管理平台"');
+
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_links_category ON links(category_id);
 CREATE INDEX IF NOT EXISTS idx_links_status ON links(status);

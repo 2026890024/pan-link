@@ -1,11 +1,23 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { Home, Search } from 'lucide-react'
+import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
+import { useEffect } from 'react'
 
 export default function PublicLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const isHomePage = location.pathname === '/'
   const isSearchPage = location.pathname === '/search'
+
+  // 动态 Logo/颜色
+  const siteSettings = useSiteSettingsStore()
+  const logoType = siteSettings.settings.current_logo_type || 'text'
+  const logoText = siteSettings.settings.current_logo_text || 'Pan Link'
+
+  // 加载站点设置
+  useEffect(() => {
+    siteSettings.loadSettings()
+  }, [])
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -18,10 +30,8 @@ export default function PublicLayout() {
               to="/"
               className="flex items-center gap-2 text-gray-800 hover:text-brand-600 transition-colors shrink-0"
             >
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-violet-500 flex items-center justify-center">
-                <Home className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-bold text-sm sm:text-base hidden sm:block">Pan Link</span>
+              <LogoIcon logoType={logoType} logoUrl={siteSettings.settings.current_logo_url} />
+              <span className="font-bold text-sm sm:text-base hidden sm:block">{logoText}</span>
             </Link>
 
             {/* 右侧导航操作 */}
@@ -42,6 +52,29 @@ export default function PublicLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
+    </div>
+  )
+}
+
+// 公共 Logo 图标组件
+function LogoIcon({ logoType, logoUrl }: { logoType: string; logoUrl?: string }) {
+  if (logoType === 'image' && logoUrl) {
+    return (
+      <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-white">
+        <img
+          src={logoUrl}
+          alt="Logo"
+          className="w-full h-full object-contain"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none'
+          }}
+        />
+      </div>
+    )
+  }
+  return (
+    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-violet-500 flex items-center justify-center">
+      <Home className="w-4 h-4 text-white" />
     </div>
   )
 }

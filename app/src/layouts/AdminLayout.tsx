@@ -9,15 +9,18 @@ import {
   ChevronRight,
   HardDrive,
   Settings,
+  Palette,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
 
 const navItems = [
   { path: '/admin/resources', label: '资源管理', icon: Link2 },
   { path: '/admin/drive-types', label: '网盘类型', icon: HardDrive },
   { path: '/admin/dashboard', label: '仪表盘', icon: LayoutDashboard },
+  { path: '/admin/site-settings', label: '站点设置', icon: Palette },
   { path: '/admin/homepage-settings', label: '首页设置', icon: Settings },
   { path: '/admin/account', label: '账户设置', icon: User },
   { path: '/admin/profile', label: '个人中心', icon: User },
@@ -30,6 +33,16 @@ export default function AdminLayout() {
   const { logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+
+  // 动态 Logo/颜色
+  const siteSettings = useSiteSettingsStore()
+  const logoType = siteSettings.settings.current_logo_type || 'text'
+  const logoText = siteSettings.settings.current_logo_text || '管理后台'
+
+  // 加载站点设置
+  useEffect(() => {
+    siteSettings.loadSettings()
+  }, [])
 
   // 读取动态头像和用户名（每次渲染时从 localStorage 读取最新值）
   const getProfile = () => {
@@ -91,11 +104,22 @@ export default function AdminLayout() {
         {/* Logo */}
         <div className="flex items-center h-16 px-4 border-b border-gray-100">
           <Link to="/admin" className="flex items-center gap-3 overflow-hidden">
-            <div className="w-9 h-9 bg-gradient-to-br from-brand-600 to-brand-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-button">
-              <Link2 className="w-5 h-5 text-white" />
-            </div>
+            {logoType === 'image' && siteSettings.settings.current_logo_url ? (
+              <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center bg-white flex-shrink-0">
+                <img
+                  src={siteSettings.settings.current_logo_url}
+                  alt="Logo"
+                  className="w-full h-full object-contain"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              </div>
+            ) : (
+              <div className="w-9 h-9 bg-gradient-to-br from-brand-600 to-brand-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-button">
+                <Link2 className="w-5 h-5 text-white" />
+              </div>
+            )}
             {sidebarOpen && (
-              <span className="font-bold text-gray-900 text-base whitespace-nowrap">管理后台</span>
+              <span className="font-bold text-gray-900 text-base whitespace-nowrap">{logoText}</span>
             )}
           </Link>
           <button
