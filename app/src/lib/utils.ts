@@ -96,6 +96,19 @@ export function buildShareText(name: string, url: string, extractCode?: string):
   return lines.join('\n')
 }
 
+// 安全解析 hex 颜色为 rgba
+export function hexToRgba(hex: string, alpha: number): string {
+  try {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(99,102,241,${alpha})` // fallback to brand
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  } catch {
+    return `rgba(99,102,241,${alpha})`
+  }
+}
+
 // 获取网盘图标
 export function getPanIcon(categoryName: string): string {
   const icons: Record<string, string> = {

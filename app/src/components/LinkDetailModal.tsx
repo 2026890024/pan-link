@@ -10,7 +10,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
-import { getDaysRemaining, copyToClipboard, checkLinkStatus, buildShareText } from '@/lib/utils'
+import { getDaysRemaining, copyToClipboard, checkLinkStatus, buildShareText, hexToRgba } from '@/lib/utils'
 import { LinkIcon } from '@/components/LinkIcon'
 import toast from 'react-hot-toast'
 
@@ -22,13 +22,13 @@ interface LinkDetailModalProps {
 export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps) {
   const { categories, subCategories, incrementClicks } = useDataStore()
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [iconError, setIconError] = useState(false)
   const modalRef = useRef<HTMLDivElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
 
-  // Esc 关闭
+  // Esc 关闭 + 焦点陷阱
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onClose()
-    // 焦点陷阱：Tab 键在弹窗内循环
     if (e.key === 'Tab' && modalRef.current) {
       const focusable = modalRef.current.querySelectorAll<HTMLElement>(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -47,7 +47,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
   useEffect(() => {
     previousFocusRef.current = document.activeElement as HTMLElement
     document.addEventListener('keydown', handleKeyDown)
-    // iOS Safari 兼容：用 position:fixed 替代 overflow:hidden
+    // iOS Safari 兼容滚动锁定
     const scrollY = window.scrollY
     const originalPosition = document.body.style.position
     const originalTop = document.body.style.top
@@ -55,13 +55,13 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
     document.body.style.position = 'fixed'
     document.body.style.top = `-${scrollY}px`
     document.body.style.width = '100%'
-    // 聚焦弹窗第一个可聚焦元素
-    setTimeout(() => {
+    // 用 rAF 替代 setTimeout 确保动画完成后聚焦
+    requestAnimationFrame(() => {
       const focusable = modalRef.current?.querySelector<HTMLElement>(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       )
       focusable?.focus()
-    }, 100)
+    })
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
       document.body.style.position = originalPosition
@@ -95,7 +95,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
   const handleVisit = () => {
     incrementClicks(link.id)
     toast.success('即将跳转到下载页面...')
-    window.open(link.url, '_blank')
+    window.open(link.url, '_blank', 'noopener,noreferrer')
   }
 
   const handleShare = async () => {
@@ -107,8 +107,11 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
           text: shareText,
           url: link.url,
         })
-      } catch {
-        // 用户取消分享
+      } catch (err) {
+        // 用户取消 (AbortError) 静默，其他错误降级到复制
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        await copyToClipboard(shareText)
+        toast.success('分享内容已复制')
       }
     } else {
       await copyToClipboard(shareText)
@@ -116,15 +119,26 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
     }
   }
 
+  // 图标加载失败降级为 LinkIcon
   const getLinkIcon = () => {
-    if (link.icon) {
-      return <img src={link.icon} alt={link.name} className="w-16 h-16 rounded-xl object-cover shadow-sm" loading="lazy" decoding="async" />
+    if (link.icon && !iconError) {
+      return (
+        <img
+          src={link.icon}
+          alt={link.name}
+          className="w-16 h-16 rounded-xl object-cover shadow-sm"
+          loading="lazy"
+          decoding="async"
+          onError={() => setIconError(true)}
+        />
+      )
     }
     return <LinkIcon link={link} size={link.icon_size || 'lg'} />
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    // 移动端底部抽屉 → 桌面端居中弹窗
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       {/* 背景遮罩 */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
@@ -132,24 +146,26 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
         aria-hidden="true"
       />
 
-      {/* 弹窗内容 */}
+      {/* 弹窗本体：移动端贴底全宽+顶部大圆角，桌面端居中卡片 */}
       <div
         ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="relative w-full max-w-md bg-white rounded-2xl shadow-glass-lg animate-scale-in max-h-[85vh] overflow-y-auto"
+        aria-describedby="modal-description"
+        className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-glass-lg animate-slide-up sm:animate-scale-in max-h-[90vh] sm:max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 顶部彩色条 */}
-        <div className={`h-1.5 rounded-t-2xl bg-gradient-to-r ${status === 'expired' ? 'from-red-500 to-red-400' : 'from-brand-600 via-brand-500 to-violet-500'}`} />
+        {/* 顶部彩色状态条 */}
+        <div className={`h-1.5 rounded-t-3xl sm:rounded-t-2xl bg-gradient-to-r ${status === 'expired' ? 'from-red-500 to-red-400' : 'from-brand-600 via-brand-500 to-violet-500'}`} />
 
-        {/* 关闭按钮 */}
+        {/* 关闭按钮：纯图标，hover 时才出现灰底 */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 w-11 h-11 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors cursor-pointer z-10"
+          className="absolute top-3 right-3 w-8 h-8 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg flex items-center justify-center transition-colors cursor-pointer z-10 touch-manipulation"
+          aria-label="关闭"
         >
-          <X className="w-4 h-4 text-gray-500" />
+          <X className="w-4 h-4" />
         </button>
 
         <div className="p-6 pt-8">
@@ -177,14 +193,14 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
               )}
             </div>
 
-            {/* 标签 */}
+            {/* 标签 - 使用 hexToRgba 安全拼接颜色 */}
             {link.tags && link.tags.length > 0 && (
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
                 {link.tags.map((tag) => (
                   <span
                     key={tag.id}
                     className="px-2.5 py-0.5 rounded-full text-xs font-medium"
-                    style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
+                    style={{ backgroundColor: hexToRgba(tag.color, 0.12), color: tag.color }}
                   >
                     {tag.name}
                   </span>
@@ -192,13 +208,16 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
               </div>
             )}
 
-            {/* 描述 */}
+            {/* 描述 - 加渐变分割线增加视觉层级 */}
             {link.description && (
-              <p className="text-sm text-gray-500 mt-3 text-center leading-relaxed">{link.description}</p>
+              <>
+                <div className="gradient-divider w-24 my-3" />
+                <p id="modal-description" className="text-sm text-gray-500 text-center leading-relaxed">{link.description}</p>
+              </>
             )}
           </div>
 
-          {/* 过期/即将过期警告 */}
+          {/* 过期 / 即将过期警告 */}
           {status === 'expired' && (
             <div className="mb-5 p-3 bg-red-50/80 border border-red-200 rounded-xl flex items-center gap-3">
               <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
@@ -212,16 +231,16 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
             </div>
           )}
 
-          {/* 链接地址 */}
+          {/* 链接地址：input → div + select-none */}
           <div className="mb-3">
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">链接地址</label>
             <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={link.url}
-                readOnly
-                className="flex-1 bg-gray-50 px-3 py-2.5 rounded-xl border border-gray-200 font-mono text-xs text-gray-600 truncate"
-              />
+              <div
+                className="flex-1 bg-gray-50 px-3 py-2.5 rounded-xl border border-gray-200 font-mono text-xs text-gray-600 truncate select-none"
+                title={link.url}
+              >
+                {link.url}
+              </div>
               <button
                 onClick={() => handleCopy(link.url, 'url')}
                 className="px-3 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl transition-colors flex items-center gap-1.5 text-sm font-medium flex-shrink-0 cursor-pointer touch-manipulation"
@@ -235,20 +254,17 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
             </div>
           </div>
 
-          {/* 提取码 */}
+          {/* 提取码：input → div，按钮统一 brand-600 */}
           {link.extract_code && (
             <div className="mb-3">
               <label className="text-xs font-semibold text-amber-500 uppercase tracking-wider mb-1.5 block">提取码</label>
               <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={link.extract_code}
-                  readOnly
-                  className="flex-1 bg-amber-50 px-3 py-2.5 rounded-xl border border-amber-100 font-mono text-lg text-center tracking-[0.3em] uppercase font-bold text-amber-700"
-                />
+                <div className="flex-1 bg-amber-50 px-3 py-2.5 rounded-xl border border-amber-100 font-mono text-lg text-center tracking-[0.3em] uppercase font-bold text-amber-700 select-none">
+                  {link.extract_code}
+                </div>
                 <button
                   onClick={() => handleCopy(link.extract_code!, 'code')}
-                  className="px-3 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors flex items-center gap-1.5 text-sm font-medium flex-shrink-0 cursor-pointer touch-manipulation"
+                  className="px-3 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl transition-colors flex items-center gap-1.5 text-sm font-medium flex-shrink-0 cursor-pointer touch-manipulation"
                 >
                   {copiedField === 'code' ? (
                     <><Check className="w-3.5 h-3.5" /> 已复制</>
@@ -278,10 +294,8 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
             </span>
           </div>
 
-
-
-          {/* 操作按钮 */}
-          <div className="space-y-2.5 pb-[env(safe-area-inset-bottom,0px)]">
+          {/* 操作按钮 - sticky 固定在弹窗底部，移动端长内容时始终可见 */}
+          <div className="sticky bottom-0 bg-white border-t border-gray-100 space-y-2.5 pt-3 pb-[env(safe-area-inset-bottom,0px)]">
             <button
               onClick={handleVisit}
               disabled={status === 'expired'}

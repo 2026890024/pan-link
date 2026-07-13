@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useDataStore } from '@/store/useDataStore'
-import { getDaysRemaining, copyToClipboard, checkLinkStatus, buildShareText } from '@/lib/utils'
+import { getDaysRemaining, copyToClipboard, checkLinkStatus, buildShareText, hexToRgba } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 // 从 localStorage 读取分享链接（与 DataManagementPage 保持一致）
@@ -95,7 +95,7 @@ export default function LinkDetailPage() {
     if (link) {
       incrementClicks(link.id)
       toast.success('即将跳转到下载页面...')
-      window.open(link.url, '_blank')
+      window.open(link.url, '_blank', 'noopener,noreferrer')
     }
   }
 
@@ -109,8 +109,10 @@ export default function LinkDetailPage() {
           title: link.name,
           text: shareText,
         })
-      } catch {
-        // 用户取消分享
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        await copyToClipboard(shareText)
+        toast.success('分享内容已复制')
       }
     } else {
       await copyToClipboard(shareText)
@@ -279,7 +281,7 @@ export default function LinkDetailPage() {
             {link.tags && link.tags.length > 0 && (
               <div className="flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap mt-2 sm:mt-3">
                 {link.tags.map((tag) => (
-                  <span key={tag.id} className="px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium" style={{ backgroundColor: `${tag.color}20`, color: tag.color }}>
+                  <span key={tag.id} className="px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium" style={{ backgroundColor: hexToRgba(tag.color, 0.12), color: tag.color }}>
                     {tag.name}
                   </span>
                 ))}
