@@ -483,7 +483,7 @@ export default function SearchPage() {
                   >
                     {/* 图标 */}
                     <div className="flex-shrink-0">
-                      <LinkIcon link={link} size="md" />
+                      <LinkIcon link={link} size={link.icon_size || 'md'} />
                     </div>
 
                     {/* 信息 */}

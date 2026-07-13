@@ -1,11 +1,11 @@
 import { create } from 'zustand'
 import { mockCategories, mockLinks, mockSubCategories, mockTags, driveTypes, customDriveTypes } from '@/data/mock'
 import * as ds from '@/services/dataService'
-import type { Category, LinkItem, SubCategory, Tag, DriveType } from '@/services/dataService'
+import type { Category, LinkItem, SubCategory, Tag, DriveType, IconLibraryItem } from '@/services/dataService'
 
 // ============ Store 接口 ============
 
-export type { Category, LinkItem, SubCategory, Tag, DriveType }
+export type { Category, LinkItem, SubCategory, Tag, DriveType, IconLibraryItem }
 
 interface DataStore {
   // 数据
@@ -15,6 +15,7 @@ interface DataStore {
   tags: Tag[]
   driveTypes: DriveType[]
   customDriveTypes: Record<string, { name: string; icon: string; color: string }>
+  iconLibrary: IconLibraryItem[]
 
   // 加载状态 - initialized 表示后台数据加载完成
   initialized: boolean
@@ -24,6 +25,10 @@ interface DataStore {
 
   // 初始化（非阻塞：先显示页面，后台静默加载数据）
   initialize: () => void
+
+  // Icon Library
+  addIconToLibrary: (name: string, dataUrl: string) => void
+  deleteIconFromLibrary: (id: string) => void
 
   // Categories
   addCategory: (name: string) => Promise<void>
@@ -148,60 +153,78 @@ function mergeLists<T extends { id: string }>(remote: T[], local: T[], fallback:
 }
 
 // Helper: reload all data from service (非阻塞)
-// 重要：云端数据是唯一数据源，本地 localStorage 只是缓存
-async function reloadAll(set: (partial: Partial<DataStore>) => void) {
+// 优化：分阶段加载，优先渲染核心数据 (categories + links)，延迟加载次要数据
+async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => DataStore) {
   try {
-    const [categories, links, subCategories, tags, driveTypes] = await Promise.all([
+    // 阶段 1: 并行加载核心数据（categories + links）—— 用户最快看到内容
+    const [categories, links] = await Promise.all([
       ds.fetchCategories(),
       ds.fetchLinks(),
-      ds.fetchSubCategories(),
-      ds.fetchTags(),
-      Promise.resolve(ds.fetchDriveTypes()),
     ])
-    
-    // 获取本地数据（用于判断是否有待同步的数据）
+
+    // 获取本地数据用于合并
     const localCats = loadLocal<Category[]>('categories', [])
     const localLinks = loadLocalLinks()
-    const localSubs = loadLocal<SubCategory[]>('subcategories', [])
-    
-    // 关键：云端数据优先！云端为空时用本地，都为空时 fallback 到 mock 数据
+
     const mergedCategories = mergeLists(categories, localCats, mockCategories as Category[])
     const mergedLinks = mergeLists(links, localLinks, mockLinks as LinkItem[])
-    const mergedSubCategories = mergeLists(subCategories, localSubs)
-    
-    // 同步到 localStorage 作为本地缓存（下次打开加速加载）
+
+    // 先设置核心数据，让页面立即渲染
+    set({
+      categories: mergedCategories,
+      links: mergedLinks,
+      initialized: true,
+      error: null,
+    })
+
+    // 同步核心数据到 localStorage
     saveLocalItem('categories', mergedCategories)
     saveLocalLinks(mergedLinks)
+
+    // 阶段 2: 并行加载次要数据（tags + subcategories + driveTypes）
+    // 这些数据不影响首页核心展示，延迟加载可减少首次 API 冷启动压力
+    const [tags, subCategories, driveTypes] = await Promise.all([
+      ds.fetchTags().catch(() => [] as Tag[]),
+      ds.fetchSubCategories().catch(() => [] as SubCategory[]),
+      Promise.resolve(ds.fetchDriveTypes()),
+    ])
+
+    const localSubs = loadLocal<SubCategory[]>('subcategories', [])
+    const mergedSubCategories = mergeLists(subCategories, localSubs)
+
+    set({
+      tags: tags.map(t => ({
+        ...t,
+        user_id: t.user_id || '1',
+        created_at: t.created_at || new Date().toISOString(),
+        updated_at: t.updated_at || new Date().toISOString(),
+      })),
+      subCategories: mergedSubCategories,
+      driveTypes: [...driveTypes] as DriveType[],
+    })
+
     saveLocalItem('subcategories', mergedSubCategories)
-    
-    // 判断是否有本地独有数据（说明云写入失败了）
+
+    // 判断云同步状态
     const hasCloudData = categories.length > 0 || links.length > 0
     const hasLocalOnly = localLinks.some(
       (l: Record<string, unknown>) => (l as Record<string, unknown>)._pendingSync === true
     )
-    
-    console.log(`[DataStore] 云端加载完成: ${categories.length} 分类, ${links.length} 链接, pendingSync=${hasLocalOnly}`)
-    
-    set({ 
-      categories: mergedCategories, 
-      links: mergedLinks, 
-      subCategories: mergedSubCategories, 
-      tags, driveTypes, 
-      initialized: true, 
-      error: null, 
-      cloudSyncError: !hasCloudData && hasLocalOnly // 云端没数据但本地有 = 云不可用
-    })
+
+    set({ cloudSyncError: !hasCloudData && hasLocalOnly })
+
+    console.log(`[DataStore] 加载完成: ${categories.length} 分类, ${links.length} 链接, ${tags.length} 标签`)
   } catch (err) {
     console.error('[DataStore] reloadAll error:', err)
     // 云端加载失败，使用本地缓存
     const fallbackLinks = loadLocalLinks()
     const fallbackCats = loadLocal<Category[]>('categories', mockCategories as Category[])
-    set({ 
-      initialized: true,  
+    set({
+      initialized: true,
       error: String(err),
       categories: fallbackCats,
       links: fallbackLinks,
-      cloudSyncError: true 
+      cloudSyncError: true,
     })
   }
 }
@@ -221,8 +244,14 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   })),
   driveTypes: [...driveTypes] as DriveType[],
   customDriveTypes: { ...customDriveTypes },
+  iconLibrary: (() => {
+    try {
+      const raw = localStorage.getItem('panlink_icon_library')
+      if (raw) return JSON.parse(raw) as IconLibraryItem[]
+    } catch { /* ignore */ }
+    return []
+  })(),
 
-  loading: false,
   initialized: false,
   error: null,
   cloudSyncError: false,
@@ -231,7 +260,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   // 初始化 - 后台静默加载，不阻塞页面渲染
   initialize: () => {
     // 立即返回，不阻塞 UI
-    reloadAll(set)
+    reloadAll(set, get)
   },
 
   // ===== Categories =====
@@ -297,6 +326,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       category_id: originalCategoryId,
       subcategory_id: linkData.subcategory_id || '',
       icon: linkData.icon || '',
+      icon_size: linkData.icon_size || (linkData.icon ? 'md' : undefined),
       is_pinned: linkData.is_pinned || false,
       is_featured: linkData.is_featured || false,
       click_count: 0,
@@ -327,6 +357,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
           drive_type: newLink.drive_type,
           subcategory_id: newLink.subcategory_id,
           icon: newLink.icon,
+          icon_size: newLink.icon_size,
           description: newLink.description,
         })
         // 云写入成功 → 从云端重新拉取完整数据（以云端为准）
@@ -620,5 +651,32 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         tags: l.tags.filter(t => t.id !== id),
       })),
     })
+  },
+
+  // ===== Icon Library =====
+  addIconToLibrary: (name, dataUrl) => {
+    const newIcon: IconLibraryItem = {
+      id: `icon-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name: name || '未命名图标',
+      dataUrl,
+      size: dataUrl.length,
+      created_at: new Date().toISOString(),
+    }
+    const updated = [...get().iconLibrary, newIcon]
+    try { localStorage.setItem('panlink_icon_library', JSON.stringify(updated)) } catch { /* quota exceeded */ }
+    set({ iconLibrary: updated })
+  },
+
+  deleteIconFromLibrary: (id) => {
+    const updated = get().iconLibrary.filter(i => i.id !== id)
+    try { localStorage.setItem('panlink_icon_library', JSON.stringify(updated)) } catch { /* quota exceeded */ }
+    // 同时清除所有使用该图标的链接的 icon 字段
+    const updatedLinks = get().links.map(l =>
+      l.icon && l.icon === get().iconLibrary.find(i => i.id === id)?.dataUrl
+        ? { ...l, icon: '' }
+        : l
+    )
+    saveLocalLinks(updatedLinks)
+    set({ iconLibrary: updated, links: updatedLinks })
   },
 }))

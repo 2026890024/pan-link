@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useDataStore } from '@/store/useDataStore'
-import { getDaysRemaining, copyToClipboard, checkLinkStatus } from '@/lib/utils'
+import { getDaysRemaining, copyToClipboard, checkLinkStatus, buildShareText } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 // 从 localStorage 读取分享链接（与 DataManagementPage 保持一致）
@@ -63,6 +63,23 @@ export default function LinkDetailPage() {
     )
     .slice(0, 3) : []
 
+  // 动态设置页面标题和 meta description
+  useEffect(() => {
+    if (link) {
+      document.title = `${link.name} - 资源云`
+      const meta = document.querySelector('meta[name="description"]')
+      if (meta) {
+        meta.setAttribute('content', `${link.description}。在资源云发现优质资源，一站式网盘资源聚合管理。`)
+      }
+    } else if (shareLink) {
+      document.title = `${shareLink.name} - 资源云分享合集`
+      const meta = document.querySelector('meta[name="description"]')
+      if (meta) {
+        meta.setAttribute('content', `分享合集：${shareLink.name}，包含多个优质资源。在资源云发现更多资源。`)
+      }
+    }
+  }, [link, shareLink])
+
   const handleCopy = async (text: string, field: string) => {
     const success = await copyToClipboard(text)
     if (success) {
@@ -85,19 +102,19 @@ export default function LinkDetailPage() {
   const handleShare = async () => {
     if (!link) return
     const shareUrl = window.location.href
+    const shareText = buildShareText(link.name, shareUrl, link.extract_code || undefined)
     if (navigator.share) {
       try {
         await navigator.share({
           title: link.name,
-          text: `发现优质资源：${link.name}`,
-          url: shareUrl,
+          text: shareText,
         })
       } catch {
         // 用户取消分享
       }
     } else {
-      await copyToClipboard(shareUrl)
-      toast.success('分享链接已复制')
+      await copyToClipboard(shareText)
+      toast.success('分享内容已复制')
     }
   }
 

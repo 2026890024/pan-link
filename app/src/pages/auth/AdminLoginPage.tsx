@@ -17,14 +17,11 @@ export default function AdminLoginPage() {
 
   // 动态 Logo/站点名
   const siteSettings = useSiteSettingsStore()
+  const settingsLoaded = siteSettings.loaded
   const siteName = siteSettings.settings.site_name || '资源云'
   const logoType = siteSettings.settings.current_logo_type || 'text'
   const logoUrl = siteSettings.settings.current_logo_url || ''
   const siteDesc = siteSettings.settings.site_description || ''
-
-  useEffect(() => {
-    siteSettings.loadSettings()
-  }, [])
 
   // 动态颜色注入
   useEffect(() => {
@@ -76,8 +73,8 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl shadow-lg shadow-gray-200/50 mb-6 bg-transparent">
-            {logoType === 'image' && logoUrl ? (
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl mb-6 bg-transparent">
+            {settingsLoaded && logoType === 'image' && logoUrl ? (
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden bg-transparent">
                 <img
                   src={logoUrl}
@@ -115,6 +112,7 @@ export default function AdminLoginPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="请输入用户名"
+                  autoComplete="username"
                   className="w-full pl-12 pr-4 py-3.5 bg-gray-50/50 border border-gray-200/50 rounded-2xl focus:outline-none focus:bg-white focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition-all duration-200 text-sm"
                   required
                 />
@@ -130,6 +128,7 @@ export default function AdminLoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="请输入密码"
+                  autoComplete="current-password"
                   className="w-full pl-12 pr-12 py-3.5 bg-gray-50/50 border border-gray-200/50 rounded-2xl focus:outline-none focus:bg-white focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition-all duration-200 text-sm"
                   required
                 />

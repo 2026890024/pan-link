@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -43,30 +43,30 @@ function PageLoading() {
 }
 
 function App() {
-  const { initialize, initialized } = useDataStore()
+  const { initialize } = useDataStore()
   const siteSettings = useSiteSettingsStore()
+  const initializedRef = useRef(false)
 
   useEffect(() => {
-    // 后台静默加载，不阻塞页面渲染
-    initialize()
-  }, [initialize])
-
-  // 加载站点设置并注入动态配色
-  useEffect(() => {
-    siteSettings.loadSettings()
+    // 后台静默加载，不阻塞页面渲染（仅执行一次）
+    if (!initializedRef.current) {
+      initializedRef.current = true
+      initialize()
+      siteSettings.loadSettings()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 监听颜色变化，实时注入 CSS
+  // 监听颜色变化，实时注入 CSS（站点设置变化时同步更新）
   useEffect(() => {
     const colors = siteSettings.getCurrentColors()
     if (colors.primary) {
       applyBrandColors(colors.primary)
     }
-    // 更新页面 title
     if (siteSettings.settings.site_name) {
       document.title = `${siteSettings.settings.site_name} - ${siteSettings.settings.site_description || ''}`
     }
-  }, [siteSettings.settings.current_colors, siteSettings.settings.site_name])
+  }, [siteSettings.settings.current_colors, siteSettings.settings.site_name, siteSettings.settings.site_description])
 
   return (
     <ErrorBoundary>

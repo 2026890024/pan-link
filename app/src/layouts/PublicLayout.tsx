@@ -1,7 +1,6 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { Home, Search } from 'lucide-react'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
-import { useEffect } from 'react'
 
 export default function PublicLayout() {
   const navigate = useNavigate()
@@ -11,13 +10,9 @@ export default function PublicLayout() {
 
   // 动态 Logo/颜色
   const siteSettings = useSiteSettingsStore()
+  const settingsLoaded = siteSettings.loaded
   const logoType = siteSettings.settings.current_logo_type || 'text'
   const logoText = siteSettings.settings.current_logo_text || 'Pan Link'
-
-  // 加载站点设置
-  useEffect(() => {
-    siteSettings.loadSettings()
-  }, [])
 
   return (
     <div className="min-h-screen flex flex-col">

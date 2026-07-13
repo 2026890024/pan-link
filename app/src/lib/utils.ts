@@ -87,6 +87,15 @@ export function checkLinkStatus(expiresAt: string | Date | null): 'active' | 'ex
   return 'active'
 }
 
+// 生成分享文本（网盘名称 + 链接 + 提取码）
+export function buildShareText(name: string, url: string, extractCode?: string): string {
+  const lines = [`【${name}】`, `链接：${url}`]
+  if (extractCode) {
+    lines.push(`提取码：${extractCode}`)
+  }
+  return lines.join('\n')
+}
+
 // 获取网盘图标
 export function getPanIcon(categoryName: string): string {
   const icons: Record<string, string> = {

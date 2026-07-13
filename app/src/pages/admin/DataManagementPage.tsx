@@ -13,13 +13,16 @@ import {
   Link2,
   Plus,
   CheckCircle,
+  Image,
+  X,
+  Search,
 } from 'lucide-react'
 import { useDataStore } from '@/store/useDataStore'
 import { formatNumber, formatDate } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 type ExportFormat = 'csv' | 'json'
-type Tab = 'export' | 'import' | 'share'
+type Tab = 'export' | 'import' | 'share' | 'icon-library'
 
 const SHARE_STORAGE_KEY = 'admin_share_links'
 
@@ -46,18 +49,22 @@ function saveShareLinks(links: ShareLink[]) {
 }
 
 export default function DataManagementPage() {
-  const { links, categories } = useDataStore()
+  const { links, categories, addCategory, addLink, iconLibrary, addIconToLibrary, deleteIconFromLibrary } = useDataStore()
   const [activeTab, setActiveTab] = useState<Tab>('export')
   const [exportFormat, setExportFormat] = useState<ExportFormat>('csv')
   const [selectedForExport, setSelectedForExport] = useState<string[]>([])
   const [isExporting, setIsExporting] = useState(false)
   const [importPreview, setImportPreview] = useState<any[] | null>(null)
+  const [importStats, setImportStats] = useState<{ createdCategories: string[]; matchedCategories: string[] } | null>(null)
   const [isParsing, setIsParsing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const iconFileInputRef = useRef<HTMLInputElement>(null)
+  const [iconSearch, setIconSearch] = useState('')
 
   const tabs = [
     { id: 'export' as Tab, label: '数据导出', icon: Download },
     { id: 'import' as Tab, label: '数据导入', icon: Upload },
+    { id: 'icon-library' as Tab, label: '图标库', icon: Image },
     { id: 'share' as Tab, label: '分享管理', icon: Share2 },
   ]
 
@@ -241,27 +248,61 @@ export default function DataManagementPage() {
 
   const handleConfirmImport = async () => {
     if (!importPreview) return
-    const { addLink, categories: storeCategories } = useDataStore.getState()
+    const store = useDataStore.getState()
     let importedCount = 0
+    const createdCategories: string[] = []
+    const matchedCategories: string[] = []
+    const categoryMap = new Map<string, string>() // name -> id
+
+    // 先处理所有分类：创建不存在的分类
+    for (const item of importPreview) {
+      if (!item.category_name) continue
+      const catName = item.category_name.trim()
+      if (!catName) continue
+      if (categoryMap.has(catName)) continue
+
+      const existing = store.categories.find(
+        c => c.name.toLowerCase() === catName.toLowerCase()
+      )
+      if (existing) {
+        categoryMap.set(catName, existing.id)
+        matchedCategories.push(catName)
+      } else {
+        // 自动创建分类
+        try {
+          const newCat = await store.addCategory(catName)
+          categoryMap.set(catName, newCat.id)
+          createdCategories.push(catName)
+        } catch {
+          // fallback: 创建本地分类
+          const fallbackId = `cat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+          categoryMap.set(catName, fallbackId)
+          createdCategories.push(catName)
+        }
+      }
+    }
+
+    setImportStats({ createdCategories, matchedCategories })
+
     for (const item of importPreview) {
       try {
-        // 尝试根据分类名称匹配分类ID
         let categoryId = item.category_id || ''
-        if (!categoryId && item.category_name) {
-          const matched = storeCategories.find(
-            c => c.name.toLowerCase() === item.category_name.toLowerCase()
-          )
-          if (matched) categoryId = matched.id
+        const catName = item.category_name?.trim()
+        if (!categoryId && catName && categoryMap.has(catName)) {
+          categoryId = categoryMap.get(catName)!
         }
-        // 处理 keywords：如果是字符串则拆分为数组
         let keywords: string[] = []
         if (Array.isArray(item.keywords)) {
           keywords = item.keywords
         } else if (typeof item.keywords === 'string' && item.keywords.trim()) {
           keywords = item.keywords.split(/[,;，；]/).map((k: string) => k.trim()).filter(Boolean)
         }
-        
-        await addLink({
+        // 处理 visible 字段
+        let visible = true
+        if (item.visible === '否' || item.visible === 'false' || item.visible === false || item.visible === '0') {
+          visible = false
+        }
+        await store.addLink({
           name: item.name || '未命名资源',
           title: item.name || '未命名资源',
           url: item.url || '',
@@ -273,14 +314,18 @@ export default function DataManagementPage() {
           is_featured: !!item.is_featured,
           expires_at: item.expires_at && item.expires_at !== '永久' ? item.expires_at : null,
           drive_type: item.drive_type || 'baidu',
+          visible,
         })
         importedCount++
       } catch (err) {
         console.error('[Import] Failed to import item:', item.name, err)
       }
     }
-    toast.success(`已成功导入 ${importedCount} 条数据`)
+    let msg = `已成功导入 ${importedCount} 条数据`
+    if (createdCategories.length > 0) msg += `，新建 ${createdCategories.length} 个分类`
+    toast.success(msg)
     setImportPreview(null)
+    setImportStats(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -464,7 +509,8 @@ export default function DataManagementPage() {
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h4 className="font-medium text-gray-800 mb-2">导入说明</h4>
                     <ul className="text-sm text-gray-600 space-y-1">
-                      <li>• CSV 文件需包含以下列：名称、链接、提取码（可选）</li>
+                      <li>• CSV 文件需包含以下列：名称、链接、提取码（可选）、分类、描述、关键词、网盘类型、精选、置顶、可见、过期时间</li>
+                      <li>• 若分类不存在，系统会自动创建新分类</li>
                       <li>• JSON 文件需为对象数组格式</li>
                       <li>• 支持的最大文件大小为 10MB</li>
                     </ul>
@@ -481,6 +527,22 @@ export default function DataManagementPage() {
                     <CheckCircle className="w-5 h-5" />
                     <span className="font-medium">文件解析成功，预览如下：</span>
                   </div>
+                  {importStats && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+                      {importStats.createdCategories.length > 0 && (
+                        <p className="text-amber-800">
+                          <span className="font-medium">将新建分类：</span>
+                          {importStats.createdCategories.join('、')}
+                        </p>
+                      )}
+                      {importStats.matchedCategories.length > 0 && (
+                        <p className="text-green-700 mt-1">
+                          <span className="font-medium">匹配已有分类：</span>
+                          {importStats.matchedCategories.join('、')}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="border rounded-lg overflow-hidden">
                     <div className="overflow-x-auto">
@@ -527,6 +589,97 @@ export default function DataManagementPage() {
                   </div>
                 </div>
               ) : null}
+            </motion.div>
+          )}
+
+          {/* 图标库 */}
+          {activeTab === 'icon-library' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">图标库</h3>
+                  <p className="text-sm text-gray-500 mt-1">上传图片到图标库，创建资源时可直接选择使用</p>
+                </div>
+                <button
+                  onClick={() => iconFileInputRef.current?.click()}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 cursor-pointer"
+                >
+                  <Upload className="w-4 h-4" />
+                  上传图标
+                </button>
+                <input
+                  ref={iconFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = e.target.files
+                    if (!files) return
+                    for (const file of Array.from(files)) {
+                      if (!file.type.startsWith('image/')) {
+                        toast.error(`${file.name} 不是图片文件`)
+                        continue
+                      }
+                      if (file.size > 2 * 1024 * 1024) {
+                        toast.error(`${file.name} 超过 2MB 限制`)
+                        continue
+                      }
+                      const reader = new FileReader()
+                      reader.onload = (ev) => {
+                        const dataUrl = ev.target?.result as string
+                        addIconToLibrary(file.name.replace(/\.[^/.]+$/, ''), dataUrl)
+                        toast.success(`${file.name} 已添加到图标库`)
+                      }
+                      reader.readAsDataURL(file)
+                    }
+                    e.target.value = ''
+                  }}
+                />
+              </div>
+
+              {/* 搜索 */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={iconSearch}
+                  onChange={(e) => setIconSearch(e.target.value)}
+                  placeholder="搜索图标..."
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                />
+              </div>
+
+              {iconLibrary.length === 0 ? (
+                <div className="text-center py-16 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                  <Image className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>图标库为空，点击上方按钮上传图标</p>
+                  <p className="text-xs mt-1">建议上传 64x64 或 128x128 的 PNG 图标</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
+                  {iconLibrary
+                    .filter(icon => !iconSearch || icon.name.toLowerCase().includes(iconSearch.toLowerCase()))
+                    .map((icon) => (
+                    <div key={icon.id} className="group relative bg-white border rounded-xl p-3 hover:shadow-md transition-all">
+                      <div className="w-full aspect-square flex items-center justify-center mb-2">
+                        <img src={icon.dataUrl} alt={icon.name} className="w-12 h-12 object-contain" />
+                      </div>
+                      <p className="text-xs text-gray-600 text-center truncate">{icon.name}</p>
+                      <button
+                        onClick={() => {
+                          deleteIconFromLibrary(icon.id)
+                          toast.success('图标已删除')
+                        }}
+                        className="absolute top-1 right-1 p-1 bg-red-50 text-red-500 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100"
+                        title="删除"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </motion.div>
           )}
 

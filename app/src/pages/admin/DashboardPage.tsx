@@ -13,7 +13,7 @@ import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { LinkIcon } from '@/components/LinkIcon'
 
 function getLinkIcon(link: LinkItem) {
-  return <LinkIcon link={link} size="sm" />
+  return <LinkIcon link={link} size={link.icon_size || 'sm'} />
 }
 
 export default function DashboardPage() {

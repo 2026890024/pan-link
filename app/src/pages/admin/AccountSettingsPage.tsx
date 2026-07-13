@@ -9,6 +9,7 @@ import {
   EyeOff,
   Shield,
   Settings,
+  X,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { fastHash, fastVerify } from '@/lib/crypto'
@@ -71,6 +72,14 @@ export default function AccountSettingsPage() {
 
   // 标签切换
   const [activeTab, setActiveTab] = useState<'profile' | 'credentials'>('profile')
+  // 温馨提示关闭状态
+  const [showTip, setShowTip] = useState(() => {
+    try { return localStorage.getItem('account_tip_closed') !== 'true' } catch { return true }
+  })
+  const closeTip = () => {
+    setShowTip(false)
+    try { localStorage.setItem('account_tip_closed', 'true') } catch { /* ignore */ }
+  }
 
   // 同步初始值
   useEffect(() => {
@@ -242,18 +251,27 @@ export default function AccountSettingsPage() {
           </div>
 
           {/* 提示信息 */}
-          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <div className="flex items-start gap-2.5">
-              <Settings className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-medium text-amber-800">温馨提示</p>
-                <p className="text-xs text-amber-600 mt-1">
-                  当前使用本地存储模式。修改的账户信息仅保存在当前浏览器中。
-                  若使用 Supabase 模式，信息将同步到云端。
-                </p>
+          {showTip && (
+            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4 relative">
+              <button
+                onClick={closeTip}
+                className="absolute top-2 right-2 p-1 rounded-full hover:bg-amber-200/50 text-amber-500 transition-colors"
+                title="不再提示"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+              <div className="flex items-start gap-2.5">
+                <Settings className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-medium text-amber-800">温馨提示</p>
+                  <p className="text-xs text-amber-600 mt-1">
+                    当前使用本地存储模式。修改的账户信息仅保存在当前浏览器中。
+                    若使用 Supabase 模式，信息将同步到云端。
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </motion.div>
 
         {/* 右侧内容 */}

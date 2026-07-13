@@ -121,7 +121,7 @@ export default function CategoryPage() {
     }
   }
 
-  const getLinkIcon = (link: LinkItem) => <LinkIcon link={link} size="md" />
+  const getLinkIcon = (link: LinkItem) => <LinkIcon link={link} size={link.icon_size || 'md'} />
 
   return (
     <div className="min-h-screen bg-[#FAFBFC] container mx-auto px-3 sm:px-4 py-4 sm:py-8">

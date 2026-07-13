@@ -36,13 +36,9 @@ export default function AdminLayout() {
 
   // 动态 Logo/颜色
   const siteSettings = useSiteSettingsStore()
+  const settingsLoaded = siteSettings.loaded
   const siteName = siteSettings.settings.site_name || '资源云'
   const logoType = siteSettings.settings.current_logo_type || 'text'
-
-  // 加载站点设置
-  useEffect(() => {
-    siteSettings.loadSettings()
-  }, [])
 
   // 读取动态头像和用户名（每次渲染时从 localStorage 读取最新值）
   const getProfile = () => {
@@ -104,7 +100,7 @@ export default function AdminLayout() {
         {/* Logo */}
         <div className="flex items-center h-16 px-4 border-b border-gray-100">
           <Link to="/admin" className="flex items-center gap-3 overflow-hidden">
-            {logoType === 'image' && siteSettings.settings.current_logo_url ? (
+            {settingsLoaded && logoType === 'image' && siteSettings.settings.current_logo_url ? (
               <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center bg-transparent flex-shrink-0">
                 <img
                   src={siteSettings.settings.current_logo_url}
@@ -114,7 +110,7 @@ export default function AdminLayout() {
                 />
               </div>
             ) : (
-              <div className="w-9 h-9 bg-gradient-to-br from-brand-600 to-brand-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-button">
+              <div className="w-9 h-9 bg-gradient-to-br from-brand-600 to-brand-500 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Link2 className="w-5 h-5 text-white" />
               </div>
             )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Copy,
   Check,
@@ -10,7 +10,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
-import { getDaysRemaining, copyToClipboard, checkLinkStatus } from '@/lib/utils'
+import { getDaysRemaining, copyToClipboard, checkLinkStatus, buildShareText } from '@/lib/utils'
 import { LinkIcon } from '@/components/LinkIcon'
 import toast from 'react-hot-toast'
 
@@ -22,18 +22,43 @@ interface LinkDetailModalProps {
 export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps) {
   const { categories, subCategories, incrementClicks } = useDataStore()
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
 
   // Esc 关闭
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onClose()
+    // 焦点陷阱：Tab 键在弹窗内循环
+    if (e.key === 'Tab' && modalRef.current) {
+      const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus() }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus() }
+      }
+    }
   }, [onClose])
 
   useEffect(() => {
+    previousFocusRef.current = document.activeElement as HTMLElement
     document.addEventListener('keydown', handleKeyDown)
     document.body.style.overflow = 'hidden'
+    // 聚焦弹窗第一个可聚焦元素
+    setTimeout(() => {
+      const focusable = modalRef.current?.querySelector<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      focusable?.focus()
+    }, 100)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = ''
+      previousFocusRef.current?.focus()
     }
   }, [handleKeyDown])
 
@@ -64,20 +89,20 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
   }
 
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/s/${link.slug}`
+    const shareText = buildShareText(link.name, link.url, link.extract_code || undefined)
     if (navigator.share) {
       try {
         await navigator.share({
           title: link.name,
-          text: `发现优质资源：${link.name}`,
-          url: shareUrl,
+          text: shareText,
+          url: link.url,
         })
       } catch {
         // 用户取消分享
       }
     } else {
-      await copyToClipboard(shareUrl)
-      toast.success('分享链接已复制')
+      await copyToClipboard(shareText)
+      toast.success('分享内容已复制')
     }
   }
 
@@ -85,7 +110,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
     if (link.icon) {
       return <img src={link.icon} alt={link.name} className="w-16 h-16 rounded-xl object-cover shadow-sm" loading="lazy" decoding="async" />
     }
-    return <LinkIcon link={link} size="lg" />
+    return <LinkIcon link={link} size={link.icon_size || 'lg'} />
   }
 
   return (
@@ -94,10 +119,15 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
+        aria-hidden="true"
       />
 
       {/* 弹窗内容 */}
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
         className="relative w-full max-w-md bg-white rounded-2xl shadow-glass-lg animate-scale-in max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
@@ -118,7 +148,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand-50 to-violet-50 flex items-center justify-center shadow-sm mb-4">
               {getLinkIcon()}
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">{link.name || link.title}</h2>
+            <h2 id="modal-title" className="text-xl font-bold text-gray-900 mb-1 text-center">{link.name || link.title}</h2>
 
             {/* 分类 + 子分类 */}
             <div className="flex items-center gap-2 mb-2">
@@ -184,7 +214,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
               />
               <button
                 onClick={() => handleCopy(link.url, 'url')}
-                className="px-3 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl transition-colors flex items-center gap-1.5 text-sm font-medium flex-shrink-0 cursor-pointer"
+                className="px-3 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl transition-colors flex items-center gap-1.5 text-sm font-medium flex-shrink-0 cursor-pointer touch-manipulation"
               >
                 {copiedField === 'url' ? (
                   <><Check className="w-3.5 h-3.5" /> 已复制</>
@@ -208,7 +238,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
                 />
                 <button
                   onClick={() => handleCopy(link.extract_code!, 'code')}
-                  className="px-3 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors flex items-center gap-1.5 text-sm font-medium flex-shrink-0 cursor-pointer"
+                  className="px-3 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors flex items-center gap-1.5 text-sm font-medium flex-shrink-0 cursor-pointer touch-manipulation"
                 >
                   {copiedField === 'code' ? (
                     <><Check className="w-3.5 h-3.5" /> 已复制</>
@@ -245,7 +275,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
             <button
               onClick={handleVisit}
               disabled={status === 'expired'}
-              className={`w-full py-3 rounded-xl font-semibold text-base flex items-center justify-center gap-2 shadow-button transition-all duration-300 cursor-pointer ${
+              className={`w-full py-3 rounded-xl font-semibold text-base flex items-center justify-center gap-2 shadow-button transition-all duration-300 cursor-pointer touch-manipulation ${
                 status === 'expired'
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-glass active:scale-[0.98]'
@@ -256,7 +286,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
             </button>
             <button
               onClick={handleShare}
-              className="w-full py-2.5 bg-brand-50 text-brand-600 rounded-xl font-medium text-sm flex items-center justify-center gap-2 hover:bg-brand-100 transition-all duration-200 cursor-pointer"
+              className="w-full py-2.5 bg-brand-50 text-brand-600 rounded-xl font-medium text-sm flex items-center justify-center gap-2 hover:bg-brand-100 transition-all duration-200 cursor-pointer touch-manipulation"
             >
               <Share2 className="w-4 h-4" /> 分享
             </button>

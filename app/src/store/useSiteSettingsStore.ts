@@ -13,6 +13,39 @@ const DEFAULT_COLORS = {
   darkest: '#1E1B4B',
 }
 
+// ── localStorage 缓存（和 useDataStore 统一）──
+const SETTINGS_KEY = 'panlink_site_settings'
+
+function loadCachedSettings(): SiteSettings | null {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return null
+}
+
+function saveCachedSettings(settings: SiteSettings): void {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+  } catch { /* quota exceeded */ }
+}
+
+// 默认初始设置
+const DEFAULT_SETTINGS: SiteSettings = {
+  current_logo_type: 'text',
+  current_logo_text: 'Pan Link',
+  current_logo_url: '',
+  logo_library: [],
+  current_colors: DEFAULT_COLORS,
+  color_history: [],
+  site_name: '资源云',
+  site_description: '一站式网盘资源聚合管理平台',
+}
+
+// 启动时优先用 localStorage 缓存，确保 Logo 和数据内容同步显示
+const cached = loadCachedSettings()
+const hasCache = cached !== null
+
 interface SiteSettingsStore {
   // 数据
   settings: SiteSettings
@@ -44,35 +77,30 @@ interface SiteSettingsStore {
 }
 
 export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
-  settings: {
-    current_logo_type: 'text',
-    current_logo_text: 'Pan Link',
-    current_logo_url: '',
-    logo_library: [],
-    current_colors: DEFAULT_COLORS,
-    color_history: [],
-    site_name: '资源云',
-    site_description: '一站式网盘资源聚合管理平台',
-  },
-  loaded: false,
+  // 👇 如果有缓存，立即恢复（Logo 不再延迟出现）
+  settings: hasCache
+    ? { ...DEFAULT_SETTINGS, ...cached }
+    : DEFAULT_SETTINGS,
+  loaded: hasCache, // 有缓存就直接显示，不等 API
 
   loadSettings: async () => {
     try {
       const settings = await ds.fetchSiteSettings()
-      set({
-        settings: {
-          current_logo_type: settings.current_logo_type || 'text',
-          current_logo_text: settings.current_logo_text || 'Pan Link',
-          current_logo_url: settings.current_logo_url || '',
-          logo_library: settings.logo_library || [],
-          current_colors: settings.current_colors || DEFAULT_COLORS,
-          color_history: settings.color_history || [],
-          site_name: settings.site_name || '资源云',
-          site_description: settings.site_description || '一站式网盘资源聚合管理平台',
-        },
-        loaded: true,
-      })
+      const merged: SiteSettings = {
+        current_logo_type: settings.current_logo_type || DEFAULT_SETTINGS.current_logo_type,
+        current_logo_text: settings.current_logo_text || DEFAULT_SETTINGS.current_logo_text,
+        current_logo_url: settings.current_logo_url || DEFAULT_SETTINGS.current_logo_url,
+        logo_library: settings.logo_library || [],
+        current_colors: settings.current_colors || DEFAULT_COLORS,
+        color_history: settings.color_history || [],
+        site_name: settings.site_name || DEFAULT_SETTINGS.site_name,
+        site_description: settings.site_description || DEFAULT_SETTINGS.site_description,
+      }
+      // 持久化到 localStorage，下次打开瞬间恢复
+      saveCachedSettings(merged)
+      set({ settings: merged, loaded: true })
     } catch {
+      // API 失败也不影响，有缓存就用缓存
       set({ loaded: true })
     }
   },
@@ -82,29 +110,36 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
   setLogoType: async (type) => {
     const settings = { ...get().settings, current_logo_type: type }
     set({ settings })
+    saveCachedSettings(settings)
     await ds.updateSiteSettings({ current_logo_type: type })
   },
 
   setLogoText: async (text) => {
     const settings = { ...get().settings, current_logo_text: text }
     set({ settings })
+    saveCachedSettings(settings)
     await ds.updateSiteSettings({ current_logo_text: text })
   },
 
   setLogoUrl: async (url) => {
     const settings = { ...get().settings, current_logo_url: url }
     set({ settings })
+    saveCachedSettings(settings)
     await ds.updateSiteSettings({ current_logo_url: url })
   },
 
   addLogo: async (url, name) => {
     const library = await ds.addLogoToLibrary(url, name)
-    set({ settings: { ...get().settings, logo_library: library } })
+    const settings = { ...get().settings, logo_library: library }
+    set({ settings })
+    saveCachedSettings(settings)
   },
 
   removeLogo: async (index) => {
     const library = await ds.deleteLogoFromLibrary(index)
-    set({ settings: { ...get().settings, logo_library: library } })
+    const settings = { ...get().settings, logo_library: library }
+    set({ settings })
+    saveCachedSettings(settings)
   },
 
   selectLogo: async (index) => {
@@ -113,6 +148,7 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
     if (logo) {
       const updated = { ...settings, current_logo_type: 'image' as const, current_logo_url: logo.url }
       set({ settings: updated })
+      saveCachedSettings(updated)
       await ds.updateSiteSettings({
         current_logo_type: 'image',
         current_logo_url: logo.url,
@@ -125,6 +161,7 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
   updateColors: async (colors) => {
     const settings = { ...get().settings, current_colors: colors }
     set({ settings })
+    saveCachedSettings(settings)
     await ds.updateSiteSettings({ current_colors: colors })
   },
 
@@ -138,6 +175,7 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
     const history = [...(settings.color_history || []), scheme]
     const updated = { ...settings, color_history: history }
     set({ settings: updated })
+    saveCachedSettings(updated)
     await ds.updateSiteSettings({ color_history: history })
   },
 
@@ -154,6 +192,7 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
       }
       const updated = { ...settings, current_colors: colors }
       set({ settings: updated })
+      saveCachedSettings(updated)
       await ds.updateSiteSettings({ current_colors: colors })
     }
   },
@@ -163,6 +202,7 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
     const history = (settings.color_history || []).filter((_, i) => i !== index)
     const updated = { ...settings, color_history: history }
     set({ settings: updated })
+    saveCachedSettings(updated)
     await ds.updateSiteSettings({ color_history: history })
   },
 
@@ -171,12 +211,14 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
   setSiteName: async (name) => {
     const settings = { ...get().settings, site_name: name }
     set({ settings })
+    saveCachedSettings(settings)
     await ds.updateSiteSettings({ site_name: name })
   },
 
   setSiteDescription: async (desc) => {
     const settings = { ...get().settings, site_description: desc }
     set({ settings })
+    saveCachedSettings(settings)
     await ds.updateSiteSettings({ site_description: desc })
   },
 

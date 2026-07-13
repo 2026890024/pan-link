@@ -64,6 +64,7 @@ export interface LinkItem {
   category_logo?: string
   subcategory_id: string
   icon: string
+  icon_size?: 'sm' | 'md' | 'lg'
   is_pinned: boolean
   is_featured: boolean
   click_count: number
@@ -603,11 +604,20 @@ export interface ColorScheme {
   saved_at: string
 }
 
+export interface IconLibraryItem {
+  id: string
+  name: string
+  dataUrl: string
+  size: number
+  created_at: string
+}
+
 export interface SiteSettings {
   current_logo_type?: 'text' | 'image'
   current_logo_text?: string
   current_logo_url?: string
   logo_library?: LogoItem[]
+  icon_library?: IconLibraryItem[]
   current_colors?: Omit<ColorScheme, 'name' | 'saved_at'>
   color_history?: ColorScheme[]
   site_name?: string
@@ -627,6 +637,7 @@ function getLocalSiteSettings(): SiteSettings {
     current_logo_text: 'Pan Link',
     current_logo_url: '',
     logo_library: [],
+    icon_library: [],
     current_colors: {
       primary: '#6366F1',
       secondary: '#818CF8',

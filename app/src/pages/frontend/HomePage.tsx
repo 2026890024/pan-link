@@ -33,14 +33,15 @@ const PAGINATION_BTN = 'px-4 py-2 rounded-xl text-sm border border-gray-200 hove
 export default function HomePage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { categories, links, subCategories, incrementClicks } = useDataStore()
+  const { categories, links, subCategories, incrementClicks, initialized } = useDataStore()
   const siteSettings = useSiteSettingsStore()
+  const siteSettingsLoaded = siteSettings.loaded
   const siteName = siteSettings.settings.site_name || '资源云'
   const logoType = siteSettings.settings.current_logo_type || 'text'
   const logoUrl = siteSettings.settings.current_logo_url || ''
 
   // 链接图标渲染函数
-  const getLinkIcon = (link: LinkItem) => <LinkIcon link={link} size="md" />
+  const getLinkIcon = (link: LinkItem) => <LinkIcon link={link} size={link.icon_size || 'md'} />
 
   // URL 参数读取分类/子分类
   const urlCategory = searchParams.get('category') || null
@@ -60,7 +61,7 @@ export default function HomePage() {
     }
   }, [categories])
 
-  // 子分类可见性过滤
+  // 子分类可见性过滤（已按 sort_order 排序）
   const visibleSubCategories = useMemo(() => {
     try {
       const subVis: Record<string, boolean> = JSON.parse(
@@ -68,7 +69,6 @@ export default function HomePage() {
       )
       return subCategories
         .filter(sc => {
-          // 父分类可见 + 子分类默认可见（除非显式隐藏）
           const parentVisible = visibleCategories.some(c => c.id === sc.category_id)
           if (!parentVisible) return false
           return subVis[sc.id] !== false
@@ -80,6 +80,11 @@ export default function HomePage() {
       ).sort((a, b) => a.sort_order - b.sort_order)
     }
   }, [subCategories, visibleCategories])
+  
+  // 获取某个分类的子分类（已全局排序，无需再排）
+  const getSubCategories = (categoryId: string) => {
+    return visibleSubCategories.filter(sc => sc.category_id === categoryId)
+  }
 
   const [searchQuery, setSearchQuery] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -110,8 +115,8 @@ export default function HomePage() {
     document.title = `${siteName} - ${desc}`
   }, [siteName, siteSettings.settings.site_description])
 
-  // 数据是否加载中
-  const isLoading = links.length === 0 && categories.length === 0
+  // 数据是否加载中（用 initialized 标记，而非依赖数据长度——空数据库 ≠ 未加载）
+  const isLoading = !initialized
 
   // 过期资源过滤
   const isExpired = (link: LinkItem) => checkLinkStatus(link.expires_at || null) === 'expired'
@@ -178,10 +183,6 @@ export default function HomePage() {
   const totalPages = Math.ceil(filteredLinks.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedLinks = useMemo(() => filteredLinks.slice(startIndex, startIndex + itemsPerPage), [filteredLinks, startIndex])
-
-  const getSubCategories = (categoryId: string) => {
-    return visibleSubCategories.filter(sc => sc.category_id === categoryId).sort((a, b) => a.sort_order - b.sort_order)
-  }
 
   const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault()
@@ -277,8 +278,8 @@ export default function HomePage() {
       <div className="gradient-hero flex flex-col items-center pt-16 sm:pt-24 px-4 pb-12 sm:pb-16">
         {/* Logo */}
         <Link to="/" onClick={handleClearSearch} className="flex items-center gap-4 mb-6 sm:mb-8 group">
-          {logoType === 'image' && logoUrl ? (
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center overflow-hidden bg-transparent shadow-glass group-hover:shadow-glass-lg group-hover:scale-105 transition-all duration-500">
+          {siteSettingsLoaded && logoType === 'image' && logoUrl ? (
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center overflow-hidden bg-transparent group-hover:scale-105 transition-all duration-500">
               <img src={logoUrl} alt={siteName} className="w-full h-full object-contain" />
             </div>
           ) : (
@@ -628,10 +629,10 @@ export default function HomePage() {
           <div className="flex items-center justify-center gap-3 text-sm text-gray-400">
             <Link
               to="/admin-login"
-              className="w-8 h-8 rounded-xl flex items-center justify-center hover:shadow-button transition-all duration-300 hover:scale-105 cursor-pointer overflow-hidden bg-transparent"
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-105 cursor-pointer overflow-hidden bg-transparent"
               title="进入后台管理"
             >
-              {logoType === 'image' && logoUrl ? (
+              {siteSettingsLoaded && logoType === 'image' && logoUrl ? (
                 <img src={logoUrl} alt={siteName} className="w-full h-full object-contain rounded-xl" />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-brand-600 via-brand-500 to-violet-500 rounded-xl flex items-center justify-center">

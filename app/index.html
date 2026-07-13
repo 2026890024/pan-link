@@ -38,10 +38,16 @@
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <!-- API 预热：在 HTML 解析阶段就触发请求，避免 React 渲染后再等待冷启动 -->
+    <!-- API 预热：在 HTML 解析阶段并行触发核心端点，缓解 Workers 冷启动延迟 -->
     <script>
       (function warmup() {
-        try { fetch('/api/health').catch(function(){}); } catch(e) {}
+        try {
+          // 并行预热首页需要的核心 API 端点（缓解 Cloudflare Workers 冷启动）
+          var endpoints = ['/api/health', '/api/categories', '/api/links', '/api/site-settings'];
+          endpoints.forEach(function(ep) {
+            fetch(ep, { method: 'GET', cache: 'no-store' }).catch(function(){});
+          });
+        } catch(e) {}
       })();
     </script>
     <!-- JS 加载后隐藏预加载器 -->
