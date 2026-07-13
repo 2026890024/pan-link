@@ -104,7 +104,7 @@ export default function ConfirmDialog({
         {/* 关闭按钮：纯图标，hover 出灰底 */}
         <button
           onClick={onCancel}
-          className="absolute top-4 right-4 w-8 h-8 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg flex items-center justify-center transition-colors cursor-pointer touch-manipulation"
+          className="absolute top-4 right-4 w-8 h-8 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg flex items-center justify-center transition-colors cursor-pointer touch-manipulation border-none outline-none"
           aria-label="关闭"
         >
           <X className="w-4 h-4" />

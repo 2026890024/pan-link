@@ -162,7 +162,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
         {/* 关闭按钮：纯图标，hover 时才出现灰底 */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 w-8 h-8 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg flex items-center justify-center transition-colors cursor-pointer z-10 touch-manipulation"
+          className="absolute top-3 right-3 w-8 h-8 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg flex items-center justify-center transition-colors cursor-pointer z-10 touch-manipulation border-none outline-none"
           aria-label="关闭"
         >
           <X className="w-4 h-4" />
