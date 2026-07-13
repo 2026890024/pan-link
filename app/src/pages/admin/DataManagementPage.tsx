@@ -469,6 +469,35 @@ export default function DataManagementPage() {
                       </p>
                     </div>
                   </label>
+
+                  {/* 可勾选链接列表 */}
+                  {selectedForExport.length > 0 && (
+                    <div className="border rounded-lg p-3 max-h-64 overflow-y-auto space-y-1">
+                      {links.length === 0 && (
+                        <p className="text-sm text-gray-400 text-center py-4">暂无链接可选</p>
+                      )}
+                      {links.map(link => (
+                        <label key={link.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedForExport.includes(link.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedForExport(prev => [...prev, link.id])
+                              } else {
+                                setSelectedForExport(prev => prev.filter(id => id !== link.id))
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 rounded"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm text-gray-700 truncate block">{link.name || link.title}</span>
+                            <span className="text-xs text-gray-400 truncate block">{link.url}</span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

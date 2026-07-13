@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#6366F1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.svg" />
     <title>资源云 - 一站式网盘资源聚合管理平台</title>
     <meta name="description" content="一站式网盘资源聚合管理平台，高效管理和分享您的资源链接。支持百度网盘、夸克网盘、阿里云盘、蓝奏云、迅雷云盘等多种网盘资源聚合。" />
     <meta name="keywords" content="网盘资源,资源聚合,百度网盘,夸克网盘,阿里云盘,蓝奏云,迅雷云盘,资源分享,资源管理" />
@@ -39,10 +42,12 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <!-- API 预热：在 HTML 解析阶段并行触发核心端点，缓解 Workers 冷启动延迟 -->
+    <!-- 移动端/省流模式下跳过预热，避免浪费流量 -->
     <script>
       (function warmup() {
         try {
-          // 并行预热首页需要的核心 API 端点（缓解 Cloudflare Workers 冷启动）
+          var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+          if (conn && (conn.saveData || ['slow-2g','2g','3g'].indexOf(conn.effectiveType) !== -1)) return;
           var endpoints = ['/api/health', '/api/categories', '/api/links', '/api/site-settings'];
           endpoints.forEach(function(ep) {
             fetch(ep, { method: 'GET', cache: 'no-store' }).catch(function(){});

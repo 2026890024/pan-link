@@ -26,8 +26,8 @@ import { checkLinkStatus, copyToClipboard as copyUtil, buildShareText } from '@/
 import toast from 'react-hot-toast'
 
 // ── 样式常量（提取重复样式）──
-const BTN_PRIMARY = 'py-2 px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium min-h-[36px]'
-const BTN_SECONDARY = 'py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[36px]'
+const BTN_PRIMARY = 'py-2 px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium min-h-[44px] sm:min-h-[36px]'
+const BTN_SECONDARY = 'py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[44px] sm:min-h-[36px]'
 const PAGINATION_BTN = 'px-4 py-2 rounded-xl text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer'
 
 export default function HomePage() {
@@ -99,6 +99,17 @@ export default function HomePage() {
   const [isSearchMode, setIsSearchMode] = useState(false)
   const [showBackToTop, setShowBackToTop] = useState(false)
   const itemsPerPage = 10
+
+  // 回访用户检测：第二次访问自动收窄 Hero
+  const [isReturning, setIsReturning] = useState(false)
+  useEffect(() => {
+    const visited = localStorage.getItem('panlink_visited')
+    if (visited) {
+      setIsReturning(true)
+    } else {
+      localStorage.setItem('panlink_visited', '1')
+    }
+  }, [])
 
   // 同步 URL 参数到本地状态
   useEffect(() => {
@@ -275,9 +286,9 @@ export default function HomePage() {
   return (
     <div className="min-h-screen text-gray-900 flex flex-col">
       {/* Hero Section */}
-      <div className="gradient-hero flex flex-col items-center pt-16 sm:pt-24 px-4 pb-12 sm:pb-16">
-        {/* Logo */}
-        <Link to="/" onClick={handleClearSearch} className="flex items-center gap-4 mb-6 sm:mb-8 group">
+      <div className={`gradient-hero flex flex-col items-center px-4 pb-12 sm:pb-16 transition-all duration-500 ${isReturning ? 'pt-[max(1.5rem,env(safe-area-inset-top))] gap-3' : 'pt-[max(4rem,env(safe-area-inset-top))] sm:pt-[max(6rem,env(safe-area-inset-top))] gap-6 sm:gap-8'}`}>
+        {/* Logo + 回访用户收缩 */}
+        <Link to="/" onClick={handleClearSearch} className={`flex items-center gap-4 group transition-all duration-500 ${isReturning ? 'scale-75' : 'mb-0'}`}>
           {siteSettingsLoaded && logoType === 'image' && logoUrl ? (
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center overflow-hidden bg-transparent group-hover:scale-105 transition-all duration-500">
               <img src={logoUrl} alt={siteName} className="w-full h-full object-contain" />
@@ -294,8 +305,10 @@ export default function HomePage() {
           </span>
         </Link>
 
-        {/* Subtitle */}
-        <p className="text-gray-500 text-sm sm:text-base mb-6 sm:mb-8">高效聚合 · 一站管理 · 轻松分享</p>
+        {/* Subtitle - 回访时隐藏 */}
+        {!isReturning && (
+          <p className="text-gray-500 text-sm sm:text-base">高效聚合 · 一站管理 · 轻松分享</p>
+        )}
 
         {/* Search Bar */}
         <SearchBar
@@ -315,7 +328,7 @@ export default function HomePage() {
       {/* Mobile Menu Button (floating) */}
       <button
         onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-        className="fixed left-4 bottom-6 z-30 md:hidden px-4 py-3 bg-gradient-to-br from-brand-600 to-brand-500 text-white rounded-2xl shadow-glass flex items-center gap-2 hover:shadow-glass-lg active:scale-95 transition-all duration-300 cursor-pointer"
+        className="fixed left-4 bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] z-30 md:hidden px-4 py-3 bg-gradient-to-br from-brand-600 to-brand-500 text-white rounded-2xl shadow-glass flex items-center gap-2 hover:shadow-glass-lg active:scale-95 transition-all duration-300 cursor-pointer"
         aria-label="打开分类菜单"
       >
         <Menu className="w-5 h-5" />
@@ -373,7 +386,7 @@ export default function HomePage() {
                   </div>
                   <h2 className="text-lg font-bold text-gray-900">精选推荐</h2>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                   {featuredLinks.map((link, idx) => (
                     <div
                       key={link.id}
@@ -491,7 +504,11 @@ export default function HomePage() {
                           {paginatedLinks.map((link) => (
                             <div
                               key={link.id}
-                              className="group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl bg-white border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all duration-200 cursor-pointer"
+                              className={`group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl bg-white border transition-all duration-200 cursor-pointer ${
+                                link.is_pinned
+                                  ? 'border-l-2 border-brand-400 border-l-brand-400 border-gray-100 hover:shadow-sm'
+                                  : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'
+                              }`}
                               onClick={() => setSelectedLink(link)}
                             >
                               <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
@@ -501,6 +518,21 @@ export default function HomePage() {
                                     <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm sm:truncate leading-tight">
                                       {link.name}
                                     </h3>
+                                    {link.is_pinned && (
+                                      <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-md bg-amber-50 text-amber-600 border border-amber-200">置顶</span>
+                                    )}
+                                    {link.extract_code && (
+                                      <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-md bg-blue-50 text-blue-600 border border-blue-200">🔑 提取码</span>
+                                    )}
+                                    {link.expires_at && (() => {
+                                      const days = Math.ceil((new Date(link.expires_at).getTime() - Date.now()) / 86400000)
+                                      if (days <= 30 && days > 0) return (
+                                        <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                                          ⏱ {days <= 7 ? `${days}天后过期` : `${days}天`}
+                                        </span>
+                                      )
+                                      return null
+                                    })()}
                                   </div>
                                   <p className="text-xs text-gray-500 mt-1 leading-relaxed line-clamp-2 sm:truncate">{link.description}</p>
                                 </div>
@@ -658,7 +690,7 @@ export default function HomePage() {
       {showBackToTop && (
         <button
           onClick={scrollToTop}
-          className="fixed right-4 bottom-6 z-30 w-11 h-11 bg-white border border-gray-200 rounded-2xl shadow-glass flex items-center justify-center hover:shadow-glass-lg hover:border-brand-200 hover:text-brand-600 active:scale-95 transition-all duration-300 cursor-pointer"
+          className="fixed right-4 bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] z-30 w-11 h-11 bg-white border border-gray-200 rounded-2xl shadow-glass flex items-center justify-center hover:shadow-glass-lg hover:border-brand-200 hover:text-brand-600 active:scale-95 transition-all duration-300 cursor-pointer"
           aria-label="回到顶部"
         >
           <ArrowUp className="w-5 h-5" />

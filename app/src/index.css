@@ -12,12 +12,17 @@
   * {
     @apply border-gray-200;
   }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     @apply bg-[#FAFBFC] text-gray-900;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    min-height: 100dvh;
   }
 
   /* 全局背景光球效果 */
@@ -137,6 +142,14 @@
   .card-hover:hover {
     transform: none;
     box-shadow: none;
+  }
+  /* 移动端停止光球动画 + 噪点纹理以省电 */
+  body::before {
+    animation: none !important;
+    opacity: 0.4 !important;
+  }
+  body::after {
+    display: none !important;
   }
 }
 

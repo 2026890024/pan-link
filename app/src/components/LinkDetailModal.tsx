@@ -47,7 +47,14 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
   useEffect(() => {
     previousFocusRef.current = document.activeElement as HTMLElement
     document.addEventListener('keydown', handleKeyDown)
-    document.body.style.overflow = 'hidden'
+    // iOS Safari 兼容：用 position:fixed 替代 overflow:hidden
+    const scrollY = window.scrollY
+    const originalPosition = document.body.style.position
+    const originalTop = document.body.style.top
+    const originalWidth = document.body.style.width
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${scrollY}px`
+    document.body.style.width = '100%'
     // 聚焦弹窗第一个可聚焦元素
     setTimeout(() => {
       const focusable = modalRef.current?.querySelector<HTMLElement>(
@@ -57,7 +64,10 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
     }, 100)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = ''
+      document.body.style.position = originalPosition
+      document.body.style.top = originalTop
+      document.body.style.width = originalWidth
+      window.scrollTo(0, scrollY)
       previousFocusRef.current?.focus()
     }
   }, [handleKeyDown])
