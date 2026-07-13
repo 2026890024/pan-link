@@ -1,0 +1,9 @@
+# pan-link Cloudflare Pages 配置
+name = "pan110"
+pages_build_output_dir = "dist"
+
+# D1 数据库绑定
+[[d1_databases]]
+binding = "DB"
+database_name = "pan-link-db"
+database_id = "3492384c-c066-4b9d-8030-ced79794352d"

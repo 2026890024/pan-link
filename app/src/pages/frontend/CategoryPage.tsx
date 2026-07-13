@@ -9,15 +9,17 @@ import {
   Pin,
   Filter,
   ChevronRight,
-  ArrowLeft,
   FolderOpen,
   Check,
   Download,
   Share2,
+  ArrowUp,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { LinkIcon } from '@/components/LinkIcon'
 import LinkDetailModal from '@/components/LinkDetailModal'
+import SiteFooter from '@/components/SiteFooter'
+import { useBackToTop } from '@/hooks/useBackToTop'
 import { getDaysRemaining, checkLinkStatus, copyToClipboard as copyUtil } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
@@ -27,7 +29,9 @@ export default function CategoryPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [sortBy, setSortBy] = useState<'default' | 'recent' | 'popular'>('default')
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const { showBackToTop, scrollToTop } = useBackToTop()
 
   const category = categories.find(c => c.id === id)
 
@@ -52,6 +56,12 @@ export default function CategoryPage() {
     return () => document.removeEventListener('keydown', handler)
   }, [])
 
+  // 搜索防抖 200ms
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 200)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
   if (!id || !category) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -67,11 +77,11 @@ export default function CategoryPage() {
 
   let filteredLinks = links.filter((l) => l.category_id === id && l.visible !== false && !isExpiredLink(l))
 
-  if (searchQuery) {
+  if (debouncedQuery) {
     filteredLinks = filteredLinks.filter((l) =>
-      l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.keywords?.some(kw => kw.toLowerCase().includes(searchQuery.toLowerCase()))
+      l.name.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
+      l.description.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
+      l.keywords?.some(kw => kw.toLowerCase().includes(debouncedQuery.toLowerCase()))
     )
   }
 
@@ -85,7 +95,7 @@ export default function CategoryPage() {
 
   // 重置分页
   const resetPage = useCallback(() => setCurrentPage(1), [])
-  useEffect(() => { resetPage() }, [searchQuery, sortBy, id])
+  useEffect(() => { resetPage() }, [debouncedQuery, sortBy, id])
 
   const totalPages = Math.ceil(filteredLinks.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -124,7 +134,11 @@ export default function CategoryPage() {
   const getLinkIcon = (link: LinkItem) => <LinkIcon link={link} size={link.icon_size || 'md'} />
 
   return (
-    <div className="min-h-screen bg-[#FAFBFC] container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+    <div className="min-h-screen bg-[#FAFBFC] container mx-auto px-3 sm:px-4 py-4 sm:py-8"
+      style={{
+        paddingLeft: 'max(0.75rem, env(safe-area-inset-left))',
+        paddingRight: 'max(0.75rem, env(safe-area-inset-right))',
+      }}>
       <motion.nav
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -164,7 +178,7 @@ export default function CategoryPage() {
             placeholder="搜索该分类下的资源..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-100 rounded-xl text-sm focus:outline-none focus:border-gray-300 focus:shadow-sm transition-all duration-200"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-100 rounded-xl text-base sm:text-sm focus:outline-none focus:border-gray-300 focus:shadow-sm transition-all duration-200"
             aria-label="搜索该分类下的资源"
           />
         </div>
@@ -212,12 +226,15 @@ export default function CategoryPage() {
             {sortedLinks.map((link, index) => (
               <motion.div key={link.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
                 <div onClick={() => setSelectedLink(link)} className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:shadow-gray-900/5 hover:border-gray-200 transition-all duration-200 overflow-hidden group cursor-pointer relative touch-manipulation">
-                  <div className="aspect-video bg-gray-50 relative flex items-center justify-center">
-                    <div className="flex items-center justify-center">{getLinkIcon(link)}</div>
-                    {isExpiredLink(link) && (
-                      <span className="absolute top-2 right-2 px-2 py-0.5 bg-red-500/90 text-white text-[10px] rounded-full font-medium">已过期</span>
-                    )}
-                  </div>
+                    <div className="bg-gradient-to-br from-brand-50 to-violet-50 relative flex items-center justify-center py-6">
+                      <div className="flex items-center justify-center">{getLinkIcon(link)}</div>
+                      {link.is_pinned && (
+                        <span className="absolute top-2 left-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] rounded-md font-medium">置顶</span>
+                      )}
+                      {isExpiredLink(link) && (
+                        <span className="absolute top-2 right-2 px-2 py-0.5 bg-red-500/90 text-white text-[10px] rounded-full font-medium">已过期</span>
+                      )}
+                    </div>
                   <div className="p-3 sm:p-4">
                     <h3 className="font-medium text-gray-800 group-hover:text-gray-900 transition-colors line-clamp-2 mb-2 text-xs sm:text-sm">{link.name}</h3>
                     <div className="flex items-center justify-between text-[10px] sm:text-xs text-gray-400">
@@ -232,7 +249,7 @@ export default function CategoryPage() {
                           e.stopPropagation()
                           handleLinkClick(link)
                         }}
-                        className="flex-1 py-1.5 sm:py-2 text-[10px] sm:text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all duration-150 cursor-pointer flex items-center justify-center gap-1 min-h-[32px] sm:min-h-[36px] touch-manipulation"
+                        className="flex-1 py-1.5 sm:py-2 text-[10px] sm:text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all duration-150 cursor-pointer flex items-center justify-center gap-1 min-h-[44px] sm:min-h-[36px] touch-manipulation"
                         title="访问下载"
                       >
                         <Download className="w-3 h-3" />
@@ -243,7 +260,7 @@ export default function CategoryPage() {
                           e.stopPropagation()
                           shareLink(link)
                         }}
-                        className="py-1.5 sm:py-2 px-2 sm:px-3 text-[10px] sm:text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-1 min-h-[32px] sm:min-h-[36px] touch-manipulation"
+                        className="py-1.5 sm:py-2 px-2 sm:px-3 text-[10px] sm:text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-1 min-h-[44px] sm:min-h-[36px] touch-manipulation"
                         title="分享链接"
                       >
                         {copiedId === link.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Share2 className="w-3 h-3" />}
@@ -277,7 +294,7 @@ export default function CategoryPage() {
                         e.stopPropagation()
                         handleLinkClick(link)
                       }}
-                      className="py-1.5 sm:py-2 px-2.5 sm:px-3 text-[10px] sm:text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-1 min-h-[32px] sm:min-h-[36px] touch-manipulation"
+                      className="py-1.5 sm:py-2 px-2.5 sm:px-3 text-[10px] sm:text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-1 min-h-[44px] sm:min-h-[36px] touch-manipulation"
                       title="访问下载"
                     >
                       <Download className="w-3 h-3" />
@@ -288,7 +305,7 @@ export default function CategoryPage() {
                         e.stopPropagation()
                         shareLink(link)
                       }}
-                      className="py-1.5 sm:py-2 px-2 text-[10px] sm:text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-1 min-h-[32px] sm:min-h-[36px] touch-manipulation"
+                      className="py-1.5 sm:py-2 px-2 text-[10px] sm:text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-1 min-h-[44px] sm:min-h-[36px] touch-manipulation"
                       title="分享链接"
                     >
                       {copiedId === link.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Share2 className="w-3 h-3" />}
@@ -308,7 +325,7 @@ export default function CategoryPage() {
           <button
             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer touch-manipulation"
+            className="px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer touch-manipulation min-h-[44px] sm:min-h-[36px]"
           >
             上一页
           </button>
@@ -321,7 +338,7 @@ export default function CategoryPage() {
                 )}
                 <button
                   onClick={() => setCurrentPage(page)}
-                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-all duration-200 font-medium cursor-pointer touch-manipulation ${
+                  className={`w-11 h-11 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-all duration-200 font-medium cursor-pointer touch-manipulation ${
                     currentPage === page
                       ? 'bg-brand-600 text-white shadow-button'
                       : 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-600'
@@ -335,22 +352,29 @@ export default function CategoryPage() {
           <button
             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer touch-manipulation"
+            className="px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer touch-manipulation min-h-[44px] sm:min-h-[36px]"
           >
             下一页
           </button>
         </div>
       )}
 
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="mt-8 sm:mt-10 text-center">
-        <Link to="/" className="inline-flex items-center gap-2 text-brand-500 hover:text-brand-600 font-medium text-sm transition-colors">
-          <ArrowLeft className="w-4 h-4" /> 返回首页
-        </Link>
-      </motion.div>
+      <SiteFooter />
 
       {/* 资源详情弹窗 */}
       {selectedLink && (
         <LinkDetailModal link={selectedLink} onClose={() => setSelectedLink(null)} />
+      )}
+
+      {/* 回到顶部按钮 */}
+      {showBackToTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed right-4 bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] z-30 w-11 h-11 bg-white border border-gray-200 rounded-2xl shadow-glass flex items-center justify-center hover:shadow-glass-lg hover:border-brand-200 hover:text-brand-600 active:scale-95 transition-all duration-300 cursor-pointer"
+          aria-label="回到顶部"
+        >
+          <ArrowUp className="w-5 h-5" />
+        </button>
       )}
 
     </div>

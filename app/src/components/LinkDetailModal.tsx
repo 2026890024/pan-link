@@ -147,7 +147,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
         {/* 关闭按钮 */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors cursor-pointer z-10"
+          className="absolute top-3 right-3 w-11 h-11 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors cursor-pointer z-10"
         >
           <X className="w-4 h-4 text-gray-500" />
         </button>
@@ -281,7 +281,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
 
 
           {/* 操作按钮 */}
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 pb-[env(safe-area-inset-bottom,0px)]">
             <button
               onClick={handleVisit}
               disabled={status === 'expired'}

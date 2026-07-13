@@ -19,6 +19,7 @@ import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { checkLinkStatus, copyToClipboard as copyUtil } from '@/lib/utils'
 import { LinkIcon } from '@/components/LinkIcon'
 import LinkDetailModal from '@/components/LinkDetailModal'
+import SiteFooter from '@/components/SiteFooter'
 import toast from 'react-hot-toast'
 
 export default function SearchPage() {
@@ -44,10 +45,18 @@ export default function SearchPage() {
   // 悬浮按钮状态
   const [floatPos, setFloatPos] = useState({ x: 16, y: 80 })
   const [showCategoryPanel, setShowCategoryPanel] = useState(false)
+  const [winWidth, setWinWidth] = useState(window.innerWidth)
   const dragRef = useRef({ startX: 0, startY: 0, startLeft: 0, startBottom: 0, moved: false })
   const isDraggingRef = useRef(false)
   const dragEndTimeRef = useRef(0)
   const floatBtnRef = useRef<HTMLButtonElement>(null)
+
+  // 监听窗口宽度变化
+  useEffect(() => {
+    const handler = () => setWinWidth(window.innerWidth)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
 
   // 所有分类（按sort_order排序，和首页一致）
   const allCategories = useMemo(() => {
@@ -120,7 +129,7 @@ export default function SearchPage() {
       setResults(filtered)
       setCurrentPage(1)
       setIsSearching(false)
-    }, 300)
+    }, 200)
 
     return () => clearTimeout(timer)
   }, [query, links, categories, subCategories, sortBy, filterCategory])
@@ -270,7 +279,7 @@ export default function SearchPage() {
                 onClick={() => { setFilterCategory('all'); setFilterSubCategory('all'); setExpandedCategory(null) }}
                 className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 flex items-center gap-2.5 cursor-pointer ${
                   filterCategory === 'all'
-                    ? 'bg-gray-900 text-white'
+                    ? 'bg-brand-600 text-white shadow-button'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
@@ -297,7 +306,7 @@ export default function SearchPage() {
                         }}
                         className={`flex-1 text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 flex items-center justify-between cursor-pointer ${
                           isSelected && filterSubCategory === 'all'
-                            ? 'bg-gray-900 text-white'
+                            ? 'bg-brand-600 text-white shadow-button'
                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                         }`}
                       >
@@ -369,7 +378,7 @@ export default function SearchPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="搜索您需要的资源..."
-              className="flex-1 ml-2.5 sm:ml-3 bg-transparent outline-none text-sm sm:text-base text-gray-800 placeholder:text-gray-400 min-w-0"
+              className="flex-1 ml-2.5 sm:ml-3 bg-transparent outline-none text-base sm:text-sm text-gray-800 placeholder:text-gray-400 min-w-0"
               aria-label="搜索资源"
             />
             {query && (
@@ -549,7 +558,7 @@ export default function SearchPage() {
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-2 rounded-xl text-xs sm:text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all font-medium text-gray-600 cursor-pointer touch-manipulation"
+                className="px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer touch-manipulation min-h-[44px] sm:min-h-[36px]"
               >
                 上一页
               </button>
@@ -562,7 +571,7 @@ export default function SearchPage() {
                     )}
                     <button
                       onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-all font-medium cursor-pointer touch-manipulation ${
+                      className={`w-11 h-11 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-all font-medium cursor-pointer touch-manipulation ${
                         currentPage === page
                           ? 'bg-brand-600 text-white shadow-sm'
                           : 'border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-600'
@@ -575,7 +584,7 @@ export default function SearchPage() {
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-2 rounded-xl text-xs sm:text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all font-medium text-gray-600 cursor-pointer touch-manipulation"
+                className="px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer touch-manipulation min-h-[44px] sm:min-h-[36px]"
               >
                 下一页
               </button>
@@ -583,29 +592,7 @@ export default function SearchPage() {
           )}
 
           {/* Footer - 始终在最底部 */}
-          <footer className="mt-auto pt-10 sm:pt-12 pb-2 sm:pb-4">
-            {/* Divider */}
-            <div className="flex items-center justify-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-              <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent flex-1"></div>
-              <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
-              <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent flex-1"></div>
-            </div>
-            {/* Disclaimer */}
-            <div className="text-center mb-3 sm:mb-4 max-w-2xl mx-auto px-2">
-              <p className="text-[10px] sm:text-[11px] text-gray-400 leading-relaxed">
-                免责申明：本站不以盈利为目的，下载资源均来源于网络，只做学习和交流使用，版权归原作者所有，若作商业用途请购买正版，由于未及时购买和付费发生的侵权行为，与本站无关。如果侵犯了您的合法权益，请联系站长删除。
-              </p>
-            </div>
-            {/* Bottom Row */}
-            <div className="flex items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-400">
-              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center">
-                <LayoutGrid className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
-              </div>
-              <span className="font-medium text-gray-500">资源云</span>
-              <span className="text-gray-300">·</span>
-              <span className="text-gray-400">© 2026</span>
-            </div>
-          </footer>
+          <SiteFooter variant="compact" />
         </div>
       </div>
       </div>
@@ -614,7 +601,7 @@ export default function SearchPage() {
       <button
         ref={floatBtnRef}
         className="fixed lg:hidden z-50 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 shadow-lg shadow-brand-500/30 flex items-center justify-center text-white active:scale-95 transition-transform cursor-grab select-none touch-manipulation"
-        style={{ left: floatPos.x, bottom: floatPos.y }}
+        style={{ left: floatPos.x, bottom: `calc(${floatPos.y}px + env(safe-area-inset-bottom, 0px))` }}
         onMouseDown={(e) => handleDragStart(e.clientX, e.clientY)}
         onMouseMove={(e) => handleDragMove(e.clientX, e.clientY)}
         onMouseUp={handleDragEnd}
@@ -652,10 +639,11 @@ export default function SearchPage() {
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
               className="fixed lg:hidden z-50 bottom-20 sm:bottom-24 left-4 right-4 sm:left-auto sm:right-4 sm:w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 max-h-[55vh] sm:max-h-[60vh] overflow-y-auto"
-              style={{
-                left: floatPos.x < window.innerWidth / 2 ? 16 : undefined,
-                right: floatPos.x >= window.innerWidth / 2 ? 16 : undefined,
-              }}
+                style={{
+                  left: floatPos.x < winWidth / 2 ? 16 : undefined,
+                  right: floatPos.x >= winWidth / 2 ? 16 : undefined,
+                  paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+                }}
             >
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-bold text-gray-800 text-sm">选择分类</h3>

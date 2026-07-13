@@ -21,7 +21,9 @@ import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
 import { LinkIcon } from '@/components/LinkIcon'
 import LinkDetailModal from '@/components/LinkDetailModal'
+import SiteFooter from '@/components/SiteFooter'
 import { SkeletonList } from '@/components/ui/Skeleton'
+import { useBackToTop } from '@/hooks/useBackToTop'
 import { checkLinkStatus, copyToClipboard as copyUtil, buildShareText } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
@@ -97,7 +99,7 @@ export default function HomePage() {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
   const [isSearchMode, setIsSearchMode] = useState(false)
-  const [showBackToTop, setShowBackToTop] = useState(false)
+  const { showBackToTop, scrollToTop } = useBackToTop()
   const itemsPerPage = 10
 
   // 回访用户检测：第二次访问自动收窄 Hero
@@ -152,19 +154,6 @@ export default function HomePage() {
       .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || b.click_count - a.click_count)
       .slice(0, 5)
   }, [searchQuery, links])
-
-  // 回到顶部按钮显隐
-  useEffect(() => {
-    const handler = () => {
-      setShowBackToTop(window.scrollY > 400)
-    }
-    window.addEventListener('scroll', handler, { passive: true })
-    return () => window.removeEventListener('scroll', handler)
-  }, [])
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
 
   // 过期资源过滤 + 分类筛选 + 搜索筛选（memo 优化）
   const filteredLinks = useMemo(() => {
@@ -426,6 +415,11 @@ export default function HomePage() {
               </div>
             )}
 
+            {/* Gradient Divider */}
+            {!isSearchMode && !selectedCategory && !selectedSubCategory && featuredLinks.length > 0 && (
+              <div className="my-8 h-px bg-gradient-to-r from-transparent via-brand-200 to-transparent"></div>
+            )}
+
             {/* Links List */}
             <div className="bg-white rounded-2xl shadow-card border border-gray-200 overflow-hidden animate-fade-in hover:shadow-card-hover transition-shadow duration-300">
               <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-2 flex-wrap">
@@ -515,7 +509,7 @@ export default function HomePage() {
                                 {getLinkIcon(link)}
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm sm:truncate leading-tight">
+                                    <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm truncate leading-tight">
                                       {link.name}
                                     </h3>
                                     {link.is_pinned && (
@@ -642,44 +636,9 @@ export default function HomePage() {
         </div>
       </main>
 
+
       {/* Footer */}
-      <footer className="mt-12 pb-8">
-        <div className="max-w-7xl mx-auto px-4">
-          {/* Divider */}
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent flex-1"></div>
-            <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-            <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent flex-1"></div>
-          </div>
-          {/* Disclaimer */}
-          <div className="text-center mb-6 max-w-4xl mx-auto">
-            <p className="text-xs text-gray-400 leading-relaxed">
-              免责申明：本站不以盈利为目的，下载资源均来源于网络，只做学习和交流使用，版权归原作者所有，若作商业用途请购买正版，由于未及时购买和付费发生的侵权行为，与本站无关。如果侵犯了您的合法权益，请联系站长删除。
-            </p>
-          </div>
-          {/* Copyright */}
-          <div className="flex items-center justify-center gap-3 text-sm text-gray-400">
-            <Link
-              to="/admin-login"
-              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-105 cursor-pointer overflow-hidden bg-transparent"
-              title="进入后台管理"
-            >
-              {siteSettingsLoaded && logoType === 'image' && logoUrl ? (
-                <img src={logoUrl} alt={siteName} className="w-full h-full object-contain rounded-xl" />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-brand-600 via-brand-500 to-violet-500 rounded-xl flex items-center justify-center">
-                  <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-              )}
-            </Link>
-            <span className="font-medium text-gray-500">{siteName}</span>
-            <span className="text-gray-300">·</span>
-            <span>© 2026</span>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
 
       {/* 资源详情弹窗 */}
       {selectedLink && (

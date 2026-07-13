@@ -436,7 +436,7 @@ export async function searchLinks(query: string): Promise<LinkItem[]> {
 // ============ localStorage 回退实现 ============
 
 const STORAGE_KEY = 'resource-cloud-storage'
-import { mockCategories, mockLinks, mockSubCategories, mockTags, driveTypes, customDriveTypes } from '@/data/mock'
+import { driveTypes, customDriveTypes } from '@/data/mock'
 
 interface LocalStorage {
   categories: Category[]
@@ -454,16 +454,16 @@ function loadStorage(): LocalStorage {
       const parsed = JSON.parse(raw)
       if (parsed.state) {
         return {
-          categories: parsed.state.categories || mockCategories,
-          links: (parsed.state.links || mockLinks).map((l: Partial<LinkItem & { tags?: { id: string; name: string; color: string }[] }>) => ({
+          categories: parsed.state.categories || [],
+          links: (parsed.state.links || []).map((l: Partial<LinkItem & { tags?: { id: string; name: string; color: string }[] }>) => ({
             ...l,
             sort_order: l.sort_order ?? 999,
             visible: l.visible !== undefined ? l.visible : true,
             tags: l.tags || [],
             keywords: l.keywords || [],
           })),
-          subCategories: parsed.state.subCategories || mockSubCategories,
-          tags: parsed.state.tags || mockTags,
+          subCategories: parsed.state.subCategories || [],
+          tags: parsed.state.tags || [],
           driveTypes: parsed.state.driveTypes || driveTypes,
           customDriveTypes: parsed.state.customDriveTypes || customDriveTypes,
         }
@@ -472,10 +472,10 @@ function loadStorage(): LocalStorage {
     }
   } catch { /* ignore */ }
   return {
-    categories: [...mockCategories],
-    links: mockLinks.map(l => ({ ...l, sort_order: l.sort_order ?? 999, visible: l.visible !== undefined ? l.visible : true, tags: l.tags || [] })) as LinkItem[],
-    subCategories: [...mockSubCategories],
-    tags: [...mockTags],
+    categories: [],
+    links: [],
+    subCategories: [],
+    tags: [],
     driveTypes: [...driveTypes] as DriveType[],
     customDriveTypes: { ...customDriveTypes },
   }

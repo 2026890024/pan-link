@@ -23,7 +23,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
       <button
         onClick={() => onPageChange(Math.max(1, currentPage - 1))}
         disabled={currentPage === 1}
-        className={`${PAGINATION_BTN} sm:px-4 sm:py-2`}
+        className={`${PAGINATION_BTN} sm:px-4 sm:py-2 min-h-[44px] sm:min-h-[36px]`}
         aria-label="上一页"
       >
         上一页
@@ -51,7 +51,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
       <button
         onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
         disabled={currentPage === totalPages}
-        className={`${PAGINATION_BTN} sm:px-4 sm:py-2`}
+        className={`${PAGINATION_BTN} sm:px-4 sm:py-2 min-h-[44px] sm:min-h-[36px]`}
         aria-label="下一页"
       >
         下一页

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { mockCategories, mockLinks, mockSubCategories, mockTags, driveTypes, customDriveTypes } from '@/data/mock'
+import { driveTypes, customDriveTypes } from '@/data/mock'
 import * as ds from '@/services/dataService'
 import type { Category, LinkItem, SubCategory, Tag, DriveType, IconLibraryItem } from '@/services/dataService'
 
@@ -102,7 +102,7 @@ function saveLocal<T>(key: string, data: T): void {
 }
 
 function loadLocalLinks(): LinkItem[] {
-  return loadLocal<LinkItem[]>('links', mockLinks as LinkItem[])
+  return loadLocal<LinkItem[]>('links', [])
 }
 
 function saveLocalLinks(links: LinkItem[]): void {
@@ -115,11 +115,11 @@ function saveLocalItem(key: string, data: unknown): void {
 
 // ============ 初始化 ============
 
-// 不再从 localStorage 初始化，避免刷新时闪现旧数据
-// 统一由 initialize() → reloadAll() 从云端加载最新数据
-const initCategories: Category[] = mockCategories as Category[]
-const initLinks: LinkItem[] = mockLinks as LinkItem[]
-const initSubCategories: SubCategory[] = mockSubCategories as SubCategory[]
+// 初始为空数组，统一由 initialize() → reloadAll() 从云端加载真实数据
+// 不使用 mock 兜底，确保始终显示真实数据
+const initCategories: Category[] = []
+const initLinks: LinkItem[] = []
+const initSubCategories: SubCategory[] = []
 
 // Helper: 智能合并 - 云端数据是唯一数据源
 // 云端有数据时：以云端为准，但保留本地标记为 _pendingSync 的数据（云写入失败时创建的）
@@ -166,8 +166,8 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
     const localCats = loadLocal<Category[]>('categories', [])
     const localLinks = loadLocalLinks()
 
-    const mergedCategories = mergeLists(categories, localCats, mockCategories as Category[])
-    const mergedLinks = mergeLists(links, localLinks, mockLinks as LinkItem[])
+    const mergedCategories = mergeLists(categories, localCats, [])
+    const mergedLinks = mergeLists(links, localLinks, [])
 
     // 先设置核心数据，让页面立即渲染
     set({
@@ -216,9 +216,9 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
     console.log(`[DataStore] 加载完成: ${categories.length} 分类, ${links.length} 链接, ${tags.length} 标签`)
   } catch (err) {
     console.error('[DataStore] reloadAll error:', err)
-    // 云端加载失败，使用本地缓存
+    // 云端加载失败，使用本地缓存（不再回退到 mock）
     const fallbackLinks = loadLocalLinks()
-    const fallbackCats = loadLocal<Category[]>('categories', mockCategories as Category[])
+    const fallbackCats = loadLocal<Category[]>('categories', [])
     set({
       initialized: true,
       error: String(err),
@@ -236,12 +236,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   categories: initCategories,
   links: initLinks,
   subCategories: initSubCategories,
-  tags: mockTags.map(t => ({
-    ...t,
-    user_id: t.user_id || '1',
-    created_at: t.created_at || new Date().toISOString(),
-    updated_at: t.updated_at || new Date().toISOString(),
-  })),
+  tags: [],
   driveTypes: [...driveTypes] as DriveType[],
   customDriveTypes: { ...customDriveTypes },
   iconLibrary: (() => {
