@@ -1,6 +1,44 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+app/dist/
+
+# Environment variables
 .env
+app/.env
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Logs
 *.log
+
+# IDE
 .codebuddy/
+.vscode/
+.idea/
+
+# Cloudflare
+.wrangler/
+.playwright-cli/
+
+# Test artifacts
+*.png
+*.yaml
+*.yml
+!*.github/
+screenshots/
+
+# Archive
+*.zip
+
+# TypeScript build artifacts
+app/*.txt
+!app/*.json
+
+# Temp / junk
+*_output.txt
+build_output.txt

@@ -27,8 +27,6 @@ export default defineConfig({
         manualChunks: {
           // React 核心
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          // Supabase
-          'vendor-supabase': ['@supabase/supabase-js'],
           // UI 组件库
           'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select', '@radix-ui/react-tabs', '@radix-ui/react-switch'],
           // 图表库

@@ -1,6 +1,6 @@
 /**
  * React Query Hooks - 数据查询与缓存
- * 提供统一的 hooks 接口，内部自动判断使用 Supabase 还是 localStorage
+ * 提供统一的 hooks 接口，内部自动判断使用 D1 API 还是 localStorage
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import * as ds from '@/services/dataService'

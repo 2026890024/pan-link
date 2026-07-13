@@ -265,8 +265,8 @@ export default function AccountSettingsPage() {
                 <div>
                   <p className="text-xs font-medium text-amber-800">温馨提示</p>
                   <p className="text-xs text-amber-600 mt-1">
-                    当前使用本地存储模式。修改的账户信息仅保存在当前浏览器中。
-                    若使用 Supabase 模式，信息将同步到云端。
+                  当前使用本地存储模式。修改的账户信息仅保存在当前浏览器中。
+                  部署到 Cloudflare Pages 后，信息将通过 D1 数据库同步到云端。
                   </p>
                 </div>
               </div>
