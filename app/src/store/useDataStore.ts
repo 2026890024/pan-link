@@ -115,11 +115,11 @@ function saveLocalItem(key: string, data: unknown): void {
 
 // ============ 初始化 ============
 
-// 优先从 localStorage 恢复数据（持久化），其次使用 mock 数据
-// 注意：这些只是初始渲染用的缓存，initialize() 会用云端数据覆盖
-const initCategories: Category[] = loadLocal<Category[]>('categories', mockCategories as Category[])
-const initLinks: LinkItem[] = loadLocalLinks()
-const initSubCategories: SubCategory[] = loadLocal<SubCategory[]>('subcategories', mockSubCategories as SubCategory[])
+// 不再从 localStorage 初始化，避免刷新时闪现旧数据
+// 统一由 initialize() → reloadAll() 从云端加载最新数据
+const initCategories: Category[] = mockCategories as Category[]
+const initLinks: LinkItem[] = mockLinks as LinkItem[]
+const initSubCategories: SubCategory[] = mockSubCategories as SubCategory[]
 
 // Helper: 智能合并 - 云端数据是唯一数据源
 // 云端有数据时：以云端为准，但保留本地标记为 _pendingSync 的数据（云写入失败时创建的）

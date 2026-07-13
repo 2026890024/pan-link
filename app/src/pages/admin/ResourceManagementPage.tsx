@@ -575,7 +575,9 @@ export default function ResourceManagementPage() {
                       <EyeOff className="w-4 h-4" />
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); handleDeleteLink(link.id) }}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                      className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-lg transition-colors text-xs font-medium flex items-center gap-1">
+                      <Trash2 className="w-3.5 h-3.5" /> 删除
+                    </button>
                   </div>
                 </div>
               ))
@@ -621,7 +623,7 @@ export default function ResourceManagementPage() {
                           title={link.visible ? '隐藏' : '显示'}>
                           <EyeOff className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteLink(link.id) }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteLink(link.id) }} className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-lg transition-colors text-xs font-medium flex items-center gap-1"><Trash2 className="w-3 h-3" /> 删除</button>
                       </div>
                     </div>
                   </div>
