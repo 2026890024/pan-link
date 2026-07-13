@@ -10,7 +10,8 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://pan-link-api.2026890024.workers.dev',
+        // 本地开发时运行: npx wrangler pages dev
+        target: 'http://localhost:8788',
         changeOrigin: true,
       },
     },

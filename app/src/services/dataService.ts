@@ -9,7 +9,14 @@
 // 生产环境：Pages Functions 同域名部署，使用相对路径
 // 开发环境：通过 Vite proxy 转发 /api 到 Worker
 // 也可以通过 VITE_API_BASE_URL 手动指定完整地址
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+export const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+let _healthChecked = false
+let _cloudAvailable = false
+
+// 获取认证 token
+function getAuthToken(): string | null {
+  try { return sessionStorage.getItem('admin_token') } catch { return null }
+}
 
 export function isCloudApiConfigured(): boolean {
   // 生产环境：空字符串 = Pages Functions 同域部署 = 已配置
@@ -83,13 +90,17 @@ export interface LinkItem {
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`
-  const resp = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  })
+  const token = getAuthToken()
+  const isWrite = options?.method && ['POST', 'PUT', 'DELETE'].includes(options.method)
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string> || {}),
+  }
+  if (isWrite && token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const resp = await fetch(url, { ...options, headers })
 
   if (!resp.ok) {
     const errBody = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }))
@@ -345,16 +356,17 @@ export async function fetchDashboardStats(_userId?: string): Promise<{
   try {
     const data = await apiFetch<{
       total_links: number; total_clicks: number; total_categories: number;
-      pinned_links: number; favorited_links: number;
+      total_registrations: number; pinned_links: number; favorited_links: number;
+      expiring_soon: number; expired_links: number;
     }>('/api/links/stats')
 
     return {
       total_links: data.total_links || 0,
       total_clicks: data.total_clicks || 0,
-      total_registrations: 0,
+      total_registrations: data.total_registrations || 0,
       active_links: data.total_links || 0,
-      expiring_soon: 0,
-      expired_links: 0,
+      expiring_soon: data.expiring_soon || 0,
+      expired_links: data.expired_links || 0,
       pinned_links: data.pinned_links || 0,
       favorited_links: data.favorited_links || 0,
     }
@@ -401,10 +413,23 @@ export async function recordLinkVisit(_linkId: string, _visitType?: string): Pro
   // Worker 自动记录，无需额外调用
 }
 
-export async function searchLinks(_query: string): Promise<LinkItem[]> {
-  if (!isCloudApiConfigured()) return []
-  // TODO: 实现搜索（需要在 D1 中创建 FTS5 或用 LIKE 查询）
-  return []
+export async function searchLinks(query: string): Promise<LinkItem[]> {
+  if (!isCloudApiConfigured()) {
+    // 本地搜索：在 localStorage 中模糊匹配
+    const links = getLocalLinks()
+    const q = query.toLowerCase()
+    return links.filter(l =>
+      l.name.toLowerCase().includes(q) ||
+      l.description?.toLowerCase().includes(q)
+    )
+  }
+  try {
+    const data = await apiFetch<Record<string, unknown>[]>(`/api/links/search?q=${encodeURIComponent(query)}`)
+    return (data || []).map(workerLinkToLinkItem)
+  } catch (err) {
+    console.error('[DataService] searchLinks error:', err)
+    return []
+  }
 }
 
 

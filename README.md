@@ -91,12 +91,20 @@ npx wrangler pages deploy dist --branch main
 
 API 通过 Pages Functions 同域部署，无需额外配置。需要先在 Cloudflare Dashboard 创建 D1 数据库并绑定到 Pages 项目，然后执行 `d1-schema.sql` 建表。
 
+**必需环境变量** (Cloudflare Pages → Settings → Environment variables):
+
+| 变量名 | 说明 |
+|--------|------|
+| `ADMIN_USER` | 管理员用户名 |
+| `ADMIN_PASS` | 管理员密码 |
+| `JWT_SECRET` | JWT 签名密钥（随机字符串） |
+
 ## 性能优化
 
 - ✅ **懒加载**: 后台管理页面按需加载，不影响前台首屏
 - ✅ **代码分割**: React、图表库等独立 chunk
 - ✅ **React Query 缓存**: 5分钟数据新鲜度，30分钟垃圾回收
-- ✅ **Vite 构建优化**: Terser 压缩 + console 移除
+- ✅ **Vite 构建优化**: esbuild 压缩 + console 移除
 - ✅ **静态资源强缓存**: assets 文件 1 年缓存期
 - ✅ **API 缓存**: GET 请求 60 秒 CDN 缓存
 
@@ -115,8 +123,9 @@ API 通过 Pages Functions 同域部署，无需额外配置。需要先在 Clou
 
 ## 后台登录
 
-- 默认用户名密码见 `src/config/auth.ts`
-- 登录后可在账户设置页面修改用户名和密码（本地存储模式）
+- 凭证通过 Cloudflare Pages 环境变量 (`ADMIN_USER` / `ADMIN_PASS`) 配置
+- 登录使用 HMAC-SHA256 JWT 认证，token 有效期 8 小时
+- 本地开发模式：在账户设置页面设置用户名密码（SHA-256 哈希存储）
 
 ## License
 

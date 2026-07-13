@@ -1,9 +1,9 @@
-// 登录账号配置 - 修改此处即可更改登录账号密码
-
+/**
+ * 登录账号配置
+ * 凭证通过 Cloudflare Pages 环境变量配置 (ADMIN_USER / ADMIN_PASS)
+ * 本地开发时通过 localStorage 的 admin_auth_config 自定义
+ */
 export const AUTH_CONFIG = {
-  // 登录用户名
-  username: '13245717126',
-  
-  // 登录密码
-  password: 'twc20030106',
+  username: '',
+  password: '',
 }

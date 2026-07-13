@@ -26,9 +26,11 @@ const AccountSettingsPage = lazy(() => import('@/pages/admin/AccountSettingsPage
 const DataManagementPage = lazy(() => import('@/pages/admin/DataManagementPage'))
 const HomepageSettingsPage = lazy(() => import('@/pages/admin/HomepageSettingsPage'))
 const SiteSettingsPage = lazy(() => import('@/pages/admin/SiteSettingsPage'))
-const AdminLayout = lazy(() => import('@/layouts/AdminLayout'))
-const AdminAuthGuard = lazy(() => import('@/components/AdminAuthGuard'))
+// 后台布局与守卫 - 静态导入（立即需要）
+import AdminLayout from '@/layouts/AdminLayout'
+import AdminAuthGuard from '@/components/AdminAuthGuard'
 import PublicLayout from '@/layouts/PublicLayout'
+import NotFoundPage from '@/pages/NotFoundPage'
 
 // 页面加载骨架屏
 function PageLoading() {
@@ -109,6 +111,9 @@ function App() {
               <Route path="site-settings" element={<SiteSettingsPage />} />
             </Route>
           </Route>
+
+          {/* 404 页面 */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
     </ErrorBoundary>

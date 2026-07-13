@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS link_visits (
   referer TEXT,
   visit_type TEXT DEFAULT 'click',
   created_at TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (link_id) REFERENCES links(id)
+  FOREIGN KEY (link_id) REFERENCES links(id) ON DELETE CASCADE
 );
 
 -- 链接-标签关联表
@@ -66,8 +66,8 @@ CREATE TABLE IF NOT EXISTS link_tags (
   link_id TEXT NOT NULL,
   tag_id TEXT NOT NULL,
   PRIMARY KEY (link_id, tag_id),
-  FOREIGN KEY (link_id) REFERENCES links(id),
-  FOREIGN KEY (tag_id) REFERENCES tags(id)
+  FOREIGN KEY (link_id) REFERENCES links(id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
 );
 
 -- 站点设置表（Logo 库 + 配色管理）
@@ -93,5 +93,10 @@ CREATE INDEX IF NOT EXISTS idx_links_category ON links(category_id);
 CREATE INDEX IF NOT EXISTS idx_links_status ON links(status);
 CREATE INDEX IF NOT EXISTS idx_links_pinned ON links(is_pinned);
 CREATE INDEX IF NOT EXISTS idx_links_slug ON links(slug);
-CREATE INDEX IF NOT EXISTS idx_link_visits_link ON link_visits(link_id);
 CREATE INDEX IF NOT EXISTS idx_categories_sort ON categories(sort_order);
+
+-- 唯一约束
+CREATE UNIQUE INDEX IF NOT EXISTS idx_links_slug_unique ON links(slug);
+
+-- 外键索引
+CREATE INDEX IF NOT EXISTS idx_link_visits_link ON link_visits(link_id);

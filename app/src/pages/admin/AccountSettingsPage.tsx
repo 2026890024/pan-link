@@ -12,7 +12,7 @@ import {
   X,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { fastHash, fastVerify } from '@/lib/crypto'
+import { hashPassword, verifyPassword } from '@/lib/crypto'
 
 // 账号数据持久化 key
 const PROFILE_KEY = 'admin_profile'
@@ -165,13 +165,16 @@ export default function AccountSettingsPage() {
   }
 
   // 修改登录密码
-  const handleChangeCredentials = () => {
+  const handleChangeCredentials = async () => {
     const storedAuth = loadAuth()
 
     // 如果之前设置过密码哈希，需要验证当前密码
-    if (storedAuth.passwordHash && !fastVerify(currentPassword, storedAuth.passwordHash)) {
-      toast.error('当前密码错误')
-      return
+    if (storedAuth.passwordHash) {
+      const valid = await verifyPassword(currentPassword, storedAuth.passwordHash)
+      if (!valid) {
+        toast.error('当前密码错误')
+        return
+      }
     }
 
     if (!newPassword || newPassword.length < 6) {
@@ -187,7 +190,7 @@ export default function AccountSettingsPage() {
     // 存储密码哈希而非明文
     const updated: AuthCredentials = {
       username: newUsername.trim() || storedAuth.username || 'admin',
-      passwordHash: fastHash(newPassword),
+      passwordHash: await hashPassword(newPassword),
     }
     setAuth(updated)
     saveAuth(updated)
