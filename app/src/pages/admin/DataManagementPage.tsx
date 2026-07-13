@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   Download,
@@ -16,6 +16,16 @@ import {
   Image,
   X,
   Search,
+  Cloud,
+  AlertTriangle,
+  CloudOff,
+  CheckSquare,
+  Square,
+  FolderOpen,
+  Edit2,
+  ScrollText,
+  Zap,
+  Copy,
 } from 'lucide-react'
 import { useDataStore } from '@/store/useDataStore'
 import { formatNumber, formatDate } from '@/lib/utils'
@@ -32,6 +42,7 @@ interface ShareLink {
   slug: string
   visits: number
   createdAt: string
+  updatedAt: string
   linkIds: string[]
   linkNames: string[]
 }
@@ -49,23 +60,30 @@ function saveShareLinks(links: ShareLink[]) {
 }
 
 export default function DataManagementPage() {
-  const { links, categories, addCategory, addLink, iconLibrary, addIconToLibrary, deleteIconFromLibrary } = useDataStore()
+  const { links, categories, addCategory, addLink, iconLibrary, addIconToLibrary, deleteIconFromLibrary, cloudSyncError, initialize } = useDataStore()
   const [activeTab, setActiveTab] = useState<Tab>('export')
   const [exportFormat, setExportFormat] = useState<ExportFormat>('csv')
+  const [exportMode, setExportMode] = useState<'all' | 'selected'>('all')
   const [selectedForExport, setSelectedForExport] = useState<string[]>([])
   const [isExporting, setIsExporting] = useState(false)
+  // Export list filters
+  const [exportSearch, setExportSearch] = useState('')
+  const [exportCategoryFilter, setExportCategoryFilter] = useState('')
+  const [exportListExpanded, setExportListExpanded] = useState(true)
+
   const [importPreview, setImportPreview] = useState<any[] | null>(null)
-  const [importStats, setImportStats] = useState<{ createdCategories: string[]; matchedCategories: string[] } | null>(null)
+  const [importStats, setImportStats] = useState<{ createdCategories: string[]; matchedCategories: string[]; duplicatesSkipped: number; errors: string[] } | null>(null)
   const [isParsing, setIsParsing] = useState(false)
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0 })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const iconFileInputRef = useRef<HTMLInputElement>(null)
   const [iconSearch, setIconSearch] = useState('')
 
   const tabs = [
-    { id: 'export' as Tab, label: '数据导出', icon: Download },
-    { id: 'import' as Tab, label: '数据导入', icon: Upload },
-    { id: 'icon-library' as Tab, label: '图标库', icon: Image },
-    { id: 'share' as Tab, label: '分享管理', icon: Share2 },
+    { id: 'export' as Tab, label: '数据导出', icon: Download, desc: 'CSV / JSON 格式导出' },
+    { id: 'import' as Tab, label: '数据导入', icon: Upload, desc: '批量导入链接数据' },
+    { id: 'icon-library' as Tab, label: '图标库', icon: Image, desc: '管理自定义图标' },
+    { id: 'share' as Tab, label: '分享管理', icon: Share2, desc: '创建分享短链接' },
   ]
 
   const formatOptions = [
@@ -73,12 +91,58 @@ export default function DataManagementPage() {
     { id: 'json' as ExportFormat, label: 'JSON', icon: FileJson, desc: '适合程序处理和备份' },
   ]
 
+  // 云端同步状态
+  const cloudLinksCount = useMemo(() => links.filter(l => !(l as any)._pendingSync).length, [links])
+  const pendingLinksCount = useMemo(() => links.filter(l => (l as any)._pendingSync).length, [links])
+  
+  // 图标使用计数
+  const iconUsageCount = useMemo(() => {
+    const map: Record<string, number> = {}
+    iconLibrary.forEach(icon => { map[icon.id] = 0 })
+    links.forEach(link => {
+      if (link.icon) {
+        const found = iconLibrary.find(i => i.dataUrl === link.icon)
+        if (found) map[found.id] = (map[found.id] || 0) + 1
+      }
+    })
+    return map
+  }, [iconLibrary, links])
+
+  // 导出列表筛选
+  const filteredExportLinks = useMemo(() => {
+    return links.filter(l => {
+      if (exportSearch) {
+        const q = exportSearch.toLowerCase()
+        const matchName = (l.name || l.title || '').toLowerCase().includes(q)
+        const matchUrl = (l.url || '').toLowerCase().includes(q)
+        if (!matchName && !matchUrl) return false
+      }
+      if (exportCategoryFilter) {
+        if (l.category_id !== exportCategoryFilter) return false
+      }
+      return true
+    })
+  }, [links, exportSearch, exportCategoryFilter])
+
+  // 导出选中状态
+  const allFilteredSelected = filteredExportLinks.length > 0 && filteredExportLinks.every(l => selectedForExport.includes(l.id))
+  const someFilteredSelected = filteredExportLinks.some(l => selectedForExport.includes(l.id))
+
+  const toggleSelectAllFiltered = () => {
+    if (allFilteredSelected) {
+      setSelectedForExport(prev => prev.filter(id => !filteredExportLinks.find(l => l.id === id)))
+    } else {
+      const newIds = filteredExportLinks.map(l => l.id).filter(id => !selectedForExport.includes(id))
+      setSelectedForExport(prev => [...prev, ...newIds])
+    }
+  }
+
   const handleExport = async () => {
     setIsExporting(true)
     
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, 300))
 
-    const dataToExport = selectedForExport.length > 0
+    const dataToExport = exportMode === 'selected' && selectedForExport.length > 0
       ? links.filter((l) => selectedForExport.includes(l.id))
       : links
 
@@ -250,17 +314,23 @@ export default function DataManagementPage() {
     if (!importPreview) return
     const store = useDataStore.getState()
     let importedCount = 0
+    let duplicatesSkipped = 0
     const createdCategories: string[] = []
     const matchedCategories: string[] = []
-    const categoryMap = new Map<string, string>() // name -> id
+    const errors: string[] = []
+    const categoryMap = new Map<string, string>()
+    const total = importPreview.length
+    setImportProgress({ current: 0, total })
 
-    // 先处理所有分类：创建不存在的分类
+    // 构建已有链接的去重集合
+    const existingUrls = new Set(store.links.map(l => l.url.toLowerCase().trim()))
+    const existingNames = new Set(store.links.map(l => (l.name || l.title || '').toLowerCase().trim()))
+
+    // 先处理分类
     for (const item of importPreview) {
       if (!item.category_name) continue
       const catName = item.category_name.trim()
-      if (!catName) continue
-      if (categoryMap.has(catName)) continue
-
+      if (!catName || categoryMap.has(catName)) continue
       const existing = store.categories.find(
         c => c.name.toLowerCase() === catName.toLowerCase()
       )
@@ -268,13 +338,11 @@ export default function DataManagementPage() {
         categoryMap.set(catName, existing.id)
         matchedCategories.push(catName)
       } else {
-        // 自动创建分类
         try {
           const newCat = await store.addCategory(catName)
           categoryMap.set(catName, newCat.id)
           createdCategories.push(catName)
         } catch {
-          // fallback: 创建本地分类
           const fallbackId = `cat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
           categoryMap.set(catName, fallbackId)
           createdCategories.push(catName)
@@ -282,10 +350,28 @@ export default function DataManagementPage() {
       }
     }
 
-    setImportStats({ createdCategories, matchedCategories })
+    // 更新 stats
+    setImportStats({ createdCategories, matchedCategories, duplicatesSkipped, errors })
 
-    for (const item of importPreview) {
+    for (let i = 0; i < importPreview.length; i++) {
+      const item = importPreview[i]
+      setImportProgress({ current: i + 1, total })
+      
       try {
+        // 去重检测
+        const itemUrl = (item.url || '').toLowerCase().trim()
+        const itemName = (item.name || '').toLowerCase().trim()
+        if (itemUrl && existingUrls.has(itemUrl)) {
+          duplicatesSkipped++
+          setImportStats(prev => prev ? { ...prev, duplicatesSkipped } : null)
+          continue
+        }
+        if (itemName && existingNames.has(itemName)) {
+          duplicatesSkipped++
+          setImportStats(prev => prev ? { ...prev, duplicatesSkipped } : null)
+          continue
+        }
+
         let categoryId = item.category_id || ''
         const catName = item.category_name?.trim()
         if (!categoryId && catName && categoryMap.has(catName)) {
@@ -297,7 +383,6 @@ export default function DataManagementPage() {
         } else if (typeof item.keywords === 'string' && item.keywords.trim()) {
           keywords = item.keywords.split(/[,;，；]/).map((k: string) => k.trim()).filter(Boolean)
         }
-        // 处理 visible 字段
         let visible = true
         if (item.visible === '否' || item.visible === 'false' || item.visible === false || item.visible === '0') {
           visible = false
@@ -316,16 +401,25 @@ export default function DataManagementPage() {
           drive_type: item.drive_type || 'baidu',
           visible,
         })
+        // 添加到去重集合
+        if (itemUrl) existingUrls.add(itemUrl)
+        if (itemName) existingNames.add(itemName)
         importedCount++
       } catch (err) {
-        console.error('[Import] Failed to import item:', item.name, err)
+        const errMsg = err instanceof Error ? err.message : String(err)
+        errors.push(`${item.name || '未知'}: ${errMsg}`)
+        console.error('[Import] Failed:', item.name, err)
       }
     }
+
     let msg = `已成功导入 ${importedCount} 条数据`
+    if (duplicatesSkipped > 0) msg += `，跳过 ${duplicatesSkipped} 条重复`
     if (createdCategories.length > 0) msg += `，新建 ${createdCategories.length} 个分类`
+    if (errors.length > 0) msg += `，${errors.length} 条失败`
     toast.success(msg)
     setImportPreview(null)
     setImportStats(null)
+    setImportProgress({ current: 0, total: 0 })
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -333,6 +427,8 @@ export default function DataManagementPage() {
 
   const handleCancelImport = () => {
     setImportPreview(null)
+    setImportStats(null)
+    setImportProgress({ current: 0, total: 0 })
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -341,35 +437,83 @@ export default function DataManagementPage() {
   // 分享链接管理（持久化）
   const [shareLinks, setShareLinks] = useState<ShareLink[]>(loadShareLinks)
   const [showCreateShare, setShowCreateShare] = useState(false)
+  const [editingShareId, setEditingShareId] = useState<string | null>(null)
   const [newShareName, setNewShareName] = useState('')
   const [newShareSlug, setNewShareSlug] = useState('')
   const [selectedLinkIds, setSelectedLinkIds] = useState<string[]>([])
+  const [shareLinkSearch, setShareLinkSearch] = useState('')
 
   useEffect(() => {
     saveShareLinks(shareLinks)
   }, [shareLinks])
 
-  const handleCreateShare = () => {
+  // 分享弹窗 iOS 滚动穿透修复
+  useEffect(() => {
+    if (showCreateShare) {
+      const scrollY = window.scrollY
+      const origPos = document.body.style.position
+      const origTop = document.body.style.top
+      const origWidth = document.body.style.width
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = '100%'
+      return () => {
+        document.body.style.position = origPos
+        document.body.style.top = origTop
+        document.body.style.width = origWidth
+        window.scrollTo(0, scrollY)
+      }
+    }
+  }, [showCreateShare])
+
+  const openCreateShare = () => {
+    setEditingShareId(null)
+    setNewShareName('')
+    setNewShareSlug('')
+    setSelectedLinkIds([])
+    setShowCreateShare(true)
+  }
+
+  const openEditShare = (share: ShareLink) => {
+    setEditingShareId(share.id)
+    setNewShareName(share.name)
+    setNewShareSlug(share.slug)
+    setSelectedLinkIds([...share.linkIds])
+    setShowCreateShare(true)
+  }
+
+  const handleSaveShare = () => {
     if (!newShareName || !newShareSlug) {
       toast.error('请填写完整信息')
       return
     }
     const selectedLinks = links.filter(l => selectedLinkIds.includes(l.id))
-    const newShare: ShareLink = {
-      id: Date.now().toString(),
-      name: newShareName,
-      slug: newShareSlug,
-      visits: 0,
-      createdAt: new Date().toISOString().split('T')[0],
-      linkIds: selectedLinkIds,
-      linkNames: selectedLinks.map(l => l.name || l.title),
+    
+    if (editingShareId) {
+      setShareLinks(prev => prev.map(s => s.id === editingShareId ? {
+        ...s,
+        name: newShareName,
+        slug: newShareSlug,
+        linkIds: selectedLinkIds,
+        linkNames: selectedLinks.map(l => l.name || l.title),
+        updatedAt: new Date().toISOString().split('T')[0],
+      } : s))
+      toast.success('分享已更新')
+    } else {
+      const newShare: ShareLink = {
+        id: Date.now().toString(),
+        name: newShareName,
+        slug: newShareSlug,
+        visits: 0,
+        createdAt: new Date().toISOString().split('T')[0],
+        updatedAt: new Date().toISOString().split('T')[0],
+        linkIds: selectedLinkIds,
+        linkNames: selectedLinks.map(l => l.name || l.title),
+      }
+      setShareLinks(prev => [...prev, newShare])
+      toast.success('分享创建成功')
     }
-    setShareLinks(prev => [...prev, newShare])
     setShowCreateShare(false)
-    setNewShareName('')
-    setNewShareSlug('')
-    setSelectedLinkIds([])
-    toast.success('分享创建成功')
   }
 
   const handleDeleteShare = (id: string) => {
@@ -384,11 +528,65 @@ export default function DataManagementPage() {
     })
   }
 
+  const filteredShareLinks = shareLinkSearch
+    ? links.filter(l => {
+        const q = shareLinkSearch.toLowerCase()
+        return (l.name || l.title || '').toLowerCase().includes(q) || (l.url || '').toLowerCase().includes(q)
+      })
+    : links
+
+  // Reset handler
+  const resetCreateShare = () => {
+    setShowCreateShare(false)
+    setEditingShareId(null)
+    setNewShareName('')
+    setNewShareSlug('')
+    setSelectedLinkIds([])
+  }
+
+  // Export list display helpers
+  const getCategoryName = (categoryId: string) => categories.find(c => c.id === categoryId)?.name || '未分类'
+  const getDriveTypeName = (dt: string) => {
+    const types: Record<string, string> = { baidu: '百度', aliyun: '阿里', quark: '夸克', xunlei: '迅雷', oneonefive: '115', tianyi: '天翼' }
+    return types[dt] || dt
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">数据管理</h1>
         <p className="text-gray-500 mt-1">导入导出数据，管理分享链接</p>
+      </div>
+
+      {/* 云端同步状态卡片 */}
+      <div className={`rounded-xl border p-4 flex items-center gap-4 ${cloudSyncError ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${cloudSyncError ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+          {cloudSyncError ? <CloudOff className="w-5 h-5" /> : <Cloud className="w-5 h-5" />}
+        </div>
+        <div className="flex-1">
+          <p className={`font-semibold text-sm ${cloudSyncError ? 'text-amber-800' : 'text-emerald-800'}`}>
+            {cloudSyncError ? '云端同步异常' : '云端数据已同步'}
+          </p>
+          <p className="text-xs text-gray-600 mt-0.5">
+            {cloudSyncError 
+              ? `${cloudLinksCount} 条云端数据 + ${pendingLinksCount} 条本地待同步数据`
+              : `共 ${links.length} 条链接，${categories.length} 个分类已同步至云端`
+            }
+          </p>
+        </div>
+        {cloudSyncError && (
+          <button
+            onClick={() => {
+              toast.success('正在重新同步...')
+              initialize()
+              setTimeout(() => toast.success('同步完成，请刷新查看'), 2000)
+            }}
+            className="px-3 py-1.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors cursor-pointer flex items-center gap-1"
+          >
+            <RefreshCw className="w-3 h-3" />
+            重试同步
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
@@ -410,12 +608,13 @@ export default function DataManagementPage() {
         </div>
 
         <div className="p-4 sm:p-6">
-          {/* 数据导出 */}
+          {/* ===== 数据导出 ===== */}
           {activeTab === 'export' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              {/* 格式选择 */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">选择导出格式</h3>
-                <div className="grid md:grid-cols-3 gap-4">
+                <div className="grid sm:grid-cols-2 gap-4">
                   {formatOptions.map((option) => (
                     <button
                       key={option.id}
@@ -436,86 +635,151 @@ export default function DataManagementPage() {
                 </div>
               </div>
 
+              {/* 范围选择 + 链接列表 (始终可见) */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">选择导出范围</h3>
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3 p-4 rounded-lg border cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="exportRange"
-                      checked={selectedForExport.length === 0}
-                      onChange={() => setSelectedForExport([])}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <div>
-                      <p className="font-medium text-gray-800">导出全部</p>
-                      <p className="text-sm text-gray-500">共 {links.length} 条数据</p>
-                    </div>
-                  </label>
-                  <label className="flex items-center gap-3 p-4 rounded-lg border cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="exportRange"
-                      checked={selectedForExport.length > 0}
-                      onChange={() => setSelectedForExport(links.length > 0 ? [links[0].id] : [])}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <div>
-                      <p className="font-medium text-gray-800">导出选中项</p>
-                      <p className="text-sm text-gray-500">
-                        {selectedForExport.length > 0
-                          ? `已选择 ${selectedForExport.length} 条数据`
-                          : '请先选择要导出的链接'}
-                      </p>
-                    </div>
-                  </label>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900">选择导出范围</h3>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-gray-400">
+                      {exportMode === 'selected' ? `已选 ${selectedForExport.length} / ${links.length} 条` : `全部 ${links.length} 条`}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => { setExportMode('all'); setSelectedForExport([]) }}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+                      exportMode === 'all' ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Download className="w-4 h-4 inline mr-1.5" />
+                    导出全部
+                  </button>
+                  <button
+                    onClick={() => setExportMode('selected')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+                      exportMode === 'selected' ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <CheckSquare className="w-4 h-4 inline mr-1.5" />
+                    导出选中项
+                  </button>
+                </div>
 
-                  {/* 可勾选链接列表 */}
-                  {selectedForExport.length > 0 && (
-                    <div className="border rounded-lg p-3 max-h-64 overflow-y-auto space-y-1">
-                      {links.length === 0 && (
-                        <p className="text-sm text-gray-400 text-center py-4">暂无链接可选</p>
-                      )}
-                      {links.map(link => (
-                        <label key={link.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg cursor-pointer">
+                {/* 搜索和筛选工具栏 */}
+                <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={exportSearch}
+                      onChange={(e) => setExportSearch(e.target.value)}
+                      placeholder="搜索链接名称或URL..."
+                      className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </div>
+                  <select
+                    value={exportCategoryFilter}
+                    onChange={(e) => setExportCategoryFilter(e.target.value)}
+                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-pointer min-w-[120px]"
+                  >
+                    <option value="">全部分类</option>
+                    {categories.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 可勾选链接列表 - 始终显示 */}
+                <div className="border rounded-lg overflow-hidden">
+                  {/* 表头 */}
+                  <div className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 border-b text-xs font-medium text-gray-500">
+                    <label className="flex items-center gap-2 cursor-pointer flex-shrink-0">
+                      <div className="w-4 h-4 flex items-center justify-center">
+                        {allFilteredSelected ? (
+                          <CheckSquare className="w-4 h-4 text-blue-600" onClick={toggleSelectAllFiltered} />
+                        ) : someFilteredSelected ? (
+                          <div className="w-4 h-4 border-2 border-blue-400 bg-blue-100 rounded relative cursor-pointer" onClick={toggleSelectAllFiltered}>
+                            <div className="absolute inset-0.5 bg-blue-500 rounded-sm" />
+                          </div>
+                        ) : (
+                          <Square className="w-4 h-4 text-gray-300 cursor-pointer" onClick={toggleSelectAllFiltered} />
+                        )}
+                      </div>
+                      <span className="cursor-pointer" onClick={toggleSelectAllFiltered}>全选</span>
+                    </label>
+                    <span className="flex-1">名称</span>
+                    <span className="w-24 hidden sm:block">分类</span>
+                    <span className="w-16 hidden sm:block text-center">网盘</span>
+                  </div>
+
+                  {/* 列表 */}
+                  <div className="max-h-[400px] overflow-y-auto divide-y">
+                    {filteredExportLinks.length === 0 ? (
+                      <div className="text-center py-12 text-gray-400">
+                        <FolderOpen className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                        <p className="text-sm">{links.length === 0 ? '暂无链接数据' : '无匹配结果'}</p>
+                      </div>
+                    ) : (
+                      filteredExportLinks.map(link => (
+                        <label key={link.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50/50 cursor-pointer transition-colors">
                           <input
                             type="checkbox"
                             checked={selectedForExport.includes(link.id)}
                             onChange={(e) => {
                               if (e.target.checked) {
                                 setSelectedForExport(prev => [...prev, link.id])
+                                if (exportMode === 'all') setExportMode('selected')
                               } else {
                                 setSelectedForExport(prev => prev.filter(id => id !== link.id))
                               }
                             }}
-                            className="w-4 h-4 text-blue-600 rounded"
+                            className="w-4 h-4 text-blue-600 rounded flex-shrink-0"
                           />
                           <div className="flex-1 min-w-0">
-                            <span className="text-sm text-gray-700 truncate block">{link.name || link.title}</span>
+                            <span className="text-sm text-gray-700 truncate block font-medium">{link.name || link.title}</span>
                             <span className="text-xs text-gray-400 truncate block">{link.url}</span>
                           </div>
+                          <span className="text-xs text-gray-500 w-24 hidden sm:block truncate">{getCategoryName(link.category_id)}</span>
+                          <span className="text-xs text-gray-400 w-16 hidden sm:block text-center">{getDriveTypeName(link.drive_type)}</span>
                         </label>
-                      ))}
-                    </div>
-                  )}
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* 快捷操作 */}
+                <div className="flex gap-2 mt-2">
+                  <button onClick={toggleSelectAllFiltered} className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer">
+                    {allFilteredSelected ? '取消全选' : '全选当前'}
+                  </button>
+                  <button onClick={() => setSelectedForExport([])} className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer">
+                    清空选择
+                  </button>
+                  <span className="text-xs text-gray-300">|</span>
+                  <span className="text-xs text-gray-400">
+                    {filteredExportLinks.length} 条可见 / 共 {links.length} 条
+                  </span>
                 </div>
               </div>
 
               <button
                 onClick={handleExport}
-                disabled={isExporting}
+                disabled={isExporting || (exportMode === 'selected' && selectedForExport.length === 0)}
                 className="px-6 py-3 gradient-primary text-white rounded-lg font-medium hover:shadow-lg transition-shadow flex items-center gap-2 disabled:opacity-50 cursor-pointer"
               >
                 {isExporting ? (
                   <><RefreshCw className="w-5 h-5 animate-spin" /> 导出中...</>
                 ) : (
-                  <><Download className="w-5 h-5" /> 开始导出</>
+                  <><Download className="w-5 h-5" /> 
+                  {exportMode === 'all' ? `导出全部 (${links.length} 条)` : `导出选中项 (${selectedForExport.length} 条)`}
+                  </>
                 )}
               </button>
             </motion.div>
           )}
 
-          {/* 数据导入 */}
+          {/* ===== 数据导入 ===== */}
           {activeTab === 'import' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               {!importPreview && !isParsing ? (
@@ -537,11 +801,23 @@ export default function DataManagementPage() {
                   />
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h4 className="font-medium text-gray-800 mb-2">导入说明</h4>
-                    <ul className="text-sm text-gray-600 space-y-1">
-                      <li>• CSV 文件需包含以下列：名称、链接、提取码（可选）、分类、描述、关键词、网盘类型、精选、置顶、可见、过期时间</li>
-                      <li>• 若分类不存在，系统会自动创建新分类</li>
-                      <li>• JSON 文件需为对象数组格式</li>
-                      <li>• 支持的最大文件大小为 10MB</li>
+                    <ul className="text-sm text-gray-600 space-y-1.5">
+                      <li className="flex items-start gap-2">
+                        <ScrollText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        CSV 文件需包含以下列：名称、链接、提取码（可选）、分类、描述、关键词、网盘类型、精选、置顶、可见、过期时间
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <FolderOpen className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        若分类不存在，系统会自动创建新分类
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Zap className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        自动去重：已存在的链接（按URL/名称判断）将被跳过
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <FileJson className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        JSON 文件需为对象数组格式
+                      </li>
                     </ul>
                   </div>
                 </>
@@ -552,23 +828,56 @@ export default function DataManagementPage() {
                 </div>
               ) : importPreview ? (
                 <div className="space-y-4">
+                  {/* Import progress bar */}
+                  {importProgress.total > 0 && importProgress.current > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">导入进度</span>
+                        <span className="text-gray-500">{importProgress.current} / {importProgress.total}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-blue-500 h-full rounded-full transition-all duration-300"
+                          style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2 text-green-600">
                     <CheckCircle className="w-5 h-5" />
                     <span className="font-medium">文件解析成功，预览如下：</span>
                   </div>
+
                   {importStats && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
-                      {importStats.createdCategories.length > 0 && (
-                        <p className="text-amber-800">
-                          <span className="font-medium">将新建分类：</span>
-                          {importStats.createdCategories.join('、')}
-                        </p>
+                    <div className="space-y-2">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+                        {importStats.createdCategories.length > 0 && (
+                          <p className="text-blue-800">
+                            <span className="font-medium">将新建分类：</span>
+                            {importStats.createdCategories.join('、')}
+                          </p>
+                        )}
+                        {importStats.matchedCategories.length > 0 && (
+                          <p className="text-blue-700 mt-1">
+                            <span className="font-medium">匹配已有分类：</span>
+                            {importStats.matchedCategories.join('、')}
+                          </p>
+                        )}
+                      </div>
+                      {importStats.errors.length > 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
+                          <p className="font-medium text-red-700 mb-1">导入失败 ({importStats.errors.length} 条):</p>
+                          <ul className="text-red-600 space-y-0.5 max-h-32 overflow-y-auto">
+                            {importStats.errors.map((e, i) => <li key={i} className="text-xs">• {e}</li>)}
+                          </ul>
+                        </div>
                       )}
-                      {importStats.matchedCategories.length > 0 && (
-                        <p className="text-green-700 mt-1">
-                          <span className="font-medium">匹配已有分类：</span>
-                          {importStats.matchedCategories.join('、')}
-                        </p>
+                      {importStats.duplicatesSkipped > 0 && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+                          <AlertTriangle className="w-4 h-4 inline mr-1" />
+                          已跳过 {importStats.duplicatesSkipped} 条重复数据
+                        </div>
                       )}
                     </div>
                   )}
@@ -582,19 +891,19 @@ export default function DataManagementPage() {
                           <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">名称</th>
                           <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">链接</th>
                           <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">提取码</th>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">描述</th>
                           <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">分类</th>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">网盘</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
                         {importPreview.map((item, index) => (
-                          <tr key={index}>
+                          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
                             <td className="px-4 py-2 text-sm text-gray-400">{index + 1}</td>
                             <td className="px-4 py-2 text-sm text-gray-800 max-w-[150px] truncate">{item.name}</td>
                             <td className="px-4 py-2 text-sm text-gray-600 max-w-[180px] truncate">{item.url}</td>
                             <td className="px-4 py-2 text-sm text-gray-600">{item.extract_code || '-'}</td>
-                            <td className="px-4 py-2 text-sm text-gray-500 max-w-[120px] truncate">{item.description || '-'}</td>
                             <td className="px-4 py-2 text-sm text-gray-600">{item.category_name || item.category_id || '-'}</td>
+                            <td className="px-4 py-2 text-sm text-gray-500">{item.drive_type || 'baidu'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -605,13 +914,15 @@ export default function DataManagementPage() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={handleConfirmImport}
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 cursor-pointer"
+                      className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 cursor-pointer disabled:opacity-50"
+                      disabled={importProgress.total > 0}
                     >
-                      确认导入 ({importPreview.length} 条)
+                      {importProgress.total > 0 ? '导入中...' : `确认导入 (${importPreview.length} 条)`}
                     </button>
                     <button
                       onClick={handleCancelImport}
-                      className="px-6 py-2 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                      className="px-6 py-2.5 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                      disabled={importProgress.total > 0}
                     >
                       取消
                     </button>
@@ -621,7 +932,7 @@ export default function DataManagementPage() {
             </motion.div>
           )}
 
-          {/* 图标库 */}
+          {/* ===== 图标库 ===== */}
           {activeTab === 'icon-library' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               <div className="flex items-center justify-between">
@@ -631,7 +942,7 @@ export default function DataManagementPage() {
                 </div>
                 <button
                   onClick={() => iconFileInputRef.current?.click()}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 cursor-pointer min-h-[44px] sm:min-h-[36px]"
                 >
                   <Upload className="w-4 h-4" />
                   上传图标
@@ -645,6 +956,7 @@ export default function DataManagementPage() {
                   onChange={(e) => {
                     const files = e.target.files
                     if (!files) return
+                    let count = 0
                     for (const file of Array.from(files)) {
                       if (!file.type.startsWith('image/')) {
                         toast.error(`${file.name} 不是图片文件`)
@@ -658,9 +970,12 @@ export default function DataManagementPage() {
                       reader.onload = (ev) => {
                         const dataUrl = ev.target?.result as string
                         addIconToLibrary(file.name.replace(/\.[^/.]+$/, ''), dataUrl)
-                        toast.success(`${file.name} 已添加到图标库`)
+                        count++
                       }
                       reader.readAsDataURL(file)
+                    }
+                    if (count > 0) {
+                      setTimeout(() => toast.success(`已添加 ${count} 个图标`), 300)
                     }
                     e.target.value = ''
                   }}
@@ -675,7 +990,7 @@ export default function DataManagementPage() {
                   value={iconSearch}
                   onChange={(e) => setIconSearch(e.target.value)}
                   placeholder="搜索图标..."
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </div>
 
@@ -683,43 +998,51 @@ export default function DataManagementPage() {
                 <div className="text-center py-16 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
                   <Image className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p>图标库为空，点击上方按钮上传图标</p>
-                  <p className="text-xs mt-1">建议上传 64x64 或 128x128 的 PNG 图标</p>
+                  <p className="text-xs mt-1">支持 JPG/PNG/SVG，单文件最大 2MB，建议 64x64 或 128x128</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
                   {iconLibrary
                     .filter(icon => !iconSearch || icon.name.toLowerCase().includes(iconSearch.toLowerCase()))
-                    .map((icon) => (
-                    <div key={icon.id} className="group relative bg-white border rounded-xl p-3 hover:shadow-md transition-all">
-                      <div className="w-full aspect-square flex items-center justify-center mb-2">
-                        <img src={icon.dataUrl} alt={icon.name} className="w-12 h-12 object-contain" />
-                      </div>
-                      <p className="text-xs text-gray-600 text-center truncate">{icon.name}</p>
-                      <button
-                        onClick={() => {
-                          deleteIconFromLibrary(icon.id)
-                          toast.success('图标已删除')
-                        }}
-                        className="absolute top-1 right-1 p-1 bg-red-50 text-red-500 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100"
-                        title="删除"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
+                    .map((icon) => {
+                      const usage = iconUsageCount[icon.id] || 0
+                      return (
+                        <div key={icon.id} className="group relative bg-white border rounded-xl p-3 hover:shadow-md transition-all">
+                          <div className="w-full aspect-square flex items-center justify-center mb-2">
+                            <img src={icon.dataUrl} alt={icon.name} className="w-12 h-12 object-contain" />
+                          </div>
+                          <p className="text-xs text-gray-600 text-center truncate">{icon.name}</p>
+                          {usage > 0 && (
+                            <span className="absolute top-1 left-1 px-1.5 py-0.5 text-[10px] bg-indigo-100 text-indigo-600 rounded-md font-medium">
+                              {usage}次使用
+                            </span>
+                          )}
+                          <button
+                            onClick={() => {
+                              deleteIconFromLibrary(icon.id)
+                              toast.success('图标已删除')
+                            }}
+                            className="absolute top-1 right-1 p-1 bg-red-50 text-red-500 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 cursor-pointer"
+                            title="删除"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )
+                    })}
                 </div>
               )}
             </motion.div>
           )}
 
-          {/* 分享管理 */}
+          {/* ===== 分享管理 ===== */}
           {activeTab === 'share' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">分享短链接</h3>
                 <button 
-                  onClick={() => setShowCreateShare(true)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 cursor-pointer"
+                  onClick={openCreateShare}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 cursor-pointer min-h-[44px] sm:min-h-[36px]"
                 >
                   <Plus className="w-4 h-4" />
                   创建分享
@@ -730,6 +1053,7 @@ export default function DataManagementPage() {
                 <div className="text-center py-12 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
                   <Share2 className="w-10 h-10 mx-auto mb-2 opacity-30" />
                   <p className="text-sm">暂无分享链接，点击上方按钮创建</p>
+                  <p className="text-xs mt-1">分享链接格式：{window.location.origin}/s/你的后缀</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -741,17 +1065,24 @@ export default function DataManagementPage() {
                       <div className="flex items-start justify-between">
                         <div>
                           <h4 className="font-medium text-gray-800">{link.name}</h4>
-                          <p className="text-sm text-blue-600 mt-1">
+                          <p className="text-sm text-blue-600 mt-1 font-mono">
                             {window.location.origin}/s/{link.slug}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleCopyShareLink(link.slug)}
                             className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
                             title="复制链接"
                           >
-                            <Link2 className="w-4 h-4 text-gray-500" />
+                            <Copy className="w-4 h-4 text-gray-500" />
+                          </button>
+                          <button
+                            onClick={() => openEditShare(link)}
+                            className="p-2 hover:bg-blue-50 rounded-lg cursor-pointer"
+                            title="编辑"
+                          >
+                            <Edit2 className="w-4 h-4 text-gray-500" />
                           </button>
                           <button
                             onClick={() => handleDeleteShare(link.id)}
@@ -775,7 +1106,23 @@ export default function DataManagementPage() {
                           <Link2 className="w-3.5 h-3.5" />
                           {(link.linkIds || []).length} 个链接
                         </span>
+                        {link.updatedAt !== link.createdAt && (
+                          <span className="text-xs text-gray-400">已编辑</span>
+                        )}
                       </div>
+                      {/* 链接预览 */}
+                      {(link.linkNames || []).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {link.linkNames.slice(0, 5).map((name, i) => (
+                            <span key={i} className="px-2 py-0.5 bg-gray-100 text-xs text-gray-600 rounded-md truncate max-w-[120px]">
+                              {name}
+                            </span>
+                          ))}
+                          {link.linkNames.length > 5 && (
+                            <span className="px-2 py-0.5 text-xs text-gray-400">+{link.linkNames.length - 5}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -785,21 +1132,28 @@ export default function DataManagementPage() {
         </div>
       </div>
 
-      {/* 创建分享弹窗 */}
+      {/* ===== 创建/编辑分享弹窗 ===== */}
       {showCreateShare && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="fixed inset-0 bg-black/50"
-            onClick={() => setShowCreateShare(false)}
+            onClick={resetCreateShare}
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-6"
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col"
           >
-            <h3 className="text-lg font-bold text-gray-900 mb-4">创建分享</h3>
-            
-            <div className="space-y-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h3 className="text-lg font-bold text-gray-900">
+                {editingShareId ? '编辑分享' : '创建分享'}
+              </h3>
+              <button onClick={resetCreateShare} className="p-1 hover:bg-gray-100 rounded-lg cursor-pointer">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto p-6 space-y-4 flex-1">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">分享名称</label>
                 <input
@@ -807,7 +1161,7 @@ export default function DataManagementPage() {
                   value={newShareName}
                   onChange={(e) => setNewShareName(e.target.value)}
                   placeholder="例如：热门资源合集"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300"
                 />
               </div>
               
@@ -818,70 +1172,74 @@ export default function DataManagementPage() {
                   value={newShareSlug}
                   onChange={(e) => setNewShareSlug(e.target.value)}
                   placeholder="例如：hot-2024"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 font-mono"
                 />
-                <p className="text-xs text-gray-400 mt-1">分享链接：{window.location.origin}/s/{newShareSlug || 'xxx'}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  分享链接：{window.location.origin}/s/{newShareSlug || 'xxx'}
+                </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  选择要分享的链接 ({selectedLinkIds.length} 个)
-                </label>
-                <div className="max-h-48 overflow-y-auto border rounded-lg p-2 space-y-1">
-                  {links.length === 0 && (
-                    <p className="text-sm text-gray-400 text-center py-4">暂无链接可选</p>
-                  )}
-                  {links.map(link => (
-                    <label key={link.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedLinkIds.includes(link.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedLinkIds(prev => [...prev, link.id])
-                          } else {
-                            setSelectedLinkIds(prev => prev.filter(id => id !== link.id))
-                          }
-                        }}
-                        className="w-4 h-4 text-indigo-600 rounded"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm text-gray-700 truncate block">{link.name || link.title}</span>
-                        <span className="text-xs text-gray-400 truncate block">{link.url}</span>
-                      </div>
-                    </label>
-                  ))}
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    选择要分享的链接 ({selectedLinkIds.length} 个)
+                  </label>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setSelectedLinkIds(links.map(l => l.id))} className="text-xs text-indigo-600 hover:text-indigo-800 cursor-pointer">全选</button>
+                    <button type="button" onClick={() => setSelectedLinkIds([])} className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer">清空</button>
+                  </div>
                 </div>
-                <div className="flex gap-2 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedLinkIds(links.map(l => l.id))}
-                    className="text-xs text-indigo-600 hover:text-indigo-800 cursor-pointer"
-                  >
-                    全选
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedLinkIds([])}
-                    className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
-                  >
-                    取消全选
-                  </button>
+                {/* Search in share modal */}
+                <div className="relative mb-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={shareLinkSearch}
+                    onChange={(e) => setShareLinkSearch(e.target.value)}
+                    placeholder="筛选链接..."
+                    className="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  />
+                </div>
+                <div className="max-h-48 overflow-y-auto border rounded-lg p-2 space-y-1">
+                  {filteredShareLinks.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-4">暂无链接可选</p>
+                  ) : (
+                    filteredShareLinks.map(link => (
+                      <label key={link.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedLinkIds.includes(link.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedLinkIds(prev => [...prev, link.id])
+                            } else {
+                              setSelectedLinkIds(prev => prev.filter(id => id !== link.id))
+                            }
+                          }}
+                          className="w-4 h-4 text-indigo-600 rounded"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm text-gray-700 truncate block">{link.name || link.title}</span>
+                          <span className="text-xs text-gray-400 truncate block">{link.url}</span>
+                        </div>
+                      </label>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
               <button
-                onClick={handleCreateShare}
-                disabled={selectedLinkIds.length === 0}
-                className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleSaveShare}
+                disabled={selectedLinkIds.length === 0 || !newShareName || !newShareSlug}
+                className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
               >
-                创建
+                {editingShareId ? '保存修改' : '创建'}
               </button>
               <button
-                onClick={() => setShowCreateShare(false)}
-                className="flex-1 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium cursor-pointer"
+                onClick={resetCreateShare}
+                className="flex-1 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium cursor-pointer min-h-[44px]"
               >
                 取消
               </button>
