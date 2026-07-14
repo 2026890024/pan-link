@@ -1,16 +1,12 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   Download,
   Upload,
   FileJson,
   Table,
-  Eye,
-  Calendar,
   RefreshCw,
   Trash2,
-  Share2,
-  Link2,
   Plus,
   CheckCircle,
   Image,
@@ -22,45 +18,40 @@ import {
   CheckSquare,
   Square,
   FolderOpen,
-  Edit2,
   ScrollText,
   Zap,
-  Copy,
+  Tag,
+  HardDrive,
 } from 'lucide-react'
 import { useDataStore } from '@/store/useDataStore'
-import { formatNumber, formatDate } from '@/lib/utils'
+import { formatDate, hexToRgba } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 type ExportFormat = 'csv' | 'json'
-type Tab = 'export' | 'import' | 'share' | 'icon-library'
+type Tab = 'export' | 'import' | 'icon-library' | 'drive-types' | 'tags'
+type DuplicateAction = 'skip' | 'overwrite' | 'keep_both'
 
-const SHARE_STORAGE_KEY = 'admin_share_links'
-
-interface ShareLink {
-  id: string
+interface ImportPreviewItem {
   name: string
-  slug: string
-  visits: number
-  createdAt: string
-  updatedAt: string
-  linkIds: string[]
-  linkNames: string[]
-}
-
-function loadShareLinks(): ShareLink[] {
-  try {
-    const raw = localStorage.getItem(SHARE_STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch { /* ignore */ }
-  return []
-}
-
-function saveShareLinks(links: ShareLink[]) {
-  localStorage.setItem(SHARE_STORAGE_KEY, JSON.stringify(links))
+  url: string
+  extract_code?: string
+  description?: string
+  keywords?: string | string[]
+  category_name?: string
+  category_id?: string
+  drive_type?: string
+  is_featured?: boolean
+  is_pinned?: boolean
+  visible?: string | boolean
+  expires_at?: string
+  _duplicateType?: 'url' | 'name' | null
+  _duplicateAction?: DuplicateAction
+  _matchedLinkId?: string
+  _matchedLinkName?: string
 }
 
 export default function DataManagementPage() {
-  const { links, categories, addCategory, addLink, iconLibrary, addIconToLibrary, deleteIconFromLibrary, cloudSyncError, initialize } = useDataStore()
+  const { links, categories, addCategory, addLink, iconLibrary, addIconToLibrary, deleteIconFromLibrary, cloudSyncError, initialize, tags, addTag, deleteTag, driveTypes, addDriveType, deleteDriveType } = useDataStore()
   const [activeTab, setActiveTab] = useState<Tab>('export')
   const [exportFormat, setExportFormat] = useState<ExportFormat>('csv')
   const [exportMode, setExportMode] = useState<'all' | 'selected'>('all')
@@ -71,8 +62,8 @@ export default function DataManagementPage() {
   const [exportCategoryFilter, setExportCategoryFilter] = useState('')
   const [exportListExpanded, setExportListExpanded] = useState(true)
 
-  const [importPreview, setImportPreview] = useState<any[] | null>(null)
-  const [importStats, setImportStats] = useState<{ createdCategories: string[]; matchedCategories: string[]; duplicatesSkipped: number; errors: string[] } | null>(null)
+  const [importPreview, setImportPreview] = useState<ImportPreviewItem[] | null>(null)
+  const [importStats, setImportStats] = useState<{ createdCategories: string[]; matchedCategories: string[]; duplicatesSkipped: number; duplicatesOverwritten: number; errors: string[] } | null>(null)
   const [isParsing, setIsParsing] = useState(false)
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 })
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -83,7 +74,8 @@ export default function DataManagementPage() {
     { id: 'export' as Tab, label: '数据导出', icon: Download, desc: 'CSV / JSON 格式导出' },
     { id: 'import' as Tab, label: '数据导入', icon: Upload, desc: '批量导入链接数据' },
     { id: 'icon-library' as Tab, label: '图标库', icon: Image, desc: '管理自定义图标' },
-    { id: 'share' as Tab, label: '分享管理', icon: Share2, desc: '创建分享短链接' },
+    { id: 'drive-types' as Tab, label: '网盘类型', icon: HardDrive, desc: '管理网盘类型' },
+    { id: 'tags' as Tab, label: '标签管理', icon: Tag, desc: '管理资源标签' },
   ]
 
   const formatOptions = [
@@ -299,8 +291,44 @@ export default function DataManagementPage() {
       if (parsed.length === 0) {
         toast.error('文件内容为空或格式不正确')
       } else {
-        setImportPreview(parsed)
-        toast.success(`已解析 ${parsed.length} 条数据，请预览确认`)
+        // 检测与网站现有数据的重复情况
+        const store = useDataStore.getState()
+        const existingUrls = new Map<string, { id: string; name: string }>()
+        const existingNames = new Map<string, { id: string; url: string }>()
+        store.links.forEach(l => {
+          const url = (l.url || '').toLowerCase().trim()
+          const name = (l.name || l.title || '').toLowerCase().trim()
+          if (url) existingUrls.set(url, { id: l.id, name: l.name || l.title || '' })
+          if (name) existingNames.set(name, { id: l.id, url: l.url || '' })
+        })
+
+        let dupCount = 0
+        const previewWithDup: ImportPreviewItem[] = parsed.map((item: any) => {
+          const itemUrl = (item.url || '').toLowerCase().trim()
+          const itemName = (item.name || '').toLowerCase().trim()
+          const result: ImportPreviewItem = { ...item }
+
+          if (itemUrl && existingUrls.has(itemUrl)) {
+            const matched = existingUrls.get(itemUrl)!
+            result._duplicateType = 'url'
+            result._duplicateAction = 'skip'
+            result._matchedLinkId = matched.id
+            result._matchedLinkName = matched.name
+            dupCount++
+          } else if (itemName && existingNames.has(itemName)) {
+            const matched = existingNames.get(itemName)!
+            result._duplicateType = 'name'
+            result._duplicateAction = 'skip'
+            result._matchedLinkId = matched.id
+            result._matchedLinkName = itemName
+            dupCount++
+          }
+
+          return result
+        })
+
+        setImportPreview(previewWithDup)
+        toast.success(`已解析 ${parsed.length} 条数据${dupCount > 0 ? `，检测到 ${dupCount} 条重复` : ''}`)
       }
     } catch (err) {
       toast.error('文件解析失败，请检查文件格式')
@@ -315,6 +343,7 @@ export default function DataManagementPage() {
     const store = useDataStore.getState()
     let importedCount = 0
     let duplicatesSkipped = 0
+    let duplicatesOverwritten = 0
     const createdCategories: string[] = []
     const matchedCategories: string[] = []
     const errors: string[] = []
@@ -322,7 +351,7 @@ export default function DataManagementPage() {
     const total = importPreview.length
     setImportProgress({ current: 0, total })
 
-    // 构建已有链接的去重集合
+    // 构建已有链接的去重集合（动态更新，处理"保留两份"的场景）
     const existingUrls = new Set(store.links.map(l => l.url.toLowerCase().trim()))
     const existingNames = new Set(store.links.map(l => (l.name || l.title || '').toLowerCase().trim()))
 
@@ -351,60 +380,97 @@ export default function DataManagementPage() {
     }
 
     // 更新 stats
-    setImportStats({ createdCategories, matchedCategories, duplicatesSkipped, errors })
+    setImportStats({ createdCategories, matchedCategories, duplicatesSkipped, duplicatesOverwritten, errors })
+
+    const buildLinkData = (item: ImportPreviewItem, categoryId: string) => {
+      let keywords: string[] = []
+      if (Array.isArray(item.keywords)) {
+        keywords = item.keywords
+      } else if (typeof item.keywords === 'string' && item.keywords.trim()) {
+        keywords = item.keywords.split(/[,;，；]/).map((k: string) => k.trim()).filter(Boolean)
+      }
+      let visible = true
+      if (item.visible === '否' || item.visible === 'false' || item.visible === false || item.visible === '0') {
+        visible = false
+      }
+      return {
+        name: item.name || '未命名资源',
+        title: item.name || '未命名资源',
+        url: item.url || '',
+        description: item.description || '',
+        category_id: categoryId,
+        extract_code: item.extract_code || '',
+        keywords,
+        is_pinned: !!item.is_pinned,
+        is_featured: !!item.is_featured,
+        expires_at: item.expires_at && item.expires_at !== '永久' ? item.expires_at : null,
+        drive_type: item.drive_type || 'baidu',
+        visible,
+      }
+    }
 
     for (let i = 0; i < importPreview.length; i++) {
       const item = importPreview[i]
       setImportProgress({ current: i + 1, total })
-      
-      try {
-        // 去重检测
-        const itemUrl = (item.url || '').toLowerCase().trim()
-        const itemName = (item.name || '').toLowerCase().trim()
-        if (itemUrl && existingUrls.has(itemUrl)) {
-          duplicatesSkipped++
-          setImportStats(prev => prev ? { ...prev, duplicatesSkipped } : null)
-          continue
-        }
-        if (itemName && existingNames.has(itemName)) {
-          duplicatesSkipped++
-          setImportStats(prev => prev ? { ...prev, duplicatesSkipped } : null)
-          continue
-        }
 
+      try {
         let categoryId = item.category_id || ''
         const catName = item.category_name?.trim()
         if (!categoryId && catName && categoryMap.has(catName)) {
           categoryId = categoryMap.get(catName)!
         }
-        let keywords: string[] = []
-        if (Array.isArray(item.keywords)) {
-          keywords = item.keywords
-        } else if (typeof item.keywords === 'string' && item.keywords.trim()) {
-          keywords = item.keywords.split(/[,;，；]/).map((k: string) => k.trim()).filter(Boolean)
+
+        const action = item._duplicateAction || 'skip'
+        const itemUrl = (item.url || '').toLowerCase().trim()
+        const itemName = (item.name || '').toLowerCase().trim()
+
+        if (action === 'skip') {
+          // 跳过：如果 URL 或名称已存在则跳过
+          if (itemUrl && existingUrls.has(itemUrl)) {
+            duplicatesSkipped++
+            setImportStats(prev => prev ? { ...prev, duplicatesSkipped } : null)
+            continue
+          }
+          if (itemName && existingNames.has(itemName)) {
+            duplicatesSkipped++
+            setImportStats(prev => prev ? { ...prev, duplicatesSkipped } : null)
+            continue
+          }
+          // 不重复 → 正常导入
+          await store.addLink(buildLinkData(item, categoryId))
+          if (itemUrl) existingUrls.add(itemUrl)
+          if (itemName) existingNames.add(itemName)
+          importedCount++
+        } else if (action === 'overwrite') {
+          // 覆盖：更新已有链接
+          const matchedId = item._matchedLinkId
+          if (matchedId) {
+            const existing = store.links.find(l => l.id === matchedId)
+            if (existing) {
+              // 更新已有链接的属性
+              await store.updateLink(matchedId, {
+                url: item.url || existing.url,
+                name: item.name || existing.name,
+                title: item.name || existing.title,
+                description: item.description || existing.description,
+                category_id: categoryId || existing.category_id,
+                extract_code: item.extract_code || existing.extract_code,
+                drive_type: item.drive_type || existing.drive_type,
+                is_featured: item.is_featured ?? existing.is_featured,
+                is_pinned: item.is_pinned ?? existing.is_pinned,
+                expires_at: item.expires_at && item.expires_at !== '永久' ? item.expires_at : existing.expires_at,
+              })
+              duplicatesOverwritten++
+              setImportStats(prev => prev ? { ...prev, duplicatesOverwritten } : null)
+            }
+          }
+        } else if (action === 'keep_both') {
+          // 保留两份：无视去重，直接新增
+          await store.addLink(buildLinkData(item, categoryId))
+          if (itemUrl) existingUrls.add(itemUrl)
+          if (itemName) existingNames.add(itemName)
+          importedCount++
         }
-        let visible = true
-        if (item.visible === '否' || item.visible === 'false' || item.visible === false || item.visible === '0') {
-          visible = false
-        }
-        await store.addLink({
-          name: item.name || '未命名资源',
-          title: item.name || '未命名资源',
-          url: item.url || '',
-          description: item.description || '',
-          category_id: categoryId,
-          extract_code: item.extract_code || '',
-          keywords,
-          is_pinned: !!item.is_pinned,
-          is_featured: !!item.is_featured,
-          expires_at: item.expires_at && item.expires_at !== '永久' ? item.expires_at : null,
-          drive_type: item.drive_type || 'baidu',
-          visible,
-        })
-        // 添加到去重集合
-        if (itemUrl) existingUrls.add(itemUrl)
-        if (itemName) existingNames.add(itemName)
-        importedCount++
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err)
         errors.push(`${item.name || '未知'}: ${errMsg}`)
@@ -414,6 +480,7 @@ export default function DataManagementPage() {
 
     let msg = `已成功导入 ${importedCount} 条数据`
     if (duplicatesSkipped > 0) msg += `，跳过 ${duplicatesSkipped} 条重复`
+    if (duplicatesOverwritten > 0) msg += `，覆盖 ${duplicatesOverwritten} 条`
     if (createdCategories.length > 0) msg += `，新建 ${createdCategories.length} 个分类`
     if (errors.length > 0) msg += `，${errors.length} 条失败`
     toast.success(msg)
@@ -434,114 +501,78 @@ export default function DataManagementPage() {
     }
   }
 
-  // 分享链接管理（持久化）
-  const [shareLinks, setShareLinks] = useState<ShareLink[]>(loadShareLinks)
-  const [showCreateShare, setShowCreateShare] = useState(false)
-  const [editingShareId, setEditingShareId] = useState<string | null>(null)
-  const [newShareName, setNewShareName] = useState('')
-  const [newShareSlug, setNewShareSlug] = useState('')
-  const [selectedLinkIds, setSelectedLinkIds] = useState<string[]>([])
-  const [shareLinkSearch, setShareLinkSearch] = useState('')
-
-  useEffect(() => {
-    saveShareLinks(shareLinks)
-  }, [shareLinks])
-
-  // 分享弹窗 iOS 滚动穿透修复
-  useEffect(() => {
-    if (showCreateShare) {
-      const scrollY = window.scrollY
-      const origPos = document.body.style.position
-      const origTop = document.body.style.top
-      const origWidth = document.body.style.width
-      document.body.style.position = 'fixed'
-      document.body.style.top = `-${scrollY}px`
-      document.body.style.width = '100%'
-      return () => {
-        document.body.style.position = origPos
-        document.body.style.top = origTop
-        document.body.style.width = origWidth
-        window.scrollTo(0, scrollY)
-      }
-    }
-  }, [showCreateShare])
-
-  const openCreateShare = () => {
-    setEditingShareId(null)
-    setNewShareName('')
-    setNewShareSlug('')
-    setSelectedLinkIds([])
-    setShowCreateShare(true)
+  // 批量设置所有重复项的处理方式
+  const handleBatchDuplicateAction = (action: DuplicateAction) => {
+    if (!importPreview) return
+    setImportPreview(prev =>
+      prev!.map(item =>
+        item._duplicateType ? { ...item, _duplicateAction: action } : item
+      )
+    )
   }
 
-  const openEditShare = (share: ShareLink) => {
-    setEditingShareId(share.id)
-    setNewShareName(share.name)
-    setNewShareSlug(share.slug)
-    setSelectedLinkIds([...share.linkIds])
-    setShowCreateShare(true)
-  }
+  // 计算重复统计
+  const dupStats = useMemo(() => {
+    if (!importPreview) return { total: 0, urlDup: 0, nameDup: 0 }
+    let urlDup = 0, nameDup = 0
+    importPreview.forEach(item => {
+      if (item._duplicateType === 'url') urlDup++
+      else if (item._duplicateType === 'name') nameDup++
+    })
+    return { total: urlDup + nameDup, urlDup, nameDup }
+  }, [importPreview])
 
-  const handleSaveShare = () => {
-    if (!newShareName || !newShareSlug) {
-      toast.error('请填写完整信息')
+  // 标签管理状态
+  const [showAddTag, setShowAddTag] = useState(false)
+  const [newTagName, setNewTagName] = useState('')
+  const [newTagColor, setNewTagColor] = useState('#6366F1')
+
+  // 网盘类型管理状态
+  const [isAddingDrive, setIsAddingDrive] = useState(false)
+  const [newDrive, setNewDrive] = useState({
+    id: '',
+    name: '',
+    color: 'bg-gradient-to-br from-gray-500 to-gray-600',
+    icon: '网',
+    iconImage: '',
+  })
+
+  const colorOptions = [
+    '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6',
+  ]
+
+  const driveColors = [
+    'bg-gradient-to-br from-blue-500 to-blue-600',
+    'bg-gradient-to-br from-purple-500 to-purple-600',
+    'bg-gradient-to-br from-red-500 to-orange-500',
+    'bg-gradient-to-br from-green-500 to-emerald-500',
+    'bg-gradient-to-br from-pink-500 to-rose-500',
+    'bg-gradient-to-br from-cyan-500 to-blue-500',
+    'bg-gradient-to-br from-amber-500 to-yellow-500',
+    'bg-gradient-to-br from-indigo-500 to-violet-500',
+  ]
+
+  const presetTypes = driveTypes.filter(d => ['baidu', 'aliyun', 'quark', 'xunlei', 'oneonefive', 'tianyi'].includes(d.id))
+
+  const handleAddTag = () => {
+    if (!newTagName.trim()) {
+      toast.error('请输入标签名称')
       return
     }
-    const selectedLinks = links.filter(l => selectedLinkIds.includes(l.id))
-    
-    if (editingShareId) {
-      setShareLinks(prev => prev.map(s => s.id === editingShareId ? {
-        ...s,
-        name: newShareName,
-        slug: newShareSlug,
-        linkIds: selectedLinkIds,
-        linkNames: selectedLinks.map(l => l.name || l.title),
-        updatedAt: new Date().toISOString().split('T')[0],
-      } : s))
-      toast.success('分享已更新')
-    } else {
-      const newShare: ShareLink = {
-        id: Date.now().toString(),
-        name: newShareName,
-        slug: newShareSlug,
-        visits: 0,
-        createdAt: new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0],
-        linkIds: selectedLinkIds,
-        linkNames: selectedLinks.map(l => l.name || l.title),
-      }
-      setShareLinks(prev => [...prev, newShare])
-      toast.success('分享创建成功')
+    addTag(newTagName, newTagColor)
+    setNewTagName('')
+    setNewTagColor('#6366F1')
+    setShowAddTag(false)
+    toast.success('标签已添加')
+  }
+
+  const handleAddDrive = () => {
+    if (newDrive.name.trim()) {
+      addDriveType(newDrive.name.trim(), newDrive.icon, newDrive.color)
+      setNewDrive({ id: '', name: '', color: 'bg-gradient-to-br from-gray-500 to-gray-600', icon: '网', iconImage: '' })
+      setIsAddingDrive(false)
+      toast.success('网盘类型已添加')
     }
-    setShowCreateShare(false)
-  }
-
-  const handleDeleteShare = (id: string) => {
-    setShareLinks(prev => prev.filter(s => s.id !== id))
-    toast.success('分享已删除')
-  }
-
-  const handleCopyShareLink = (slug: string) => {
-    const link = `${window.location.origin}/s/${slug}`
-    navigator.clipboard.writeText(link).then(() => {
-      toast.success('分享链接已复制')
-    })
-  }
-
-  const filteredShareLinks = shareLinkSearch
-    ? links.filter(l => {
-        const q = shareLinkSearch.toLowerCase()
-        return (l.name || l.title || '').toLowerCase().includes(q) || (l.url || '').toLowerCase().includes(q)
-      })
-    : links
-
-  // Reset handler
-  const resetCreateShare = () => {
-    setShowCreateShare(false)
-    setEditingShareId(null)
-    setNewShareName('')
-    setNewShareSlug('')
-    setSelectedLinkIds([])
   }
 
   // Export list display helpers
@@ -555,7 +586,7 @@ export default function DataManagementPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">数据管理</h1>
-        <p className="text-gray-500 mt-1">导入导出数据，管理分享链接</p>
+        <p className="text-gray-500 mt-1">导入导出数据，管理图标、网盘类型和标签</p>
       </div>
 
       {/* 云端同步状态卡片 */}
@@ -812,7 +843,7 @@ export default function DataManagementPage() {
                       </li>
                       <li className="flex items-start gap-2">
                         <Zap className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                        自动去重：已存在的链接（按URL/名称判断）将被跳过
+                        智能去重：重复链接会标出，您可选择<strong>跳过、覆盖或保留两份</strong>
                       </li>
                       <li className="flex items-start gap-2">
                         <FileJson className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
@@ -879,33 +910,111 @@ export default function DataManagementPage() {
                           已跳过 {importStats.duplicatesSkipped} 条重复数据
                         </div>
                       )}
+                      {importStats.duplicatesOverwritten > 0 && (
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-sm text-indigo-700">
+                          <RefreshCw className="w-4 h-4 inline mr-1" />
+                          已覆盖 {importStats.duplicatesOverwritten} 条数据
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 重复数据提示和批量操作 */}
+                  {dupStats.total > 0 && importProgress.total === 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                      <div className="flex items-center gap-2 text-amber-700 text-sm">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                        <span>
+                          检测到 <strong>{dupStats.total}</strong> 条与网站现有数据重复
+                          （URL 重复 {dupStats.urlDup} 条，名称重复 {dupStats.nameDup} 条）
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="text-xs text-amber-600 self-center">批量设置：</span>
+                        <button
+                          onClick={() => handleBatchDuplicateAction('skip')}
+                          className="px-3 py-1 text-xs font-medium rounded-md border border-amber-300 bg-white text-amber-700 hover:bg-amber-100 transition-colors cursor-pointer"
+                        >
+                          全部跳过
+                        </button>
+                        <button
+                          onClick={() => handleBatchDuplicateAction('overwrite')}
+                          className="px-3 py-1 text-xs font-medium rounded-md border border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-100 transition-colors cursor-pointer"
+                        >
+                          全部覆盖
+                        </button>
+                        <button
+                          onClick={() => handleBatchDuplicateAction('keep_both')}
+                          className="px-3 py-1 text-xs font-medium rounded-md border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer"
+                        >
+                          全部保留两份
+                        </button>
+                      </div>
                     </div>
                   )}
 
                   <div className="border rounded-lg overflow-hidden">
                     <div className="overflow-x-auto">
-                    <table className="w-full min-w-[700px]">
+                    <table className="w-full min-w-[900px]">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">#</th>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">名称</th>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">链接</th>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">提取码</th>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">分类</th>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">网盘</th>
+                          <th className="px-3 py-2 text-left text-sm font-medium text-gray-500 w-8">#</th>
+                          <th className="px-3 py-2 text-left text-sm font-medium text-gray-500">名称</th>
+                          <th className="px-3 py-2 text-left text-sm font-medium text-gray-500">链接</th>
+                          <th className="px-3 py-2 text-left text-sm font-medium text-gray-500">提取码</th>
+                          <th className="px-3 py-2 text-left text-sm font-medium text-gray-500">分类</th>
+                          <th className="px-3 py-2 text-left text-sm font-medium text-gray-500">网盘</th>
+                          <th className="px-3 py-2 text-left text-sm font-medium text-gray-500 w-24">重复检测</th>
+                          <th className="px-3 py-2 text-left text-sm font-medium text-gray-500 w-28">处理方式</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {importPreview.map((item, index) => (
-                          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
-                            <td className="px-4 py-2 text-sm text-gray-400">{index + 1}</td>
-                            <td className="px-4 py-2 text-sm text-gray-800 max-w-[150px] truncate">{item.name}</td>
-                            <td className="px-4 py-2 text-sm text-gray-600 max-w-[180px] truncate">{item.url}</td>
-                            <td className="px-4 py-2 text-sm text-gray-600">{item.extract_code || '-'}</td>
-                            <td className="px-4 py-2 text-sm text-gray-600">{item.category_name || item.category_id || '-'}</td>
-                            <td className="px-4 py-2 text-sm text-gray-500">{item.drive_type || 'baidu'}</td>
+                        {importPreview.map((item, index) => {
+                          const isDup = !!item._duplicateType
+                          return (
+                          <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} ${isDup ? 'bg-amber-50/60' : ''}`}>
+                            <td className="px-3 py-2 text-sm text-gray-400">{index + 1}</td>
+                            <td className="px-3 py-2 text-sm text-gray-800 max-w-[140px] truncate">
+                              {item.name}
+                              {isDup && <span className="ml-1 text-[10px] text-amber-600">*</span>}
+                            </td>
+                            <td className="px-3 py-2 text-sm text-gray-600 max-w-[160px] truncate">{item.url}</td>
+                            <td className="px-3 py-2 text-sm text-gray-600">{item.extract_code || '-'}</td>
+                            <td className="px-3 py-2 text-sm text-gray-600">{item.category_name || item.category_id || '-'}</td>
+                            <td className="px-3 py-2 text-sm text-gray-500">{item.drive_type || 'baidu'}</td>
+                            <td className="px-3 py-2 text-sm">
+                              {isDup ? (
+                                <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full ${
+                                  item._duplicateType === 'url' ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                  {item._duplicateType === 'url' ? 'URL重复' : '名称重复'}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-green-600">新增</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {isDup ? (
+                                <select
+                                  value={item._duplicateAction}
+                                  onChange={(e) => {
+                                    const action = e.target.value as DuplicateAction
+                                    setImportPreview(prev =>
+                                      prev!.map((p, i) => i === index ? { ...p, _duplicateAction: action } : p)
+                                    )
+                                  }}
+                                  className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-300"
+                                >
+                                  <option value="skip">跳过</option>
+                                  <option value="overwrite">覆盖</option>
+                                  <option value="keep_both">保留两份</option>
+                                </select>
+                              ) : (
+                                <span className="text-xs text-gray-400">—</span>
+                              )}
+                            </td>
                           </tr>
-                        ))}
+                        )})}
                       </tbody>
                     </table>
                     </div>
@@ -1035,94 +1144,179 @@ export default function DataManagementPage() {
             </motion.div>
           )}
 
-          {/* ===== 分享管理 ===== */}
-          {activeTab === 'share' && (
+          {/* ===== 网盘类型 ===== */}
+          {activeTab === 'drive-types' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">分享短链接</h3>
-                <button 
-                  onClick={openCreateShare}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">网盘类型</h3>
+                  <p className="text-sm text-gray-500 mt-1">管理网盘图标和类型</p>
+                </div>
+                <button
+                  onClick={() => setIsAddingDrive(true)}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 cursor-pointer min-h-[44px] sm:min-h-[36px]"
                 >
-                  <Plus className="w-4 h-4" />
-                  创建分享
+                  <Plus className="w-4 h-4" /> 添加网盘类型
                 </button>
               </div>
 
-              {shareLinks.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-                  <Share2 className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">暂无分享链接，点击上方按钮创建</p>
-                  <p className="text-xs mt-1">分享链接格式：{window.location.origin}/s/你的后缀</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {shareLinks.map((link) => (
-                    <div
-                      key={link.id}
-                      className="p-4 rounded-xl border hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="font-medium text-gray-800">{link.name}</h4>
-                          <p className="text-sm text-blue-600 mt-1 font-mono">
-                            {window.location.origin}/s/{link.slug}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleCopyShareLink(link.slug)}
-                            className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
-                            title="复制链接"
-                          >
-                            <Copy className="w-4 h-4 text-gray-500" />
-                          </button>
-                          <button
-                            onClick={() => openEditShare(link)}
-                            className="p-2 hover:bg-blue-50 rounded-lg cursor-pointer"
-                            title="编辑"
-                          >
-                            <Edit2 className="w-4 h-4 text-gray-500" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteShare(link.id)}
-                            className="p-2 hover:bg-red-50 rounded-lg cursor-pointer"
-                            title="删除"
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </button>
-                        </div>
+              {/* 预设类型 */}
+              <div>
+                <h4 className="text-base font-semibold text-gray-800 mb-3">预设网盘类型</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {presetTypes.map((drive) => (
+                    <div key={drive.id} className="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                      <div className={`w-12 h-12 mx-auto rounded-xl ${drive.color} flex items-center justify-center text-white font-bold text-lg shadow mb-2`}>
+                        {drive.icon}
                       </div>
-                      <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <Eye className="w-4 h-4" />
-                          {formatNumber(link.visits)} 次访问
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          {link.createdAt}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Link2 className="w-3.5 h-3.5" />
-                          {(link.linkIds || []).length} 个链接
-                        </span>
-                        {link.updatedAt !== link.createdAt && (
-                          <span className="text-xs text-gray-400">已编辑</span>
+                      <p className="font-medium text-gray-900 text-sm">{drive.name}</p>
+                      <p className="text-xs text-gray-400">预设类型</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 自定义类型 */}
+              <div>
+                <h4 className="text-base font-semibold text-gray-800 mb-3">自定义网盘类型</h4>
+                {!isAddingDrive && driveTypes.filter(d => !presetTypes.includes(d)).length === 0 && (
+                  <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                    <HardDrive className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                    <p className="text-gray-500 text-sm">暂无自定义网盘类型</p>
+                    <button onClick={() => setIsAddingDrive(true)} className="mt-3 px-4 py-1.5 text-sm text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                      + 添加自定义网盘
+                    </button>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {driveTypes.filter(d => !presetTypes.includes(d)).map((drive) => (
+                    <div key={drive.id} className="bg-white rounded-xl border border-gray-200 p-3 text-center relative group">
+                      <button
+                        onClick={() => { deleteDriveType(drive.id); toast.success('网盘类型已删除') }}
+                        className="absolute top-1 right-1 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <div className={`w-12 h-12 mx-auto rounded-xl ${drive.color} flex items-center justify-center text-white font-bold text-lg shadow mb-2`}>
+                        {drive.icon}
+                      </div>
+                      <p className="font-medium text-gray-900 text-sm">{drive.name}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 添加表单 */}
+              {isAddingDrive && (
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <h4 className="font-semibold text-gray-900 mb-4">添加自定义网盘</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">图标预览</label>
+                      <div className={`w-16 h-16 rounded-xl ${newDrive.color} flex items-center justify-center text-white font-bold text-xl`}>
+                        {newDrive.iconImage ? (
+                          <img src={newDrive.iconImage} alt="preview" className="w-full h-full rounded-xl object-cover" />
+                        ) : (
+                          newDrive.icon || '网'
                         )}
                       </div>
-                      {/* 链接预览 */}
-                      {(link.linkNames || []).length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {link.linkNames.slice(0, 5).map((name, i) => (
-                            <span key={i} className="px-2 py-0.5 bg-gray-100 text-xs text-gray-600 rounded-md truncate max-w-[120px]">
-                              {name}
-                            </span>
-                          ))}
-                          {link.linkNames.length > 5 && (
-                            <span className="px-2 py-0.5 text-xs text-gray-400">+{link.linkNames.length - 5}</span>
-                          )}
-                        </div>
-                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">名称</label>
+                      <input type="text" value={newDrive.name} onChange={(e) => setNewDrive({ ...newDrive, name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="网盘名称" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">颜色</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {driveColors.map((color, i) => (
+                          <button key={i} onClick={() => setNewDrive({ ...newDrive, color })}
+                            className={`w-7 h-7 rounded-lg ${color} ${newDrive.color === color ? 'ring-2 ring-offset-1 ring-indigo-500' : ''}`} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 mt-4">
+                    <button onClick={() => { setIsAddingDrive(false); setNewDrive({ id: '', name: '', color: 'bg-gradient-to-br from-gray-500 to-gray-600', icon: '网', iconImage: '' }) }}
+                      className="px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 text-sm">取消</button>
+                    <button onClick={handleAddDrive} className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 text-sm">保存</button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ===== 标签管理 ===== */}
+          {activeTab === 'tags' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">标签管理</h3>
+                  <p className="text-sm text-gray-500 mt-1">管理资源标签，用于分类和搜索</p>
+                </div>
+                <button
+                  onClick={() => setShowAddTag(true)}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 cursor-pointer min-h-[44px] sm:min-h-[36px]"
+                >
+                  <Plus className="w-4 h-4" /> 添加标签
+                </button>
+              </div>
+
+              {/* 添加标签表单 */}
+              {showAddTag && (
+                <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+                  <input
+                    type="text"
+                    value={newTagName}
+                    onChange={(e) => setNewTagName(e.target.value)}
+                    placeholder="标签名称"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white"
+                    autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
+                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">标签颜色</label>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {colorOptions.map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => setNewTagColor(color)}
+                          className={`w-8 h-8 rounded-full border-2 transition-all ${newTagColor === color ? 'border-gray-800 scale-110' : 'border-transparent'}`}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={handleAddTag} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm transition-colors cursor-pointer">保存</button>
+                    <button onClick={() => setShowAddTag(false)} className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100 text-sm transition-colors cursor-pointer">取消</button>
+                  </div>
+                </div>
+              )}
+
+              {/* 标签列表 */}
+              {tags.length === 0 ? (
+                <div className="text-center py-12 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                  <Tag className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">暂无标签，点击上方按钮添加</p>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-3">
+                  {tags.map((tag) => (
+                    <div
+                      key={tag.id}
+                      className="flex items-center gap-2 px-4 py-2 rounded-full transition-transform hover:scale-105"
+                      style={{ backgroundColor: hexToRgba(tag.color, 0.12) }}
+                    >
+                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }} />
+                      <span className="text-sm font-medium" style={{ color: tag.color }}>{tag.name}</span>
+                      <button
+                        onClick={() => { deleteTag(tag.id); toast.success('标签已删除') }}
+                        className="ml-1 hover:bg-white/50 rounded-full p-0.5 transition-colors cursor-pointer"
+                        title="删除标签"
+                      >
+                        <X className="w-3 h-3" style={{ color: tag.color }} />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -1131,122 +1325,6 @@ export default function DataManagementPage() {
           )}
         </div>
       </div>
-
-      {/* ===== 创建/编辑分享弹窗 ===== */}
-      {showCreateShare && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="fixed inset-0 bg-black/50"
-            onClick={resetCreateShare}
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col"
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h3 className="text-lg font-bold text-gray-900">
-                {editingShareId ? '编辑分享' : '创建分享'}
-              </h3>
-              <button onClick={resetCreateShare} className="p-1 hover:bg-gray-100 rounded-lg cursor-pointer">
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-
-            <div className="overflow-y-auto p-6 space-y-4 flex-1">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">分享名称</label>
-                <input
-                  type="text"
-                  value={newShareName}
-                  onChange={(e) => setNewShareName(e.target.value)}
-                  placeholder="例如：热门资源合集"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">短链接后缀</label>
-                <input
-                  type="text"
-                  value={newShareSlug}
-                  onChange={(e) => setNewShareSlug(e.target.value)}
-                  placeholder="例如：hot-2024"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 font-mono"
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  分享链接：{window.location.origin}/s/{newShareSlug || 'xxx'}
-                </p>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    选择要分享的链接 ({selectedLinkIds.length} 个)
-                  </label>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => setSelectedLinkIds(links.map(l => l.id))} className="text-xs text-indigo-600 hover:text-indigo-800 cursor-pointer">全选</button>
-                    <button type="button" onClick={() => setSelectedLinkIds([])} className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer">清空</button>
-                  </div>
-                </div>
-                {/* Search in share modal */}
-                <div className="relative mb-2">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={shareLinkSearch}
-                    onChange={(e) => setShareLinkSearch(e.target.value)}
-                    placeholder="筛选链接..."
-                    className="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  />
-                </div>
-                <div className="max-h-48 overflow-y-auto border rounded-lg p-2 space-y-1">
-                  {filteredShareLinks.length === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-4">暂无链接可选</p>
-                  ) : (
-                    filteredShareLinks.map(link => (
-                      <label key={link.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedLinkIds.includes(link.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedLinkIds(prev => [...prev, link.id])
-                            } else {
-                              setSelectedLinkIds(prev => prev.filter(id => id !== link.id))
-                            }
-                          }}
-                          className="w-4 h-4 text-indigo-600 rounded"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm text-gray-700 truncate block">{link.name || link.title}</span>
-                          <span className="text-xs text-gray-400 truncate block">{link.url}</span>
-                        </div>
-                      </label>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
-              <button
-                onClick={handleSaveShare}
-                disabled={selectedLinkIds.length === 0 || !newShareName || !newShareSlug}
-                className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
-              >
-                {editingShareId ? '保存修改' : '创建'}
-              </button>
-              <button
-                onClick={resetCreateShare}
-                className="flex-1 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium cursor-pointer min-h-[44px]"
-              >
-                取消
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </div>
   )
 }

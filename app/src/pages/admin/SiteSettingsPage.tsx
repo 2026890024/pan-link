@@ -63,7 +63,7 @@ function LogoTab() {
   const [logoNameInput, setLogoNameInput] = useState('')
 
   const logoType = settings.current_logo_type || 'text'
-  const logoText = settings.current_logo_text || 'Pan Link'
+  const logoText = settings.current_logo_text || '资源云'
   const logoUrl = settings.current_logo_url || ''
   const library = settings.logo_library || []
 
@@ -537,8 +537,8 @@ function ColorSchemeCard({
       </div>
       <div className="flex gap-2">
         {isActive ? (
-          <span className="flex-1 text-center text-xs text-brand-600 font-medium py-1">
-            ✓ 当前使用
+          <span className="flex-1 text-center text-xs text-brand-600 font-medium py-1 inline-flex items-center justify-center gap-1">
+            <Check className="w-3 h-3 flex-shrink-0" />当前使用
           </span>
         ) : (
           <button

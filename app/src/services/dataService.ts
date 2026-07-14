@@ -19,10 +19,12 @@ function getAuthToken(): string | null {
 }
 
 export function isCloudApiConfigured(): boolean {
-  // 生产环境：空字符串 = Pages Functions 同域部署 = 已配置
-  // 开发环境：有完整 URL 且不是占位符 = 已配置
-  if (!API_BASE) return true  // Empty = relative = Pages Functions
-  return !API_BASE.includes('你的用户名')
+  // 显式设置了完整的 Worker URL 且不是占位符 = 已配置
+  if (API_BASE && !API_BASE.includes('你的用户名')) return true
+  // 生产环境 + 空 API_BASE = Pages Functions 同域部署 = 已配置
+  if (!API_BASE && import.meta.env.PROD) return true
+  // 开发环境且未配置 = 回退到 localStorage
+  return false
 }
 
 // ============ 类型定义 ============

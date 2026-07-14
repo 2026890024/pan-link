@@ -16,6 +16,8 @@ import {
   Share2,
   Home,
   ArrowUp,
+  Key,
+  Clock,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
@@ -382,15 +384,20 @@ export default function HomePage() {
                       onClick={() => setSelectedLink(link)}
                       className={`group bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 card-hover cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
                     >
-                      <div className="flex flex-col gap-3">
-                        {getLinkIcon(link)}
+                      <div className="flex items-start gap-3">
+                        <div className="shrink-0 pt-0.5">
+                          {getLinkIcon(link)}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm truncate leading-tight">
                             {link.name}
                           </h3>
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{link.description}</p>
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed break-all">
+                            {link.description}
+                          </p>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-auto pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-3 pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleLinkClick(link) }}
                             className={`flex-1 justify-center ${BTN_PRIMARY} hover:shadow-md`}
@@ -408,7 +415,6 @@ export default function HomePage() {
                             分享
                           </button>
                         </div>
-                      </div>
                     </div>
                   ))}
                 </div>
@@ -516,13 +522,13 @@ export default function HomePage() {
                                       <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-md bg-amber-50 text-amber-600 border border-amber-200">置顶</span>
                                     )}
                                     {link.extract_code && (
-                                      <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-md bg-blue-50 text-blue-600 border border-blue-200">🔑 提取码</span>
+                                      <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-md bg-blue-50 text-blue-600 border border-blue-200 inline-flex items-center gap-1"><Key className="w-2.5 h-2.5 flex-shrink-0" />提取码</span>
                                     )}
                                     {link.expires_at && (() => {
                                       const days = Math.ceil((new Date(link.expires_at).getTime() - Date.now()) / 86400000)
                                       if (days <= 30 && days > 0) return (
-                                        <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-md bg-amber-50 text-amber-700 border border-amber-200">
-                                          ⏱ {days <= 7 ? `${days}天后过期` : `${days}天`}
+                                        <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-md bg-amber-50 text-amber-700 border border-amber-200 inline-flex items-center gap-1">
+                                          <Clock className="w-2.5 h-2.5 flex-shrink-0" />{days <= 7 ? `${days}天后过期` : `${days}天`}
                                         </span>
                                       )
                                       return null

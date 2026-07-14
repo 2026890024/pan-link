@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { motion, AnimatePresence } from 'framer-motion'
@@ -188,13 +188,16 @@ export default function SearchPage() {
       startBottom: floatPos.y,
       moved: false,
     }
+    // 使用 window 级事件确保拖拽不因鼠标离开按钮而中断
+    window.addEventListener('mousemove', handleWindowMouseMove)
+    window.addEventListener('mouseup', handleWindowMouseUp)
   }
 
-  const handleDragMove = (clientX: number, clientY: number) => {
+  // window 级拖拽移动 —— 持续追踪，不依赖按钮级事件
+  const handleWindowMouseMove = useCallback((e: MouseEvent) => {
     if (!isDraggingRef.current) return
-    const dx = clientX - dragRef.current.startX
-    const dy = clientY - dragRef.current.startY
-    // 移动超过5px视为拖拽
+    const dx = e.clientX - dragRef.current.startX
+    const dy = e.clientY - dragRef.current.startY
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
       dragRef.current.moved = true
     }
@@ -204,7 +207,22 @@ export default function SearchPage() {
     const newX = Math.max(0, Math.min(vw - btnSize, dragRef.current.startLeft + dx))
     const newY = Math.max(0, Math.min(vh - btnSize, dragRef.current.startBottom - dy))
     setFloatPos({ x: newX, y: newY })
-  }
+  }, [])
+
+  // window 级拖拽结束 —— 鼠标在任何位置松开都能正确结束
+  const handleWindowMouseUp = useCallback(() => {
+    handleDragEnd()
+    window.removeEventListener('mousemove', handleWindowMouseMove)
+    window.removeEventListener('mouseup', handleWindowMouseUp)
+  }, [])
+
+  // 组件卸载时清理 window 事件
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove)
+      window.removeEventListener('mouseup', handleWindowMouseUp)
+    }
+  }, [handleWindowMouseMove, handleWindowMouseUp])
 
   const handleDragEnd = () => {
     isDraggingRef.current = false
@@ -603,9 +621,6 @@ export default function SearchPage() {
         className="fixed lg:hidden z-50 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 shadow-lg shadow-brand-500/30 flex items-center justify-center text-white active:scale-95 transition-transform cursor-grab select-none touch-manipulation"
         style={{ left: floatPos.x, bottom: `calc(${floatPos.y}px + env(safe-area-inset-bottom, 0px))` }}
         onMouseDown={(e) => handleDragStart(e.clientX, e.clientY)}
-        onMouseMove={(e) => handleDragMove(e.clientX, e.clientY)}
-        onMouseUp={handleDragEnd}
-        onMouseLeave={handleDragEnd}
         onTouchStart={(e) => {
           e.preventDefault()
           handleDragStart(e.touches[0].clientX, e.touches[0].clientY)

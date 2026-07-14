@@ -26,6 +26,7 @@ import {
   Square,
   Maximize,
   Minimize,
+  AlertTriangle,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { LinkIcon } from '@/components/LinkIcon'
@@ -336,7 +337,7 @@ export default function ResourceManagementPage() {
       {/* 云同步警告 */}
       {cloudSyncError && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-sm text-amber-800">
-          <span className="text-amber-500 text-lg flex-shrink-0">⚠️</span>
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="font-medium">云同步不可用</p>
             <p className="text-amber-700 mt-1">
@@ -346,7 +347,7 @@ export default function ResourceManagementPage() {
             {/* 精确错误详情 - 帮助诊断 */}
             {lastSyncErrorDetail && (
               <details className="mt-2">
-                <summary className="cursor-pointer font-medium text-red-700 hover:text-red-800">🔍 查看错误详情（点击展开）</summary>
+                <summary className="cursor-pointer font-medium text-red-700 hover:text-red-800 inline-flex items-center gap-1"><Search className="w-3.5 h-3.5 flex-shrink-0" />查看错误详情（点击展开）</summary>
                 <pre className="mt-1 text-xs bg-red-50 border border-red-200 p-2 rounded overflow-x-auto text-red-900 whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
                   {lastSyncErrorDetail}
                 </pre>
@@ -503,12 +504,12 @@ export default function ResourceManagementPage() {
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
             {viewMode === 'list' && (
-              <div className="grid grid-cols-12 gap-4 px-4 sm:px-6 py-3 bg-gray-50 border-b border-gray-200 text-sm font-medium text-gray-500 items-center min-w-[900px]">
-                <div className="col-span-5">链接信息</div>
-                <div className="col-span-2">分类</div>
-                <div className="col-span-2">网盘</div>
-                <div className="col-span-1 text-center">排序</div>
-                <div className="col-span-2">操作</div>
+              <div className="grid grid-cols-12 gap-2 sm:gap-4 px-2 sm:px-6 py-3 bg-gray-50 border-b border-gray-200 text-xs sm:text-sm font-medium text-gray-500 items-center">
+                <div className="col-span-6 sm:col-span-5">链接信息</div>
+                <div className="col-span-2 hidden sm:block">分类</div>
+                <div className="col-span-2 hidden sm:block">网盘</div>
+                <div className="col-span-2 sm:col-span-1 text-center">排序</div>
+                <div className="col-span-4 sm:col-span-2 text-right sm:text-left">操作</div>
               </div>
             )}
 
@@ -519,64 +520,64 @@ export default function ResourceManagementPage() {
               </div>
             ) : viewMode === 'list' ? (
               filteredLinks.map((link) => (
-                <div key={link.id} className={`grid grid-cols-12 gap-4 px-4 sm:px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors items-center min-w-[900px] ${!link.visible ? 'opacity-60 bg-gray-50/50' : ''}`}>
-                  <div className="col-span-5">
+                <div key={link.id} className={`grid grid-cols-12 gap-2 sm:gap-4 px-2 sm:px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors items-center ${!link.visible ? 'opacity-60 bg-gray-50/50' : ''}`}>
+                  <div className="col-span-6 sm:col-span-5">
                     <div className="flex items-center gap-3 cursor-pointer" onClick={() => openEditModal(link)}>
                       {getLinkDisplayIcon(link)}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-medium text-gray-900 truncate">{link.title}</h3>
-                          {link.is_pinned && <Pin className="w-4 h-4 text-amber-500" />}
-                          {link.is_featured && <Star className="w-4 h-4 text-amber-500" />}
-                          {!link.visible && <EyeOff className="w-4 h-4 text-gray-400" />}
+                          <h3 className="font-medium text-gray-900 truncate text-sm">{link.title}</h3>
+                          {link.is_pinned && <Pin className="w-4 h-4 text-amber-500 flex-shrink-0" />}
+                          {link.is_featured && <Star className="w-4 h-4 text-amber-500 flex-shrink-0" />}
+                          {!link.visible && <EyeOff className="w-4 h-4 text-gray-400 flex-shrink-0" />}
                         </div>
-                        <p className="text-sm text-gray-500 truncate">{link.description || '暂无描述'}</p>
+                        <p className="text-sm text-gray-500 truncate hidden sm:block">{link.description || '暂无描述'}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-2 hidden sm:block">
                     <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg">{categories.find((c) => c.id === link.category_id)?.name || '未分类'}</span>
                     {link.subcategory_id && <span className="ml-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded">{subCategories.find((sc) => sc.id === link.subcategory_id)?.name}</span>}
                   </div>
-                  <div className="col-span-2"><span className="text-sm text-gray-600">{driveTypes.find((d) => d.id === link.drive_type)?.name || link.drive_type}</span></div>
-                  <div className="col-span-1">
+                  <div className="col-span-2 hidden sm:block"><span className="text-sm text-gray-600">{driveTypes.find((d) => d.id === link.drive_type)?.name || link.drive_type}</span></div>
+                  <div className="col-span-2 sm:col-span-1">
                     <div className="flex items-center justify-center gap-0.5">
                       <button
                         onClick={(e) => { e.stopPropagation(); moveLinkSortOrder(link.id, 'up', selectedCategoryId || undefined) }}
                         className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                         title="上移"
                       >
-                        <ChevronUp className="w-4 h-4" />
+                        <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); moveLinkSortOrder(link.id, 'down', selectedCategoryId || undefined) }}
                         className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                         title="下移"
                       >
-                        <ChevronDownIcon className="w-4 h-4" />
+                        <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
                     </div>
                   </div>
-                  <div className="col-span-2 flex items-center gap-1">
+                  <div className="col-span-4 sm:col-span-2 flex items-center gap-0.5 sm:gap-1 justify-end sm:justify-start">
                     <button onClick={(e) => { e.stopPropagation(); copyToClipboard(link.url, link.id) }}
-                      className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-                      {copiedId === link.id ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                      className="p-1.5 sm:p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                      {copiedId === link.id ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500" /> : <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                     </button>
-                    <a href={link.url} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors inline-flex" onClick={(e) => e.stopPropagation()}><ExternalLink className="w-4 h-4" /></a>
-                    <button onClick={(e) => { e.stopPropagation(); openEditModal(link) }} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>
+                    <a href={link.url} target="_blank" rel="noopener noreferrer" className="hidden sm:inline-flex p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" onClick={(e) => e.stopPropagation()}><ExternalLink className="w-4 h-4" /></a>
+                    <button onClick={(e) => { e.stopPropagation(); openEditModal(link) }} className="p-1.5 sm:p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /></button>
                     <button onClick={(e) => { e.stopPropagation(); togglePin(link.id) }}
-                      className={`p-2 rounded-lg transition-colors ${link.is_pinned ? 'text-amber-500 bg-amber-50' : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'}`}><Pin className="w-4 h-4" /></button>
+                      className={`p-1.5 sm:p-2 rounded-lg transition-colors hidden sm:block ${link.is_pinned ? 'text-amber-500 bg-amber-50' : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'}`}><Pin className="w-4 h-4" /></button>
                     <button onClick={(e) => { e.stopPropagation(); toggleFeatured(link.id) }}
-                      className={`p-2 rounded-lg transition-colors ${link.is_featured ? 'text-amber-500 bg-amber-50' : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'}`}><Star className="w-4 h-4" /></button>
+                      className={`p-1.5 sm:p-2 rounded-lg transition-colors hidden sm:block ${link.is_featured ? 'text-amber-500 bg-amber-50' : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'}`}><Star className="w-4 h-4" /></button>
                     <button onClick={(e) => { e.stopPropagation(); handleToggleVisibility(link) }}
-                      className={`p-2 rounded-lg transition-colors ${!link.visible ? 'text-red-400 bg-red-50' : 'text-gray-400 hover:text-orange-500 hover:bg-orange-50'}`}
+                      className={`p-1.5 sm:p-2 rounded-lg transition-colors hidden sm:block ${!link.visible ? 'text-red-400 bg-red-50' : 'text-gray-400 hover:text-orange-500 hover:bg-orange-50'}`}
                       title={link.visible ? '隐藏' : '显示'}
                     >
                       <EyeOff className="w-4 h-4" />
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); handleDeleteLink(link.id) }}
-                      className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-lg transition-colors text-xs font-medium flex items-center gap-1">
-                      <Trash2 className="w-3.5 h-3.5" /> 删除
+                      className="px-2 py-1 sm:px-3 sm:py-1.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-lg transition-colors text-xs font-medium flex items-center gap-1">
+                      <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> <span className="hidden sm:inline">删除</span>
                     </button>
                   </div>
                 </div>

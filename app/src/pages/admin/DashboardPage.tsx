@@ -4,10 +4,9 @@ import {
   Eye,
   Clock,
   AlertTriangle,
-  TrendingUp,
-  TrendingDown,
   Pin,
   ArrowUpRight,
+  Download,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { LinkIcon } from '@/components/LinkIcon'
@@ -23,10 +22,10 @@ export default function DashboardPage() {
   const expiringCount = links.filter(l => l.expires_at && new Date(l.expires_at) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)).length
 
   const kpiCards = [
-    { title: '总链接数', value: links.length, change: `+${Math.floor(links.length * 0.12)}`, trend: 'up' as const, icon: Link2, bgColor: 'bg-brand-600' },
-    { title: '总点击量', value: totalClicks, change: `+${Math.floor(totalClicks * 0.23)}`, trend: 'up' as const, icon: Eye, bgColor: 'bg-violet-500' },
-    { title: '即将过期', value: expiringCount, change: `-${expiringCount}`, trend: 'down' as const, icon: Clock, bgColor: 'bg-amber-500' },
-    { title: '分类数量', value: categories.length, change: `+${categories.length - 6}`, trend: 'up' as const, icon: Pin, bgColor: 'bg-emerald-500' },
+    { title: '总链接数', value: links.length, icon: Link2, bgColor: 'bg-brand-600', color: 'text-brand-600' },
+    { title: '总点击量', value: totalClicks, icon: Eye, bgColor: 'bg-violet-500', color: 'text-violet-500' },
+    { title: '即将过期', value: expiringCount, icon: Clock, bgColor: 'bg-amber-500', color: 'text-amber-500' },
+    { title: '分类数量', value: categories.length, icon: Pin, bgColor: 'bg-emerald-500', color: 'text-emerald-500' },
   ]
 
   const topLinks = [...links].sort((a, b) => b.click_count - a.click_count).slice(0, 5)
@@ -50,12 +49,7 @@ export default function DashboardPage() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm text-gray-500 font-medium">{card.title}</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{card.value.toLocaleString()}</p>
-                <div className="flex items-center gap-1 mt-2">
-                  {card.trend === 'up' ? <TrendingUp className="w-3.5 h-3.5 text-emerald-500" /> : <TrendingDown className="w-3.5 h-3.5 text-red-400" />}
-                  <span className={`text-xs font-semibold ${card.trend === 'up' ? 'text-emerald-500' : 'text-red-400'}`}>{card.change}</span>
-                  <span className="text-gray-400 text-xs">较上周</span>
-                </div>
+                <p className={`text-2xl font-bold mt-1 ${card.color}`}>{card.value.toLocaleString()}</p>
               </div>
               <div className={`w-10 h-10 rounded-xl ${card.bgColor} flex items-center justify-center shadow-md`}>
                 <card.icon className="w-5 h-5 text-white" />
@@ -101,10 +95,10 @@ export default function DashboardPage() {
             <div><p className="font-semibold text-gray-800 text-sm">添加链接</p><p className="text-xs text-gray-400">创建新分享</p></div>
           </a>
           <a href="/admin/data" className="flex items-center gap-3 p-4 rounded-xl border border-gray-100 bg-white/50 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all duration-200 cursor-pointer">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center"><TrendingUp className="w-5 h-5 text-emerald-600" /></div>
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center"><Download className="w-5 h-5 text-emerald-600" /></div>
             <div><p className="font-semibold text-gray-800 text-sm">导出数据</p><p className="text-xs text-gray-400">CSV/Excel</p></div>
           </a>
-          <a href="/admin/profile" className="flex items-center gap-3 p-4 rounded-xl border border-gray-100 bg-white/50 hover:border-violet-200 hover:bg-violet-50/50 transition-all duration-200 cursor-pointer">
+          <a href="/admin/resources" className="flex items-center gap-3 p-4 rounded-xl border border-gray-100 bg-white/50 hover:border-violet-200 hover:bg-violet-50/50 transition-all duration-200 cursor-pointer">
             <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center"><Pin className="w-5 h-5 text-violet-600" /></div>
             <div><p className="font-semibold text-gray-800 text-sm">管理分类</p><p className="text-xs text-gray-400">自定义分类</p></div>
           </a>

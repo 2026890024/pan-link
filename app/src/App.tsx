@@ -20,8 +20,6 @@ const AdminLoginPage = lazy(() => import('@/pages/auth/AdminLoginPage'))
 // 后台页面 - 全部懒加载（只有管理员访问）
 const DashboardPage = lazy(() => import('@/pages/admin/DashboardPage'))
 const ResourceManagementPage = lazy(() => import('@/pages/admin/ResourceManagementPage'))
-const DriveTypeManagementPage = lazy(() => import('@/pages/admin/DriveTypeManagementPage'))
-const ProfilePage = lazy(() => import('@/pages/admin/ProfilePage'))
 const AccountSettingsPage = lazy(() => import('@/pages/admin/AccountSettingsPage'))
 const DataManagementPage = lazy(() => import('@/pages/admin/DataManagementPage'))
 const HomepageSettingsPage = lazy(() => import('@/pages/admin/HomepageSettingsPage'))
@@ -103,8 +101,6 @@ function App() {
               <Route index element={<ResourceManagementPage />} />
               <Route path="resources" element={<ResourceManagementPage />} />
               <Route path="dashboard" element={<DashboardPage />} />
-              <Route path="drive-types" element={<DriveTypeManagementPage />} />
-              <Route path="profile" element={<ProfilePage />} />
               <Route path="account" element={<AccountSettingsPage />} />
               <Route path="data" element={<DataManagementPage />} />
               <Route path="homepage-settings" element={<HomepageSettingsPage />} />

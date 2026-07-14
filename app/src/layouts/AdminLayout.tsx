@@ -7,7 +7,6 @@ import {
   LogOut,
   Menu,
   ChevronRight,
-  HardDrive,
   Settings,
   Palette,
 } from 'lucide-react'
@@ -18,13 +17,11 @@ import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
 
 const navItems = [
   { path: '/admin/resources', label: '资源管理', icon: Link2 },
-  { path: '/admin/drive-types', label: '网盘类型', icon: HardDrive },
   { path: '/admin/dashboard', label: '仪表盘', icon: LayoutDashboard },
-  { path: '/admin/site-settings', label: '站点设置', icon: Palette },
-  { path: '/admin/homepage-settings', label: '首页设置', icon: Settings },
-  { path: '/admin/account', label: '账户设置', icon: User },
-  { path: '/admin/profile', label: '个人中心', icon: User },
   { path: '/admin/data', label: '数据管理', icon: Database },
+  { path: '/admin/homepage-settings', label: '首页设置', icon: Settings },
+  { path: '/admin/site-settings', label: '站点设置', icon: Palette },
+  { path: '/admin/account', label: '账户设置', icon: User },
 ]
 
 export default function AdminLayout() {
