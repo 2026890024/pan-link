@@ -377,10 +377,10 @@ export default function HomePage() {
                           {getLinkIcon(link)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug break-all line-clamp-2">
+                          <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug truncate sm:break-all sm:line-clamp-2">
                             {link.name}
                           </h3>
-                          <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2 break-all">
+                          <p className="hidden sm:block text-[11px] sm:text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2 break-all">
                             {link.description}
                           </p>
                         </div>
@@ -574,10 +574,10 @@ export default function HomePage() {
                               <div className="flex items-start gap-2 sm:gap-3 mb-2 sm:mb-3">
                                 <div className="shrink-0 pt-0.5">{getLinkIcon(link)}</div>
                                 <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug break-all line-clamp-2">
+                                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug truncate sm:break-all sm:line-clamp-2">
                                     {link.name}
                                   </h3>
-                                  <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{link.description}</p>
+                                  <p className="hidden sm:block text-[11px] sm:text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{link.description}</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-1.5 pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
