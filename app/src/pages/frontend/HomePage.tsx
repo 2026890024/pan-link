@@ -373,11 +373,11 @@ export default function HomePage() {
                       className={`group bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
                     >
                       <div className="flex items-start gap-2 sm:gap-3">
-                        <div className="shrink-0 pt-0.5">
+                        <div className="shrink-0">
                           {getLinkIcon(link)}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug line-clamp-2 break-all sm:truncate sm:line-clamp-none">
+                        <div className="flex-1 min-w-0 self-center">
+                          <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug break-all">
                             {link.name}
                           </h3>
                         </div>
@@ -567,10 +567,10 @@ export default function HomePage() {
                               onClick={() => setSelectedLink(link)}
                               className={`group p-3 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
                             >
-                              <div className="flex items-start gap-2 sm:gap-3 mb-2 sm:mb-3">
-                                <div className="shrink-0 pt-0.5">{getLinkIcon(link)}</div>
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug line-clamp-2 break-all sm:truncate sm:line-clamp-none">
+                              <div className="flex items-start gap-2 sm:gap-3 mb-2">
+                                <div className="shrink-0">{getLinkIcon(link)}</div>
+                                <div className="flex-1 min-w-0 self-center">
+                                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug break-all">
                                     {link.name}
                                   </h3>
                                 </div>
