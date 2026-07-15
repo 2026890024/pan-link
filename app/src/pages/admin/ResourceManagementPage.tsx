@@ -23,9 +23,6 @@ import {
   ChevronDown as ChevronDownIcon,
   Image,
   Library,
-  Square,
-  Maximize,
-  Minimize,
   AlertTriangle,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
@@ -91,19 +88,17 @@ export default function ResourceManagementPage() {
   const [formLink, setFormLink] = useState({
     id: '', title: '', url: '', description: '', category_id: '', subcategory_id: '',
     drive_type: 'baidu', slug: '', icon: '', extract_code: '', expires_at: '',
-    keywords: '', is_pinned: false, is_featured: false, icon_size: 'md' as 'sm' | 'md' | 'lg',
+    keywords: '', is_pinned: false, is_featured: false,
   })
   const [formLinkIcon, setFormLinkIcon] = useState('')
-  const [formLinkIconSize, setFormLinkIconSize] = useState<'sm' | 'md' | 'lg'>('md')
   const [showIconPicker, setShowIconPicker] = useState(false)
   const [iconPickerSearch, setIconPickerSearch] = useState('')
   const formFileInputRef = useRef<HTMLInputElement>(null)
   const iconPickerRef = useRef<HTMLDivElement>(null)
 
   const openAddModal = () => {
-    setFormLink({ id: '', title: '', url: '', description: '', category_id: selectedCategoryId || categories[0]?.id || '', subcategory_id: '', drive_type: 'baidu', slug: '', icon: '', extract_code: '', expires_at: '', keywords: '', is_pinned: false, is_featured: false, icon_size: 'md' })
+    setFormLink({ id: '', title: '', url: '', description: '', category_id: selectedCategoryId || categories[0]?.id || '', subcategory_id: '', drive_type: 'baidu', slug: '', icon: '', extract_code: '', expires_at: '', keywords: '', is_pinned: false, is_featured: false })
     setFormLinkIcon('')
-    setFormLinkIconSize('md')
     setShowIconPicker(false)
     setLinkModalMode('add')
     setLinkModalOpen(true)
@@ -119,10 +114,8 @@ export default function ResourceManagementPage() {
       keywords: link.keywords?.join(', ') || '',
       is_pinned: link.is_pinned || false,
       is_featured: link.is_featured || false,
-      icon_size: (link.icon_size || 'md') as 'sm' | 'md' | 'lg',
     })
     setFormLinkIcon(link.icon || '')
-    setFormLinkIconSize((link.icon_size || 'md') as 'sm' | 'md' | 'lg')
     setShowIconPicker(false)
     setLinkModalMode('edit')
     setLinkModalOpen(true)
@@ -269,7 +262,6 @@ export default function ResourceManagementPage() {
         tags: [],
         keywords: formLink.keywords ? formLink.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
         category_logo: '',
-        icon_size: formLinkIconSize,
       })
       setLinkModalOpen(false)
       toast.success('链接已添加')
@@ -294,7 +286,6 @@ export default function ResourceManagementPage() {
         keywords: formLink.keywords ? formLink.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
         is_pinned: formLink.is_pinned,
         is_featured: formLink.is_featured,
-        icon_size: formLinkIconSize,
       })
       setLinkModalOpen(false)
       toast.success('链接已更新')
@@ -760,30 +751,7 @@ export default function ResourceManagementPage() {
                 </label>
               </div>
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-gray-700">软件图标</label>
-                  {/* 图标大小选择 */}
-                  <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-                    {([
-                      { key: 'sm', label: '小', icon: Minimize },
-                      { key: 'md', label: '中', icon: Square },
-                      { key: 'lg', label: '大', icon: Maximize },
-                    ] as const).map(({ key, label, icon: Icon }) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setFormLinkIconSize(key)}
-                        className={`px-2 py-1 text-xs rounded-md flex items-center gap-1 transition-all ${
-                          formLinkIconSize === key
-                            ? 'bg-white text-indigo-600 shadow-sm font-medium'
-                            : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                      >
-                        <Icon className="w-3 h-3" />{label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <label className="block text-sm font-medium text-gray-700">软件图标</label>
 
                 <div className="flex items-center gap-4">
                   {/* 图标预览 */}
@@ -792,14 +760,10 @@ export default function ResourceManagementPage() {
                       <img
                         src={formLinkIcon}
                         alt="预览"
-                        className={`object-contain ${
-                          formLinkIconSize === 'sm' ? 'w-6 h-6' : formLinkIconSize === 'lg' ? 'w-12 h-12' : 'w-9 h-9'
-                        }`}
+                        className="w-10 h-10 object-contain"
                       />
                     ) : (
-                      <div className={`bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center text-white font-bold rounded-lg ${
-                        formLinkIconSize === 'sm' ? 'w-6 h-6 text-[0.625rem]' : formLinkIconSize === 'lg' ? 'w-12 h-12 text-[0.875rem]' : 'w-9 h-9 text-[0.75rem]'
-                      }`}>
+                      <div className="w-10 h-10 bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center text-white font-bold rounded-lg text-sm">
                         网
                       </div>
                     )}

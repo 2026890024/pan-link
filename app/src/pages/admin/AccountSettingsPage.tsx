@@ -225,7 +225,7 @@ export default function AccountSettingsPage() {
             <div className="p-6 text-center border-b">
               <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-brand-500 to-violet-500 flex items-center justify-center text-white text-3xl font-bold mb-4 overflow-hidden shadow-lg">
                 {avatar ? (
-                  <img src={avatar} alt="头像" className="w-full h-full object-cover" />
+                  <img src={avatar} alt="头像" className="w-full h-full object-contain" />
                 ) : (
                   getInitial()
                 )}
@@ -300,7 +300,7 @@ export default function AccountSettingsPage() {
                   <div className="flex items-center gap-5">
                     <div className="w-20 h-20 rounded-full bg-gradient-to-br from-brand-500 to-violet-500 flex items-center justify-center text-white text-2xl font-bold overflow-hidden shadow-md flex-shrink-0">
                       {avatar ? (
-                        <img src={avatar} alt="预览" className="w-full h-full object-cover" />
+                        <img src={avatar} alt="预览" className="w-full h-full object-contain" />
                       ) : (
                         getInitial()
                       )}

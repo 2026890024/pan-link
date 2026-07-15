@@ -190,7 +190,7 @@ export default function AdminLayout() {
           >
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-violet-500 flex items-center justify-center text-white text-xs font-bold overflow-hidden flex-shrink-0">
               {profile.avatar ? (
-                <img src={profile.avatar} alt="" className="w-full h-full object-cover" />
+                <img src={profile.avatar} alt="" className="w-full h-full object-contain" />
               ) : (
                 profile.username.charAt(0).toUpperCase()
               )}

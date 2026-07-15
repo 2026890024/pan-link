@@ -99,10 +99,10 @@ export default function HomePage() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid')
   const [isSearchMode, setIsSearchMode] = useState(false)
   const { showBackToTop, scrollToTop } = useBackToTop()
-  const itemsPerPage = 10
+  const itemsPerPage = 9
 
   // 回访用户检测：第二次访问自动收窄 Hero
   const [isReturning, setIsReturning] = useState(false)
