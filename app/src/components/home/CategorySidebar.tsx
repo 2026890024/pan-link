@@ -19,7 +19,6 @@ interface CategorySidebarProps {
   onSetSelectedSubCategory: (id: string | null) => void
   onSetIsSearchMode: (v: boolean) => void
   onSetSearchQuery: (q: string) => void
-  onSetCurrentPage: (p: number) => void
 }
 
 export default function CategorySidebar({
@@ -39,7 +38,6 @@ export default function CategorySidebar({
   onSetSelectedSubCategory,
   onSetIsSearchMode,
   onSetSearchQuery,
-  onSetCurrentPage,
 }: CategorySidebarProps) {
 
   const getSubCategories = (categoryId: string) => {
@@ -127,7 +125,7 @@ export default function CategorySidebar({
                   {isExpanded && subcategories.length > 0 && (
                     <div className="mt-1 ml-2 space-y-0.5 border-l-2 border-brand-100 pl-3">
                       <button
-                        onClick={() => { onSetIsSearchMode(false); onSetSearchQuery(''); onSetSelectedSubCategory(null); onSetCurrentPage(1); onUpdateUrlParams(category.id, null) }}
+                        onClick={() => { onSetIsSearchMode(false); onSetSearchQuery(''); onSetSelectedSubCategory(null); onUpdateUrlParams(category.id, null) }}
                         className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-200 cursor-pointer ${
                           selectedSubCategory === null && isSelected
                             ? 'bg-brand-50 text-brand-600 font-semibold'
@@ -144,7 +142,6 @@ export default function CategorySidebar({
                             onSetSearchQuery('')
                             onSetSelectedCategory(category.id)
                             onSetSelectedSubCategory(sc.id)
-                            onSetCurrentPage(1)
                             onUpdateUrlParams(category.id, sc.id)
                           }}
                           className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-200 cursor-pointer ${

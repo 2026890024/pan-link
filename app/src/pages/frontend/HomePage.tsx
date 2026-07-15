@@ -1,4 +1,3 @@
-import Pagination from '@/components/home/Pagination'
 import SearchBar from '@/components/home/SearchBar'
 import CategorySidebar from '@/components/home/CategorySidebar'
 import { useState, useMemo, useEffect, useCallback } from 'react'
@@ -32,7 +31,7 @@ import toast from 'react-hot-toast'
 // ── 样式常量（提取重复样式）──
 const BTN_PRIMARY = 'py-2 px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium min-h-[44px] sm:min-h-[36px]'
 const BTN_SECONDARY = 'py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[44px] sm:min-h-[36px]'
-const PAGINATION_BTN = 'px-4 py-2 rounded-xl text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer'
+
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -97,12 +96,10 @@ export default function HomePage() {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(urlCategory || categories[0]?.id || null)
   const [selectedLink, setSelectedLink] = useState<LinkItem | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid')
   const [isSearchMode, setIsSearchMode] = useState(false)
   const { showBackToTop, scrollToTop } = useBackToTop()
-  const itemsPerPage = 9
 
   // 回访用户检测：第二次访问自动收窄 Hero
   const [isReturning, setIsReturning] = useState(false)
@@ -182,15 +179,10 @@ export default function HomePage() {
       .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || a.sort_order - b.sort_order)
   }, [links, selectedCategory, selectedSubCategory, isSearchMode, searchQuery])
 
-  const totalPages = Math.ceil(filteredLinks.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedLinks = useMemo(() => filteredLinks.slice(startIndex, startIndex + itemsPerPage), [filteredLinks, startIndex])
-
   const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
       setIsSearchMode(true)
-      setCurrentPage(1)
       setShowSuggestions(false)
     }
   }, [searchQuery])
@@ -198,7 +190,6 @@ export default function HomePage() {
   const handleClearSearch = useCallback(() => {
     setSearchQuery('')
     setIsSearchMode(false)
-    setCurrentPage(1)
   }, [])
 
   const handleSuggestionClick = useCallback((link: LinkItem) => {
@@ -249,7 +240,6 @@ export default function HomePage() {
       setSelectedCategory(categoryId)
       setSelectedSubCategory(null)
       setExpandedCategory(categoryId)
-      setCurrentPage(1)
       updateUrlParams(categoryId, null)
     }
   }, [selectedCategory])
@@ -258,7 +248,6 @@ export default function HomePage() {
     setSelectedCategory(null)
     setSelectedSubCategory(null)
     setExpandedCategory(null)
-    setCurrentPage(1)
     setSearchParams({}, { replace: true })
   }, [setSearchParams])
 
@@ -354,7 +343,6 @@ export default function HomePage() {
             onSetSelectedSubCategory={setSelectedSubCategory}
             onSetIsSearchMode={setIsSearchMode}
             onSetSearchQuery={setSearchQuery}
-            onSetCurrentPage={setCurrentPage}
           />
 
           {/* Right Content */}
@@ -501,7 +489,7 @@ export default function HomePage() {
                           transition={{ duration: 0.2 }}
                           className="space-y-3"
                         >
-                          {paginatedLinks.map((link) => (
+                          {filteredLinks.map((link) => (
                             <div
                               key={link.id}
                               className={`group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl bg-white border transition-all duration-300 cursor-pointer ${
@@ -577,7 +565,7 @@ export default function HomePage() {
                           transition={{ duration: 0.25 }}
                           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
                         >
-                          {paginatedLinks.map((link, idx) => (
+                          {filteredLinks.map((link, idx) => (
                             <div
                               key={link.id}
                               onClick={() => setSelectedLink(link)}
@@ -623,15 +611,6 @@ export default function HomePage() {
                         </motion.div>
                       )}
                     </AnimatePresence>
-
-                    {/* 分页控件 */}
-                    {totalPages > 1 && (
-                      <Pagination
-                      currentPage={currentPage}
-                      totalPages={totalPages}
-                      onPageChange={setCurrentPage}
-                    />
-                    )}
                   </>
                 )}
               </div>
