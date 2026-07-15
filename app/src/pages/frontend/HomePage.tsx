@@ -382,7 +382,7 @@ export default function HomePage() {
                     <div
                       key={link.id}
                       onClick={() => setSelectedLink(link)}
-                      className={`group bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 card-hover cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
+                      className={`group bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
                     >
                       <div className="flex items-start gap-3">
                         <div className="shrink-0 pt-0.5">
@@ -427,7 +427,7 @@ export default function HomePage() {
             )}
 
             {/* Links List */}
-            <div className="bg-white rounded-2xl shadow-card border border-gray-200 overflow-hidden animate-fade-in hover:shadow-card-hover transition-shadow duration-300">
+            <div className="bg-white rounded-2xl shadow-card border border-gray-200 overflow-hidden animate-fade-in">
               <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-6 bg-gradient-to-b from-brand-500 to-brand-600 rounded-full"></div>
@@ -504,10 +504,10 @@ export default function HomePage() {
                           {paginatedLinks.map((link) => (
                             <div
                               key={link.id}
-                              className={`group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl bg-white border transition-all duration-200 cursor-pointer ${
+                              className={`group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl bg-white border transition-all duration-300 cursor-pointer ${
                                 link.is_pinned
-                                  ? 'border-l-2 border-brand-400 border-l-brand-400 border-gray-100 hover:shadow-sm'
-                                  : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'
+                                  ? 'border-l-2 border-brand-400 border-l-brand-400 border-gray-100 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300'
+                                  : 'border-gray-100 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300'
                               }`}
                               onClick={() => setSelectedLink(link)}
                             >
@@ -581,7 +581,7 @@ export default function HomePage() {
                             <div
                               key={link.id}
                               onClick={() => setSelectedLink(link)}
-                              className={`group p-4 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm card-hover cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
+                              className={`group p-4 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
                             >
                               <div className="flex items-center gap-3 mb-3">
                                 {getLinkIcon(link)}

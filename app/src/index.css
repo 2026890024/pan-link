@@ -53,6 +53,16 @@
   }
 }
 
+/* 隐藏浏览器自带的密码显示/隐藏眼睛图标（防止与自定义按钮重复显示） */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+input[type="password"]::-webkit-textfield-decoration-container {
+  display: none;
+}
+
 /* ========== 全局光球动画 ========== */
 @keyframes orbFloat {
   0%, 100% {
