@@ -425,6 +425,59 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
+    // ====== SUBCATEGORIES ======
+
+    if (path === '/api/subcategories' && method === 'GET') {
+      const result = await env.DB.prepare(
+        'SELECT * FROM subcategories ORDER BY sort_order ASC'
+      ).all()
+      return jsonRes(result.results || [], 200, corsHeaders)
+    }
+
+    if (path === '/api/subcategories' && method === 'POST') {
+      const body = await request.json<Record<string, unknown>>()
+      const id = (body.id as string) || generateId()
+      const nowISO = new Date().toISOString()
+      await env.DB.prepare(
+        'INSERT INTO subcategories (id, category_id, name, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+      ).bind(
+        id,
+        (body.category_id as string) || '',
+        (body.name as string) || '',
+        (body.sort_order as number) || 0,
+        nowISO, nowISO
+      ).run()
+      return jsonRes({ success: true, id }, 201, corsHeaders)
+    }
+
+    if (matchPath(path, '/api/subcategories/:id') && method === 'PUT') {
+      const subId = extractParam(path, '/api/subcategories/:id')
+      const body = await request.json<Record<string, unknown>>()
+      const nowISO = new Date().toISOString()
+      const fields: string[] = []
+      const values: unknown[] = []
+      const allowedFields = ['category_id', 'name', 'sort_order']
+      for (const field of allowedFields) {
+        if (body[field] !== undefined) {
+          fields.push(`${field} = ?`)
+          values.push(body[field])
+        }
+      }
+      if (fields.length > 0) {
+        fields.push('updated_at = ?')
+        values.push(nowISO)
+        values.push(subId)
+        await env.DB.prepare(`UPDATE subcategories SET ${fields.join(', ')} WHERE id = ?`).bind(...values).run()
+      }
+      return jsonRes({ success: true }, 200, corsHeaders)
+    }
+
+    if (matchPath(path, '/api/subcategories/:id') && method === 'DELETE') {
+      const subId = extractParam(path, '/api/subcategories/:id')
+      await env.DB.prepare('DELETE FROM subcategories WHERE id = ?').bind(subId).run()
+      return jsonRes({ success: true }, 200, corsHeaders)
+    }
+
     // ====== TAGS ======
 
     if (path === '/api/tags' && method === 'GET') {

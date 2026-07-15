@@ -378,11 +378,58 @@ export async function fetchDashboardStats(_userId?: string): Promise<{
   }
 }
 
-// ============ SubCategories (local only) ============
+// ============ SubCategories API ============
 
-export async function fetchSubCategories(): Promise<SubCategory[]> { return getLocalSubCategories() }
-export async function addSubCategoryApi(categoryId: string, name: string): Promise<SubCategory> { return addLocalSubCategory(categoryId, name) }
-export async function deleteSubCategoryApi(id: string): Promise<void> { deleteLocalSubCategory(id) }
+export async function fetchSubCategories(): Promise<SubCategory[]> {
+  if (!isCloudApiConfigured()) return getLocalSubCategories()
+
+  try {
+    const data = await apiFetch<SubCategory[]>('/api/subcategories')
+    log('fetchSubCategories', data?.length)
+    return (data || []).map(sc => ({
+      id: String(sc.id),
+      category_id: String(sc.category_id),
+      name: sc.name,
+      sort_order: Number(sc.sort_order) || 0,
+    }))
+  } catch (err) {
+    console.error('[DataService] fetchSubCategories error:', err)
+    return getLocalSubCategories()
+  }
+}
+
+export async function addSubCategoryApi(categoryId: string, name: string): Promise<SubCategory> {
+  if (!isCloudApiConfigured()) return addLocalSubCategory(categoryId, name)
+
+  try {
+    const result = await apiFetch<{ success: boolean; id: string }>('/api/subcategories', {
+      method: 'POST',
+      body: JSON.stringify({ category_id: categoryId, name, sort_order: 999 }),
+    })
+    return { id: result.id, category_id: categoryId, name, sort_order: 999 }
+  } catch (err) { throw err }
+}
+
+export async function updateSubCategoryApi(id: string, updates: Partial<SubCategory>): Promise<void> {
+  if (!isCloudApiConfigured()) { updateLocalSubCategory(id, updates); return }
+
+  try {
+    await apiFetch(`/api/subcategories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    })
+    log('updateSubCategory', id, updates)
+  } catch (err) { throw err }
+}
+
+export async function deleteSubCategoryApi(id: string): Promise<void> {
+  if (!isCloudApiConfigured()) { deleteLocalSubCategory(id); return }
+
+  try {
+    await apiFetch(`/api/subcategories/${id}`, { method: 'DELETE' })
+    log('deleteSubCategory', id)
+  } catch (err) { throw err }
+}
 
 // ============ DriveTypes (local only) ============
 
@@ -600,6 +647,14 @@ function deleteLocalSubCategory(id: string): void {
   const storage = loadStorage()
   storage.subCategories = storage.subCategories.filter(sc => sc.id !== id)
   storage.links = storage.links.map(l => l.subcategory_id === id ? { ...l, subcategory_id: '' } : l)
+  saveStorage(storage)
+}
+
+function updateLocalSubCategory(id: string, updates: Partial<SubCategory>): void {
+  const storage = loadStorage()
+  storage.subCategories = storage.subCategories.map(sc =>
+    sc.id === id ? { ...sc, ...updates } as SubCategory : sc
+  )
   saveStorage(storage)
 }
 

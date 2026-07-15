@@ -113,7 +113,7 @@ export default function HomePage() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(urlCategory)
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(urlSubCategory)
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(urlCategory || effectiveCategories[0]?.id || null)
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(urlCategory || null)
   const [selectedLink, setSelectedLink] = useState<LinkItem | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
@@ -132,14 +132,12 @@ export default function HomePage() {
     }
   }, [])
 
-  // 当有效分类首次加载时，自动展开第一个分类（新设备首次访问兼容）
+  // 同步 URL 参数到状态
   useEffect(() => {
-    if (effectiveCategories.length > 0 && !expandedCategory && !urlCategory && !urlSubCategory) {
-      setExpandedCategory(effectiveCategories[0].id)
+    if (urlCategory) {
+      setSelectedCategory(urlCategory)
+      setExpandedCategory(urlCategory)
     }
-  }, [effectiveCategories]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (urlCategory) setSelectedCategory(urlCategory)
     if (urlSubCategory) setSelectedSubCategory(urlSubCategory)
   }, [urlCategory, urlSubCategory])
 

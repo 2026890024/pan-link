@@ -543,34 +543,59 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   // ===== SubCategories =====
   addSubCategory: async (categoryId, name) => {
     try {
-      const sub = await ds.addSubCategoryApi(categoryId, name)
-      set({ subCategories: [...get().subCategories, sub] })
+      await ds.addSubCategoryApi(categoryId, name)
+      // 云写入成功 → 从云端重新拉取完整子分类
+      const subCategories = await ds.fetchSubCategories()
+      set({ subCategories })
+      saveLocalItem('subcategories', subCategories)
     } catch {
       const subCategories = get().subCategories
       const existing = subCategories.filter(sc => sc.category_id === categoryId)
-      set({
-        subCategories: [...subCategories, {
-          id: Date.now().toString(), category_id: categoryId, name,
-          sort_order: existing.length + 1,
-        }],
-      })
+      const newSub = {
+        id: Date.now().toString(), category_id: categoryId, name,
+        sort_order: existing.length + 1,
+      }
+      const updated = [...subCategories, newSub]
+      set({ subCategories: updated })
+      saveLocalItem('subcategories', updated)
     }
   },
 
   updateSubCategory: async (id, updates) => {
-    set({
-      subCategories: get().subCategories.map(sc => sc.id === id ? { ...sc, ...updates } : sc),
-    })
+    let cloudFailed = false
+    try {
+      if (ds.isCloudApiConfigured()) {
+        await ds.updateSubCategoryApi(id, updates)
+        const subCategories = await ds.fetchSubCategories()
+        set({ subCategories })
+        saveLocalItem('subcategories', subCategories)
+        return
+      }
+    } catch (err) {
+      console.error('[DataStore] updateSubCategory 云API失败:', err)
+      cloudFailed = true
+    }
+    const updated = get().subCategories.map(sc => sc.id === id ? { ...sc, ...updates } : sc)
+    saveLocalItem('subcategories', updated)
+    set({ subCategories: updated, cloudSyncError: cloudFailed })
   },
 
   deleteSubCategory: async (id) => {
     try {
-      await ds.deleteSubCategoryApi(id)
-    } catch { /* ignore */ }
-    set({
-      subCategories: get().subCategories.filter(sc => sc.id !== id),
-      links: get().links.map(l => l.subcategory_id === id ? { ...l, subcategory_id: '' } : l),
-    })
+      if (ds.isCloudApiConfigured()) {
+        await ds.deleteSubCategoryApi(id)
+        const subCategories = await ds.fetchSubCategories()
+        set({ subCategories, links: get().links.map(l => l.subcategory_id === id ? { ...l, subcategory_id: '' } : l) })
+        saveLocalItem('subcategories', subCategories)
+        return
+      }
+    } catch (err) {
+      console.error('[DataStore] deleteSubCategory 云API失败:', err)
+    }
+    const updatedSubs = get().subCategories.filter(sc => sc.id !== id)
+    const updatedLinks = get().links.map(l => l.subcategory_id === id ? { ...l, subcategory_id: '' } : l)
+    saveLocalItem('subcategories', updatedSubs)
+    set({ subCategories: updatedSubs, links: updatedLinks })
   },
 
   moveSubCategorySortOrder: async (id, direction, categoryId) => {
@@ -588,13 +613,26 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     const currentSort = siblings[currentIndex].sort_order
     const swapSort = swapSc.sort_order
 
-    set({
-      subCategories: get().subCategories.map(sc => {
-        if (sc.id === id) return { ...sc, sort_order: swapSort }
-        if (sc.id === swapSc.id) return { ...sc, sort_order: currentSort }
-        return sc
-      }),
+    try {
+      if (ds.isCloudApiConfigured()) {
+        await Promise.all([
+          ds.updateSubCategoryApi(id, { sort_order: swapSort }),
+          ds.updateSubCategoryApi(swapSc.id, { sort_order: currentSort }),
+        ])
+        const subCategories = await ds.fetchSubCategories()
+        set({ subCategories })
+        saveLocalItem('subcategories', subCategories)
+        return
+      }
+    } catch (err) { console.error('[DataStore] moveSubCategorySortOrder 云API失败:', err) }
+
+    const updated = get().subCategories.map(sc => {
+      if (sc.id === id) return { ...sc, sort_order: swapSort }
+      if (sc.id === swapSc.id) return { ...sc, sort_order: currentSort }
+      return sc
     })
+    saveLocalItem('subcategories', updated)
+    set({ subCategories: updated })
   },
 
   getSubCategoriesByCategory: (categoryId) => {

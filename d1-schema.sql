@@ -88,6 +88,19 @@ INSERT OR IGNORE INTO site_settings (key, value) VALUES
   ('site_name', '"资源云"'),
   ('site_description', '"一站式网盘资源聚合管理平台"');
 
+-- 子分类表
+CREATE TABLE IF NOT EXISTS subcategories (
+  id TEXT PRIMARY KEY,
+  category_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_subcategories_category ON subcategories(category_id);
+
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_links_category ON links(category_id);
 CREATE INDEX IF NOT EXISTS idx_links_status ON links(status);
