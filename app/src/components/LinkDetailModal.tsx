@@ -152,7 +152,6 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        aria-describedby="modal-description"
         className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-glass-lg animate-slide-up sm:animate-scale-in max-h-[90vh] sm:max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
@@ -206,14 +205,6 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
                   </span>
                 ))}
               </div>
-            )}
-
-            {/* 描述 - 加渐变分割线增加视觉层级 */}
-            {link.description && (
-              <>
-                <div className="gradient-divider w-24 my-3" />
-                <p id="modal-description" className="text-sm text-gray-500 text-center leading-relaxed">{link.description}</p>
-              </>
             )}
           </div>
 

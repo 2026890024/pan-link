@@ -135,11 +135,19 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       { 'Retry-After': String(Math.ceil((rl.resetAt - now) / 1000)) })
   }
 
-  // CORS
+  // CORS - 生产环境同域 + 本地开发 + preview 域名
   const origin = request.headers.get('Origin') || ''
-  const allowedOrigins = ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:8788']
-  const isSameOrigin = !origin || new URL(request.url).host === (origin ? new URL(origin).host : 'none')
-  const allowOrigin = isSameOrigin || allowedOrigins.includes(origin) ? (origin || '*') : 'null'
+  const requestHost = new URL(request.url).host
+  const isSameOrigin = !origin || requestHost === new URL(origin).host
+  const isCloudflarePreview = requestHost.includes('.pages.dev')
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:8788',
+  ]
+  const allowOrigin = isSameOrigin || isCloudflarePreview || allowedOrigins.includes(origin)
+    ? (origin || '*')
+    : 'null'
 
   const corsHeaders = {
     'Access-Control-Allow-Origin': allowOrigin,
@@ -336,21 +344,42 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const existing = await env.DB.prepare('SELECT id FROM links WHERE slug=?').bind(slug).first()
       const finalSlug = existing ? `${slug}-${Math.random().toString(36).slice(2, 6)}` : slug
 
+      // 排除前端不发的不必要字段，只保留 API 需要的字段
+      const insertBody: Record<string, unknown> = {
+        id,
+        user_id: (body.user_id as string) || '',
+        name: (body.name as string) || '',
+        title: (body.title as string) || (body.name as string) || '',
+        slug: finalSlug,
+        url: (body.url as string) || '',
+        category_id: (body.category_id as string) || null,
+        subcategory_id: (body.subcategory_id as string) || null,
+        extract_code: (body.extract_code as string) || null,
+        validity_period: (body.validity_period as string) || 'permanent',
+        expires_at: (body.expires_at as string) || null,
+        is_pinned: body.is_pinned ? 1 : 0,
+        is_favorited: body.is_featured || body.is_favorited ? 1 : 0,
+        drive_type: (body.drive_type as string) || 'baidu',
+        icon: (body.icon as string) || null,
+        description: (body.description as string) || null,
+        visible: body.visible !== undefined ? (body.visible ? 1 : 0) : 1,
+        sort_order: (body.sort_order as number) ?? (maxSort + 1),
+      }
+
       await env.DB.prepare(
         `INSERT INTO links (id, user_id, name, slug, url, category_id, subcategory_id,
           extract_code, validity_period, expires_at, click_count, registration_count,
           is_pinned, is_favorited, status, drive_type, icon, description,
           created_at, updated_at, visible, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(id, (body.user_id as string) || '', (body.name as string) || '',
-        finalSlug, (body.url as string) || '', (body.category_id as string) || null,
-        (body.subcategory_id as string) || null, (body.extract_code as string) || null,
-        (body.validity_period as string) || 'permanent', (body.expires_at as string) || null,
-        0, 0, body.is_pinned ? 1 : 0, body.is_favorited ? 1 : 0,
-        'active', (body.drive_type as string) || 'baidu', (body.icon as string) || null,
-        (body.description as string) || null, nowISO, nowISO,
-        body.visible !== undefined ? (body.visible ? 1 : 0) : 1,
-        (body.sort_order as number) ?? (maxSort + 1)).run()
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        insertBody.id, insertBody.user_id, insertBody.name, insertBody.slug,
+        insertBody.url, insertBody.category_id, insertBody.subcategory_id,
+        insertBody.extract_code, insertBody.validity_period, insertBody.expires_at,
+        insertBody.is_pinned, insertBody.is_favorited,
+        insertBody.drive_type, insertBody.icon, insertBody.description,
+        nowISO, nowISO, insertBody.visible, insertBody.sort_order
+      ).run()
 
       const link = await env.DB.prepare('SELECT * FROM links WHERE id = ?').bind(id).first()
       return jsonRes(link, 201, corsHeaders)
@@ -363,6 +392,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const nowISO = new Date().toISOString()
       const fields: string[] = []
       const values: unknown[] = []
+      // title 映射为 name（D1 列名是 name）
+      if (body.title !== undefined && body.name === undefined) {
+        body.name = body.title
+        delete body.title
+      }
       const allowedFields = [
         'name', 'url', 'category_id', 'subcategory_id', 'extract_code',
         'validity_period', 'expires_at', 'is_pinned', 'is_favorited', 'status',

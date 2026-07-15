@@ -384,10 +384,10 @@ export default function HomePage() {
                           <button
                             onClick={(e) => { e.stopPropagation(); handleLinkClick(link) }}
                             className="flex-1 justify-center py-1.5 sm:py-2 px-2 sm:px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium whitespace-nowrap"
-                            aria-label={`访问 ${link.name}`}
+                            aria-label={`下载 ${link.name}`}
                           >
                             <Download className="w-3 h-3" />
-                            <span className="hidden sm:inline">访问</span>下载
+                            下载
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); shareLink(link) }}
@@ -526,10 +526,10 @@ export default function HomePage() {
                                     handleLinkClick(link)
                                   }}
                                   className={BTN_PRIMARY}
-                                  aria-label={`访问 ${link.name}`}
+                                  aria-label={`下载 ${link.name}`}
                                 >
                                   <Download className="w-3 h-3" />
-                                  访问下载
+                                  下载
                                 </button>
                                 <button
                                   onClick={(e) => {
@@ -580,10 +580,10 @@ export default function HomePage() {
                                     handleLinkClick(link)
                                   }}
                                   className="flex-1 justify-center py-1.5 sm:py-2 px-2 sm:px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium whitespace-nowrap"
-                                  aria-label={`访问 ${link.name}`}
+                                  aria-label={`下载 ${link.name}`}
                                 >
                                   <Download className="w-3 h-3" />
-                                  <span className="hidden sm:inline">访问</span>下载
+                                  下载
                                 </button>
                                 <button
                                   onClick={(e) => {

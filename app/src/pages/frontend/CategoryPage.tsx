@@ -250,10 +250,10 @@ export default function CategoryPage() {
                           handleLinkClick(link)
                         }}
                         className="flex-1 py-1.5 sm:py-2 text-[10px] sm:text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all duration-150 cursor-pointer flex items-center justify-center gap-1 min-h-[44px] sm:min-h-[36px] touch-manipulation"
-                        title="访问下载"
+                        title="下载"
                       >
                         <Download className="w-3 h-3" />
-                        访问下载
+                        下载
                       </button>
                       <button
                         onClick={(e) => {
@@ -295,10 +295,10 @@ export default function CategoryPage() {
                         handleLinkClick(link)
                       }}
                       className="py-1.5 sm:py-2 px-2.5 sm:px-3 text-[10px] sm:text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all duration-150 cursor-pointer flex items-center gap-1 min-h-[44px] sm:min-h-[36px] touch-manipulation"
-                      title="访问下载"
+                      title="下载"
                     >
                       <Download className="w-3 h-3" />
-                      访问下载
+                      下载
                     </button>
                     <button
                       onClick={(e) => {

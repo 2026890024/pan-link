@@ -186,7 +186,7 @@ export default function LinkDetailPage() {
                   className="px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 rounded-lg hover:from-brand-700 hover:to-brand-600 transition-all cursor-pointer flex items-center gap-1 flex-shrink-0 touch-manipulation"
                 >
                   <Download className="w-3 h-3" />
-                  访问下载
+                  下载
                 </button>
               </div>
             ))
@@ -377,7 +377,7 @@ export default function LinkDetailPage() {
               disabled={status === 'expired'}
             >
               <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5" />
-              {status === 'expired' ? '链接已过期' : '立即访问'}
+              {status === 'expired' ? '链接已过期' : '立即下载'}
             </motion.button>
             <button onClick={handleShare}
               className="w-full py-3 bg-brand-50 text-brand-600 rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-2 hover:bg-brand-100 transition-all duration-200 border border-transparent cursor-pointer touch-manipulation">

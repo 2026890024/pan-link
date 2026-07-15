@@ -538,10 +538,10 @@ export default function SearchPage() {
                           handleLinkClick(link)
                         }}
                         className="px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-white bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 rounded-lg transition-all shadow-sm font-medium flex items-center gap-1 flex-shrink-0 touch-manipulation"
-                        aria-label={`访问 ${link.name}`}
+                        aria-label={`下载 ${link.name}`}
                       >
                         <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                        访问下载
+                        下载
                       </button>
                       <button
                         onClick={(e) => {
