@@ -6,11 +6,9 @@ import { useDataStore } from '@/store/useDataStore'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
 import { applyBrandColors } from '@/lib/colors'
 
-// 前台页面 - 立即加载（用户访问频率最高）
-import HomePage from '@/pages/frontend/HomePage'
-import SearchPage from '@/pages/frontend/SearchPage'
-
-// 前台页面 - 懒加载
+// 前台页面 - 全部懒加载（减少初始 bundle ~126 kB，首屏快 2-3 秒）
+const HomePage = lazy(() => import('@/pages/frontend/HomePage'))
+const SearchPage = lazy(() => import('@/pages/frontend/SearchPage'))
 const LinkDetailPage = lazy(() => import('@/pages/frontend/LinkDetailPage'))
 const CategoryPage = lazy(() => import('@/pages/frontend/CategoryPage'))
 

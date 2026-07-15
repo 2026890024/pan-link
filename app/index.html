@@ -23,9 +23,8 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="资源云 - 一站式网盘资源聚合管理平台" />
     <meta name="twitter:description" content="一站式网盘资源聚合管理平台，高效管理和分享您的资源链接" />
-    <!-- DNS 预解析：加速 API 请求 -->
+    <!-- DNS 预解析 + 预连接：加速 API 请求 -->
     <link rel="dns-prefetch" href="//pan110.pages.dev" />
-    <!-- API 预热：在 HTML 下载时就开始解析域名 -->
     <link rel="preconnect" href="https://pan110.pages.dev" crossorigin />
     <link rel="stylesheet" href="/preloader.css" />
   </head>
@@ -41,17 +40,15 @@
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <!-- API 预热：在 HTML 解析阶段并行触发核心端点，缓解 Workers 冷启动延迟 -->
-    <!-- 移动端/省流模式下跳过预热，避免浪费流量 -->
+    <!-- API 预热：提前唤醒 Cloudflare Worker，减少冷启动延迟 -->
     <script>
-      (function warmup() {
+      (function() {
         try {
           var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
           if (conn && (conn.saveData || ['slow-2g','2g','3g'].indexOf(conn.effectiveType) !== -1)) return;
-          var endpoints = ['/api/health', '/api/categories', '/api/links', '/api/site-settings'];
-          endpoints.forEach(function(ep) {
-            fetch(ep, { method: 'GET', cache: 'no-store' }).catch(function(){});
-          });
+          // 只预热 health 端点，触发 Worker 冷启动但不过载
+          // 数据请求由 React 渲染后统一通过 store 发起，避免重复
+          fetch('/api/health', { method: 'GET', cache: 'no-store' }).catch(function(){});
         } catch(e) {}
       })();
     </script>

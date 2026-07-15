@@ -32,12 +32,14 @@ export default defineConfig({
     sourcemap: false,
     // CSS 代码分割
     cssCodeSplit: true,
+    // 模块预加载优化：关闭 polyfill（现代浏览器原生支持）
+    modulePreload: {
+      polyfill: false,
+    },
     rollupOptions: {
       output: {
         manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select', '@radix-ui/react-tabs', '@radix-ui/react-switch'],
-          'vendor-charts': ['recharts'],
+          'vendor-core': ['react', 'react-dom', 'react-router-dom'],
           'vendor-animation': ['framer-motion'],
           'vendor-utils': ['@tanstack/react-query', '@tanstack/react-table', 'zustand'],
           'vendor-icons': ['lucide-react'],
@@ -51,8 +53,8 @@ export default defineConfig({
     esbuild: {
       drop: ['console', 'debugger'],
     },
-    chunkSizeWarningLimit: 1000,
-    // 小于此大小的资源内联为 base64
-    assetsInlineLimit: 4096,
+    chunkSizeWarningLimit: 500,
+    // 小于此大小的资源内联为 base64，减少 HTTP 请求
+    assetsInlineLimit: 8192,
   },
 })
