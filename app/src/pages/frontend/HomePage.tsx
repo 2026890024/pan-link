@@ -210,9 +210,9 @@ export default function HomePage() {
       setSelectedSubCategory(null)
       setExpandedCategory(null)
       setShowSuggestions(false)
-      updateUrlParams(null, null)
+      setSearchParams({}, { replace: true })
     }
-  }, [searchQuery, updateUrlParams])
+  }, [searchQuery, setSearchParams])
 
   const handleClearSearch = useCallback(() => {
     setSearchQuery('')
