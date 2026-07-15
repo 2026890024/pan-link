@@ -104,7 +104,6 @@ export default function SearchBar({
               {getLinkIcon(link)}
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm text-gray-800 truncate">{link.name}</div>
-                <div className="text-xs text-gray-400 truncate">{link.description}</div>
               </div>
             </button>
           ))}

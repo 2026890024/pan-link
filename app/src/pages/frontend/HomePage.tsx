@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Star,
   Check,
   FolderOpen,
   Sparkles,
@@ -325,7 +324,6 @@ export default function HomePage() {
           )}
 
           <CategorySidebar
-            categories={categories}
             visibleCategories={visibleCategories}
             visibleSubCategories={visibleSubCategories}
             selectedCategory={selectedCategory}

@@ -297,7 +297,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
               }`}
             >
               <ExternalLink className="w-5 h-5" />
-              {status === 'expired' ? '链接已过期' : '立即访问'}
+              {status === 'expired' ? '链接已过期' : '立即下载'}
             </button>
             <button
               onClick={handleShare}

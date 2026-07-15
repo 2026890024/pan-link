@@ -24,17 +24,6 @@ export function getDaysRemaining(expiresAt: string | Date | null): number | null
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }
 
-// 格式化有效期
-export function formatValidityPeriod(period: string): string {
-  const map: Record<string, string> = {
-    '1_month': '1个月',
-    '3_months': '3个月',
-    '6_months': '6个月',
-    '1_year': '1年',
-    'permanent': '永久',
-  }
-  return map[period] || period
-}
 
 // 复制到剪贴板
 export async function copyToClipboard(text: string): Promise<boolean> {
@@ -61,17 +50,6 @@ export function generateExtractCode(length = 4): string {
     result += chars.charAt(Math.floor(Math.random() * chars.length))
   }
   return result
-}
-
-// 数字格式化
-export function formatNumber(num: number): string {
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M'
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K'
-  }
-  return num.toString()
 }
 
 // 链接状态检查
@@ -109,17 +87,4 @@ export function hexToRgba(hex: string, alpha: number): string {
   }
 }
 
-// 获取网盘图标
-export function getPanIcon(categoryName: string): string {
-  const icons: Record<string, string> = {
-    '夸克网盘': 'https://img.icons8.com/color/144/quark--v1.png',
-    '百度网盘': 'https://img.icons8.com/color/144/baidu.png',
-    '阿里云盘': 'https://img.icons8.com/color/144/alibaba.png',
-    '迅雷云盘': 'https://img.icons8.com/color/144/thunder.png',
-    '腾讯微云': 'https://img.icons8.com/color/144/tencent.png',
-    '115网盘': 'https://img.icons8.com/color/144/115.png',
-    '移动云盘': 'https://img.icons8.com/color/144/china-mobile.png',
-    '天翼云盘': 'https://img.icons8.com/color/144/tianyi.png',
-  }
-  return icons[categoryName] || 'https://img.icons8.com/color/144/cloud.png'
-}
+

@@ -3,7 +3,6 @@ import { FolderOpen, X, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Category, SubCategory } from '@/store/useDataStore'
 
 interface CategorySidebarProps {
-  categories: Category[]
   visibleCategories: Category[]
   visibleSubCategories: SubCategory[]
   selectedCategory: string | null
@@ -22,7 +21,6 @@ interface CategorySidebarProps {
 }
 
 export default function CategorySidebar({
-  categories,
   visibleCategories,
   visibleSubCategories,
   selectedCategory,

@@ -6,7 +6,6 @@ import {
   List,
   Search,
   Clock,
-  Pin,
   Filter,
   ChevronRight,
   FolderOpen,
