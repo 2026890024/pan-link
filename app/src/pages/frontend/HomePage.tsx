@@ -377,7 +377,7 @@ export default function HomePage() {
                           {getLinkIcon(link)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug line-clamp-2 sm:break-all">
+                          <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug line-clamp-2 break-all sm:truncate sm:line-clamp-none">
                             {link.name}
                           </h3>
                         </div>
@@ -570,7 +570,7 @@ export default function HomePage() {
                               <div className="flex items-start gap-2 sm:gap-3 mb-2 sm:mb-3">
                                 <div className="shrink-0 pt-0.5">{getLinkIcon(link)}</div>
                                 <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug line-clamp-2 sm:break-all">
+                                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug line-clamp-2 break-all sm:truncate sm:line-clamp-none">
                                     {link.name}
                                   </h3>
                                 </div>
