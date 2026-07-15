@@ -159,7 +159,9 @@ function mergeLists<T extends { id: string }>(remote: T[], local: T[], fallback:
     return local
   }
   // 云端和本地都无数据 → fallback（mock 兜底，确保首次访问不显示空白）
-  console.log(`[DataStore] 云端和本地均无数据，使用 fallback（${fallback.length} 条）`)
+  if (fallback.length > 0) {
+    console.log(`[DataStore] 云端和本地均无数据，使用 fallback（${fallback.length} 条）`)
+  }
   return fallback
 }
 

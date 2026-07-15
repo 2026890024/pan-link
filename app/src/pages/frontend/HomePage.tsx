@@ -206,9 +206,13 @@ export default function HomePage() {
     e.preventDefault()
     if (searchQuery.trim()) {
       setIsSearchMode(true)
+      setSelectedCategory(null)
+      setSelectedSubCategory(null)
+      setExpandedCategory(null)
       setShowSuggestions(false)
+      updateUrlParams(null, null)
     }
-  }, [searchQuery])
+  }, [searchQuery, updateUrlParams])
 
   const handleClearSearch = useCallback(() => {
     setSearchQuery('')

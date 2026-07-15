@@ -127,7 +127,7 @@ function workerLinkToLinkItem(data: Record<string, unknown>): LinkItem {
     title: String(data.name || ''),
     description: typeof data.description === 'string' ? data.description : '',
     url: String(data.url || ''),
-    drive_type: String(data.drive_type || data.category_id || 'baidu'),
+    drive_type: String(data.drive_type || 'baidu'),
     category_id: String(data.category_id || ''),
     category_name: data.category_name ? String(data.category_name) : undefined,
     category_logo: data.category_logo ? String(data.category_logo) : undefined,
