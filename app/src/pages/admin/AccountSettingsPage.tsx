@@ -97,7 +97,7 @@ export default function AccountSettingsPage() {
     { id: 'credentials' as const, label: '登录凭证', icon: Shield },
   ]
 
-  // 图片压缩（限制 256x256，避免 localStorage 溢出）
+  // 图片压缩（限制 256x256，等比缩放，不裁剪，完整保留图片内容）
   const compressImage = (file: File, maxSize = 256): Promise<string> => {
     return new Promise((resolve) => {
       const reader = new FileReader()
@@ -105,15 +105,21 @@ export default function AccountSettingsPage() {
         const img = new Image()
         img.onload = () => {
           const canvas = document.createElement('canvas')
-          const size = Math.min(img.width, img.height, maxSize)
-          canvas.width = size
-          canvas.height = size
+          canvas.width = maxSize
+          canvas.height = maxSize
           const ctx = canvas.getContext('2d')
           if (ctx) {
-            // 居中裁剪为正方形
-            const sx = (img.width - size) / 2
-            const sy = (img.height - size) / 2
-            ctx.drawImage(img, sx, sy, size, size, 0, 0, size, size)
+            // 等比缩放，完整图片放入画布，不裁剪
+            const scale = Math.min(maxSize / img.width, maxSize / img.height, 1)
+            const scaledWidth = img.width * scale
+            const scaledHeight = img.height * scale
+            // 居中放置
+            const dx = (maxSize - scaledWidth) / 2
+            const dy = (maxSize - scaledHeight) / 2
+            // 白色背景填充（避免透明图片黑边）
+            ctx.fillStyle = '#ffffff'
+            ctx.fillRect(0, 0, maxSize, maxSize)
+            ctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, scaledWidth, scaledHeight)
           }
           resolve(canvas.toDataURL('image/jpeg', 0.85))
         }
@@ -138,6 +144,16 @@ export default function AccountSettingsPage() {
     try {
       const compressed = await compressImage(file)
       setAvatar(compressed)
+      // 立即保存到 localStorage，确保刷新后不会丢失
+      const updated: AdminProfile = {
+        username: editUsername.trim() || profile.username,
+        email: editEmail.trim() || profile.email,
+        avatar: compressed,
+      }
+      saveProfile(updated)
+      setProfile(updated)
+      // 触发自定义事件，通知 AdminLayout 等组件实时更新头像
+      window.dispatchEvent(new CustomEvent('admin-profile-updated'))
       toast.success('头像已更新')
     } catch {
       toast.error('图片处理失败')
@@ -161,6 +177,7 @@ export default function AccountSettingsPage() {
     }
     setProfile(updated)
     saveProfile(updated)
+    window.dispatchEvent(new CustomEvent('admin-profile-updated'))
     toast.success('个人资料已保存')
   }
 

@@ -50,17 +50,20 @@ export default function AdminLayout() {
   }
   const [profile, setProfile] = useState(getProfile)
 
-  // 监听 localStorage 变化和窗口聚焦时更新头像
+  // 监听 localStorage 变化、窗口聚焦、以及自定义事件更新头像
   useEffect(() => {
     const handleFocus = () => setProfile(getProfile())
     const handleStorage = (e: StorageEvent) => {
       if (e.key === 'admin_profile') setProfile(getProfile())
     }
+    const handleProfileUpdate = () => setProfile(getProfile())
     window.addEventListener('focus', handleFocus)
     window.addEventListener('storage', handleStorage)
+    window.addEventListener('admin-profile-updated', handleProfileUpdate)
     return () => {
       window.removeEventListener('focus', handleFocus)
       window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('admin-profile-updated', handleProfileUpdate)
     }
   }, [])
 
