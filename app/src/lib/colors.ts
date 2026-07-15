@@ -81,52 +81,6 @@ export function applyBrandColors(primary: string): void {
   }
   css += '}\n'
 
-  // 覆盖 Tailwind brand 颜色类
-  css += `
-.bg-brand-50 { background-color: ${shades['50']} !important; }
-.bg-brand-100 { background-color: ${shades['100']} !important; }
-.bg-brand-200 { background-color: ${shades['200']} !important; }
-.bg-brand-300 { background-color: ${shades['300']} !important; }
-.bg-brand-400 { background-color: ${shades['400']} !important; }
-.bg-brand-500 { background-color: ${shades['500']} !important; }
-.bg-brand-600 { background-color: ${shades['600']} !important; }
-.bg-brand-700 { background-color: ${shades['700']} !important; }
-.bg-brand-800 { background-color: ${shades['800']} !important; }
-.bg-brand-900 { background-color: ${shades['900']} !important; }
-
-.text-brand-50 { color: ${shades['50']} !important; }
-.text-brand-100 { color: ${shades['100']} !important; }
-.text-brand-200 { color: ${shades['200']} !important; }
-.text-brand-300 { color: ${shades['300']} !important; }
-.text-brand-400 { color: ${shades['400']} !important; }
-.text-brand-500 { color: ${shades['500']} !important; }
-.text-brand-600 { color: ${shades['600']} !important; }
-.text-brand-700 { color: ${shades['700']} !important; }
-.text-brand-800 { color: ${shades['800']} !important; }
-.text-brand-900 { color: ${shades['900']} !important; }
-
-.border-brand-50 { border-color: ${shades['50']} !important; }
-.border-brand-100 { border-color: ${shades['100']} !important; }
-.border-brand-200 { border-color: ${shades['200']} !important; }
-.border-brand-300 { border-color: ${shades['300']} !important; }
-.border-brand-400 { border-color: ${shades['400']} !important; }
-.border-brand-500 { border-color: ${shades['500']} !important; }
-.border-brand-600 { border-color: ${shades['600']} !important; }
-.border-brand-700 { border-color: ${shades['700']} !important; }
-.border-brand-800 { border-color: ${shades['800']} !important; }
-.border-brand-900 { border-color: ${shades['900']} !important; }
-
-.hover\\:bg-brand-50:hover { background-color: ${shades['50']} !important; }
-.hover\\:bg-brand-100:hover { background-color: ${shades['100']} !important; }
-.hover\\:text-brand-600:hover { color: ${shades['600']} !important; }
-.hover\\:text-brand-700:hover { color: ${shades['700']} !important; }
-.hover\\:bg-brand-600:hover { background-color: ${shades['600']} !important; }
-.hover\\:bg-brand-700:hover { background-color: ${shades['700']} !important; }
-
-.focus\\:ring-brand-300:focus { --tw-ring-color: ${shades['300']} !important; }
-.focus\\:border-brand-300:focus { border-color: ${shades['300']} !important; }
-`
-
   styleEl.textContent = css
 }
 

@@ -1,7 +1,18 @@
 import { create } from 'zustand'
-import { driveTypes, customDriveTypes } from '@/data/mock'
 import * as ds from '@/services/dataService'
 import type { Category, LinkItem, SubCategory, Tag, DriveType, IconLibraryItem } from '@/services/dataService'
+
+// 默认网盘类型（内联，避免打包 14KB mock 文件）
+const DEFAULT_DRIVE_TYPES: DriveType[] = [
+  { id: 'baidu', name: '百度网盘', icon: 'hard-drive', color: '#3B82F6' },
+  { id: 'quark', name: '夸克网盘', icon: 'hard-drive', color: '#F59E0B' },
+  { id: 'ali', name: '阿里云盘', icon: 'hard-drive', color: '#06B6D4' },
+  { id: 'lanzou', name: '蓝奏云', icon: 'hard-drive', color: '#10B981' },
+  { id: 'xunlei', name: '迅雷云盘', icon: 'hard-drive', color: '#6366F1' },
+  { id: '115', name: '115网盘', icon: 'hard-drive', color: '#EC4899' },
+]
+const DEFAULT_CUSTOM_DRIVE_TYPES: Record<string, { name: string; icon: string; color: string }> = {}
+
 
 // ============ Store 接口 ============
 
@@ -237,8 +248,8 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   links: initLinks,
   subCategories: initSubCategories,
   tags: [],
-  driveTypes: [...driveTypes] as DriveType[],
-  customDriveTypes: { ...customDriveTypes },
+  driveTypes: [...DEFAULT_DRIVE_TYPES] as DriveType[],
+  customDriveTypes: { ...DEFAULT_CUSTOM_DRIVE_TYPES },
   iconLibrary: (() => {
     try {
       const raw = localStorage.getItem('panlink_icon_library')

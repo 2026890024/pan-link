@@ -438,7 +438,15 @@ export async function searchLinks(query: string): Promise<LinkItem[]> {
 // ============ localStorage 回退实现 ============
 
 const STORAGE_KEY = 'resource-cloud-storage'
-import { driveTypes, customDriveTypes } from '@/data/mock'
+
+const FALLBACK_DRIVE_TYPES: DriveType[] = [
+  { id: 'baidu', name: '百度网盘', icon: 'hard-drive', color: '#3B82F6' },
+  { id: 'quark', name: '夸克网盘', icon: 'hard-drive', color: '#F59E0B' },
+  { id: 'ali', name: '阿里云盘', icon: 'hard-drive', color: '#06B6D4' },
+  { id: 'lanzou', name: '蓝奏云', icon: 'hard-drive', color: '#10B981' },
+  { id: 'xunlei', name: '迅雷云盘', icon: 'hard-drive', color: '#6366F1' },
+  { id: '115', name: '115网盘', icon: 'hard-drive', color: '#EC4899' },
+]
 
 interface LocalStorage {
   categories: Category[]
@@ -466,8 +474,8 @@ function loadStorage(): LocalStorage {
           })),
           subCategories: parsed.state.subCategories || [],
           tags: parsed.state.tags || [],
-          driveTypes: parsed.state.driveTypes || driveTypes,
-          customDriveTypes: parsed.state.customDriveTypes || customDriveTypes,
+          driveTypes: parsed.state.driveTypes || FALLBACK_DRIVE_TYPES,
+          customDriveTypes: parsed.state.customDriveTypes || {},
         }
       }
       return parsed as LocalStorage
@@ -478,8 +486,8 @@ function loadStorage(): LocalStorage {
     links: [],
     subCategories: [],
     tags: [],
-    driveTypes: [...driveTypes] as DriveType[],
-    customDriveTypes: { ...customDriveTypes },
+    driveTypes: [...FALLBACK_DRIVE_TYPES] as DriveType[],
+    customDriveTypes: {},
   }
 }
 
@@ -598,7 +606,7 @@ function deleteLocalSubCategory(id: string): void {
 // DriveTypes - local
 function getLocalDriveTypes(): DriveType[] {
   const storage = loadStorage()
-  return storage.driveTypes || driveTypes
+  return storage.driveTypes || FALLBACK_DRIVE_TYPES
 }
 function addLocalDriveType(name: string, icon: string, color: string): DriveType {
   const storage = loadStorage()
