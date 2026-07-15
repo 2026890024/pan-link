@@ -370,14 +370,14 @@ export default function HomePage() {
                     <div
                       key={link.id}
                       onClick={() => setSelectedLink(link)}
-                      className={`group bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
+                      className={`group flex flex-col h-full bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
                     >
-                      <div className="flex items-start gap-2 sm:gap-3">
+                      <div className="flex items-start gap-2 sm:gap-3 flex-1">
                         <div className="shrink-0">
                           {getLinkIcon(link)}
                         </div>
                         <div className="flex-1 min-w-0 self-center">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug break-all">
+                          <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug break-all line-clamp-2 sm:line-clamp-none">
                             {link.name}
                           </h3>
                         </div>
@@ -565,12 +565,12 @@ export default function HomePage() {
                             <div
                               key={link.id}
                               onClick={() => setSelectedLink(link)}
-                              className={`group p-3 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
+                              className={`group flex flex-col h-full p-3 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
                             >
-                              <div className="flex items-start gap-2 sm:gap-3 mb-2">
+                              <div className="flex items-start gap-2 sm:gap-3 mb-2 flex-1">
                                 <div className="shrink-0">{getLinkIcon(link)}</div>
                                 <div className="flex-1 min-w-0 self-center">
-                                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug break-all">
+                                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug break-all line-clamp-2 sm:line-clamp-none">
                                     {link.name}
                                   </h3>
                                 </div>
