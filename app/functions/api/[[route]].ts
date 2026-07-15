@@ -428,10 +428,15 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // ====== SUBCATEGORIES ======
 
     if (path === '/api/subcategories' && method === 'GET') {
-      const result = await env.DB.prepare(
-        'SELECT * FROM subcategories ORDER BY sort_order ASC'
-      ).all()
-      return jsonRes(result.results || [], 200, corsHeaders)
+      try {
+        const result = await env.DB.prepare(
+          'SELECT * FROM subcategories ORDER BY sort_order ASC'
+        ).all()
+        return jsonRes(result.results || [], 200, corsHeaders)
+      } catch {
+        // 表不存在时返回空数组，兼容未执行建表脚本的旧数据库
+        return jsonRes([], 200, corsHeaders)
+      }
     }
 
     if (path === '/api/subcategories' && method === 'POST') {
@@ -474,7 +479,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     if (matchPath(path, '/api/subcategories/:id') && method === 'DELETE') {
       const subId = extractParam(path, '/api/subcategories/:id')
-      await env.DB.prepare('DELETE FROM subcategories WHERE id = ?').bind(subId).run()
+      try {
+        await env.DB.prepare('DELETE FROM subcategories WHERE id = ?').bind(subId).run()
+      } catch { /* 表不存在时忽略 */ }
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
