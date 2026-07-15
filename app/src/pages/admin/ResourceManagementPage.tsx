@@ -86,7 +86,7 @@ export default function ResourceManagementPage() {
   const [linkModalOpen, setLinkModalOpen] = useState(false)
   const [linkModalMode, setLinkModalMode] = useState<'add' | 'edit'>('add')
   const [formLink, setFormLink] = useState({
-    id: '', title: '', url: '', description: '', category_id: '', subcategory_id: '',
+    id: '', title: '', url: '', category_id: '', subcategory_id: '',
     drive_type: 'baidu', slug: '', icon: '', extract_code: '', expires_at: '',
     keywords: '', is_pinned: false, is_featured: false,
   })
@@ -97,7 +97,7 @@ export default function ResourceManagementPage() {
   const iconPickerRef = useRef<HTMLDivElement>(null)
 
   const openAddModal = () => {
-    setFormLink({ id: '', title: '', url: '', description: '', category_id: selectedCategoryId || categories[0]?.id || '', subcategory_id: '', drive_type: 'baidu', slug: '', icon: '', extract_code: '', expires_at: '', keywords: '', is_pinned: false, is_featured: false })
+    setFormLink({ id: '', title: '', url: '', category_id: selectedCategoryId || categories[0]?.id || '', subcategory_id: '', drive_type: 'baidu', slug: '', icon: '', extract_code: '', expires_at: '', keywords: '', is_pinned: false, is_featured: false })
     setFormLinkIcon('')
     setShowIconPicker(false)
     setLinkModalMode('add')
@@ -107,7 +107,7 @@ export default function ResourceManagementPage() {
   const openEditModal = (link: LinkItem) => {
     setFormLink({
       id: link.id, title: link.title, url: link.url,
-      description: link.description || '', category_id: link.category_id,
+      category_id: link.category_id,
       subcategory_id: link.subcategory_id || '', drive_type: link.drive_type,
       slug: link.slug || '', icon: link.icon || '',
       extract_code: link.extract_code || '', expires_at: link.expires_at || '',
@@ -141,7 +141,6 @@ export default function ResourceManagementPage() {
         const matchesSearch =
           !searchQuery ||
           link.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          link.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           link.keywords?.some(kw => kw.toLowerCase().includes(searchQuery.toLowerCase()))
         return matchesCategory && matchesSearch
       })
@@ -247,7 +246,6 @@ export default function ResourceManagementPage() {
       addLink({
         name: formLink.title.trim(),
         title: formLink.title.trim(),
-        description: formLink.description,
         url: formLink.url.trim(),
         drive_type: formLink.drive_type,
         category_id: targetCategoryId,
@@ -273,7 +271,6 @@ export default function ResourceManagementPage() {
       updateLink(formLink.id, {
         name: formLink.title.trim(),
         title: formLink.title.trim(),
-        description: formLink.description,
         url: formLink.url.trim(),
         category_id: formLink.category_id,
         category_name: categories.find(c => c.id === formLink.category_id)?.name,
@@ -522,7 +519,7 @@ export default function ResourceManagementPage() {
                           {link.is_featured && <Star className="w-4 h-4 text-amber-500 flex-shrink-0" />}
                           {!link.visible && <EyeOff className="w-4 h-4 text-gray-400 flex-shrink-0" />}
                         </div>
-                        <p className="text-sm text-gray-500 truncate hidden sm:block">{link.description || '暂无描述'}</p>
+                        <p className="text-sm text-gray-500 truncate hidden sm:block">{link.keywords?.join(', ') || '暂无关键词'}</p>
                       </div>
                     </div>
                   </div>
@@ -586,7 +583,7 @@ export default function ResourceManagementPage() {
                           {link.is_featured && <Star className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
                           {!link.visible && <EyeOff className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />}
                         </div>
-                        <p className="text-xs text-gray-500 truncate mt-0.5">{link.description || '暂无描述'}</p>
+                        <p className="text-xs text-gray-500 truncate mt-0.5">{link.keywords?.join(', ') || '暂无关键词'}</p>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1.5 mb-3">
@@ -660,11 +657,6 @@ export default function ResourceManagementPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">链接 *</label>
                   <input type="url" value={formLink.url} onChange={(e) => setFormLink({ ...formLink, url: e.target.value })}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm" placeholder="https://..." />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">描述</label>
-                  <input type="text" value={formLink.description} onChange={(e) => setFormLink({ ...formLink, description: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm" placeholder="简短描述" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">分类</label>

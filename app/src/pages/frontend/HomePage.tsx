@@ -146,7 +146,6 @@ export default function HomePage() {
       .filter(link =>
         link.name.toLowerCase().includes(q) ||
         link.title.toLowerCase().includes(q) ||
-        link.description.toLowerCase().includes(q) ||
         link.keywords?.some(kw => kw.toLowerCase().includes(q)) ||
         link.tags?.some(tag => tag.name.toLowerCase().includes(q))
       )
@@ -166,7 +165,6 @@ export default function HomePage() {
           return (
             link.name.toLowerCase().includes(q) ||
             link.title.toLowerCase().includes(q) ||
-            link.description.toLowerCase().includes(q) ||
             link.keywords?.some(kw => kw.toLowerCase().includes(q)) ||
             link.tags?.some(tag => tag.name.toLowerCase().includes(q))
           )
