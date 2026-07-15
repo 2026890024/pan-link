@@ -370,33 +370,33 @@ export default function HomePage() {
                     <div
                       key={link.id}
                       onClick={() => setSelectedLink(link)}
-                      className={`group bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
+                      className={`group bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-2 sm:gap-3">
                         <div className="shrink-0 pt-0.5">
                           {getLinkIcon(link)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm truncate leading-tight">
+                          <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug">
                             {link.name}
                           </h3>
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed break-all">
+                          <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2 break-all">
                             {link.description}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 mt-3 pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-1.5 mt-2 sm:mt-3 pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleLinkClick(link) }}
-                            className={`flex-1 justify-center ${BTN_PRIMARY} hover:shadow-md`}
+                            className="flex-1 justify-center py-1.5 sm:py-2 px-2 sm:px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium whitespace-nowrap"
                             aria-label={`访问 ${link.name}`}
                           >
                             <Download className="w-3 h-3" />
-                            访问下载
+                            <span className="hidden sm:inline">访问</span>下载
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); shareLink(link) }}
-                            className={`text-gray-500 ${BTN_SECONDARY}`}
+                            className="py-1.5 sm:py-2 px-2 sm:px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 whitespace-nowrap"
                             aria-label={`分享 ${link.name}`}
                           >
                             {copiedId === link.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Share2 className="w-3 h-3" />}
@@ -569,17 +569,15 @@ export default function HomePage() {
                             <div
                               key={link.id}
                               onClick={() => setSelectedLink(link)}
-                              className={`group p-4 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
+                              className={`group p-3 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
                             >
-                              <div className="flex items-center gap-3 mb-3">
-                                {getLinkIcon(link)}
+                              <div className="flex items-start gap-2 sm:gap-3 mb-2 sm:mb-3">
+                                <div className="shrink-0 pt-0.5">{getLinkIcon(link)}</div>
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-sm truncate">
-                                      {link.name}
-                                    </h3>
-                                  </div>
-                                  <p className="text-xs text-gray-500 truncate mt-0.5">{link.description}</p>
+                                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug">
+                                    {link.name}
+                                  </h3>
+                                  <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{link.description}</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-1.5 pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
@@ -588,18 +586,18 @@ export default function HomePage() {
                                     e.stopPropagation()
                                     handleLinkClick(link)
                                   }}
-                                  className={`flex-1 justify-center ${BTN_PRIMARY}`}
+                                  className="flex-1 justify-center py-1.5 sm:py-2 px-2 sm:px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium whitespace-nowrap"
                                   aria-label={`访问 ${link.name}`}
                                 >
                                   <Download className="w-3 h-3" />
-                                  访问下载
+                                  <span className="hidden sm:inline">访问</span>下载
                                 </button>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     shareLink(link)
                                   }}
-                                  className={BTN_SECONDARY}
+                                  className="py-1.5 sm:py-2 px-2 sm:px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 whitespace-nowrap"
                                   aria-label={`分享 ${link.name}`}
                                 >
                                   {copiedId === link.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Share2 className="w-3 h-3" />}
