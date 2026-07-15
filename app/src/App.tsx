@@ -28,14 +28,22 @@ import AdminAuthGuard from '@/components/AdminAuthGuard'
 import PublicLayout from '@/layouts/PublicLayout'
 import NotFoundPage from '@/pages/NotFoundPage'
 
-// 页面加载骨架屏
+// 页面加载骨架屏 — 与 index.html 中 #preloader 视觉完全一致，避免双重加载动画
 function PageLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-10 h-10 border-2 border-gray-200 border-t-brand-500 rounded-full animate-spin" />
-        <span className="text-sm text-gray-400">加载中...</span>
-      </div>
+    <div
+      className="fixed inset-0 z-[9998] flex items-center justify-center bg-[#f8fafc]"
+      style={{ pointerEvents: 'none' }}
+    >
+      <div
+        style={{
+          width: 36, height: 36,
+          border: '3px solid #e2e8f0',
+          borderTopColor: '#6366f1',
+          borderRadius: '50%',
+          animation: 'spin 0.7s linear infinite',
+        }}
+      />
     </div>
   )
 }

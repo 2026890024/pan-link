@@ -31,13 +31,7 @@
   <body>
     <!-- 预加载动画：JS 下载期间显示，消除白屏 -->
     <div id="preloader"><div class="spinner"></div></div>
-    <div id="app-skeleton">
-      <div class="sk-header"></div>
-      <div class="sk-grid">
-        <div class="sk-card"></div><div class="sk-card"></div><div class="sk-card"></div>
-        <div class="sk-card"></div><div class="sk-card"></div><div class="sk-card"></div>
-      </div>
-    </div>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <!-- API 预热：提前唤醒 Cloudflare Worker，减少冷启动延迟 -->
