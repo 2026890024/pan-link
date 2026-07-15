@@ -17,7 +17,7 @@ import {
   Key,
   Clock,
 } from 'lucide-react'
-import { useDataStore, type LinkItem } from '@/store/useDataStore'
+import { useDataStore, type LinkItem, type Category } from '@/store/useDataStore'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
 import { LinkIcon } from '@/components/LinkIcon'
 import LinkDetailModal from '@/components/LinkDetailModal'
@@ -49,19 +49,40 @@ export default function HomePage() {
   const urlCategory = searchParams.get('category') || null
   const urlSubCategory = searchParams.get('subcategory') || null
 
+  // 当 D1 分类表为空时，从链接数据中自动推导分类（兼容新设备首次访问）
+  const effectiveCategories = useMemo(() => {
+    if (categories.length > 0) return categories
+    const map = new Map<string, Category>()
+    links.forEach(l => {
+      if (l.category_id && !map.has(l.category_id)) {
+        map.set(l.category_id, {
+          id: l.category_id,
+          name: l.category_name || `未命名分类(${l.category_id.slice(-6)})`,
+          icon: l.category_logo || 'folder',
+          sort_order: map.size + 1,
+        })
+      }
+    })
+    const derived = [...map.values()].sort((a, b) => a.sort_order - b.sort_order)
+    if (derived.length > 0) {
+      console.log(`[HomePage] 从 ${links.length} 条链接中自动推导出 ${derived.length} 个分类`)
+    }
+    return derived
+  }, [categories, links])
+
   // 首页分类按钮：按可见性过滤 + sort_order 排序
   const visibleCategories = useMemo(() => {
     try {
       const visibility: Record<string, boolean> = JSON.parse(
         localStorage.getItem('homepage_category_visibility') || '{}'
       )
-      return [...categories]
+      return [...effectiveCategories]
         .filter(c => visibility[c.id] !== false)
         .sort((a, b) => a.sort_order - b.sort_order)
     } catch {
-      return [...categories].sort((a, b) => a.sort_order - b.sort_order)
+      return [...effectiveCategories].sort((a, b) => a.sort_order - b.sort_order)
     }
-  }, [categories])
+  }, [effectiveCategories])
 
   // 子分类可见性过滤（已按 sort_order 排序）
   const visibleSubCategories = useMemo(() => {
@@ -92,7 +113,7 @@ export default function HomePage() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(urlCategory)
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(urlSubCategory)
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(urlCategory || categories[0]?.id || null)
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(urlCategory || effectiveCategories[0]?.id || null)
   const [selectedLink, setSelectedLink] = useState<LinkItem | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
@@ -111,7 +132,12 @@ export default function HomePage() {
     }
   }, [])
 
-  // 同步 URL 参数到本地状态
+  // 当有效分类首次加载时，自动展开第一个分类（新设备首次访问兼容）
+  useEffect(() => {
+    if (effectiveCategories.length > 0 && !expandedCategory && !urlCategory && !urlSubCategory) {
+      setExpandedCategory(effectiveCategories[0].id)
+    }
+  }, [effectiveCategories]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (urlCategory) setSelectedCategory(urlCategory)
     if (urlSubCategory) setSelectedSubCategory(urlSubCategory)
@@ -418,7 +444,7 @@ export default function HomePage() {
                       : selectedSubCategory
                         ? getSubCategories(selectedCategory || '').find(sc => sc.id === selectedSubCategory)?.name || '资源列表'
                         : selectedCategory
-                          ? categories.find(c => c.id === selectedCategory)?.name
+                          ? effectiveCategories.find(c => c.id === selectedCategory)?.name
                           : '全部资源'
                     }
                   </h2>
