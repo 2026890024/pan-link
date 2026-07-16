@@ -160,6 +160,32 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       return jsonRes({ status: 'ok', db: env.DB ? 'connected' : 'missing', auth: !!env.ADMIN_USER }, 200, corsHeaders)
     }
 
+    // ====== ALL DATA (merged query) ======
+    if (path === '/api/all' && method === 'GET') {
+      const categories = await env.DB.prepare(
+        'SELECT * FROM categories ORDER BY sort_order ASC'
+      ).all()
+      const links = await env.DB.prepare(
+        `SELECT l.*, c.name as category_name, c.logo_url as category_logo
+         FROM links l LEFT JOIN categories c ON l.category_id = c.id
+         WHERE l.status = 'active'
+         ORDER BY l.is_pinned DESC, l.created_at DESC`
+      ).all()
+      const subcategories = await env.DB.prepare(
+        'SELECT * FROM subcategories ORDER BY sort_order ASC'
+      ).all()
+      const tags = await env.DB.prepare(
+        'SELECT * FROM tags ORDER BY name ASC'
+      ).all()
+
+      return jsonRes({
+        categories: categories.results || [],
+        links: links.results || [],
+        subcategories: subcategories.results || [],
+        tags: tags.results || [],
+      }, 200, corsHeaders)
+    }
+
     // ====== Auth ======
     if (path === '/api/auth/login' && method === 'POST') {
       if (!env.ADMIN_USER || !env.ADMIN_PASS) {
@@ -215,6 +241,42 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     if (matchPath(path, '/api/categories/:id') && method === 'DELETE') {
       const catId = extractParam(path, '/api/categories/:id')
       await env.DB.prepare('DELETE FROM categories WHERE id=?').bind(catId).run()
+      return jsonRes({ success: true }, 200, corsHeaders)
+    }
+
+    // ====== SUBCATEGORIES ======
+    if (path === '/api/subcategories' && method === 'GET') {
+      const result = await env.DB.prepare(
+        'SELECT * FROM subcategories ORDER BY sort_order ASC'
+      ).all()
+      return jsonRes(result.results || [], 200, corsHeaders)
+    }
+
+    if (path === '/api/subcategories' && method === 'POST') {
+      const body = await request.json<Record<string, unknown>>()
+      const id = (body.id as string) || generateId()
+      const nowISO = new Date().toISOString()
+      await env.DB.prepare(
+        `INSERT INTO subcategories (id, category_id, name, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      ).bind(id, (body.category_id as string) || '', (body.name as string) || '',
+        (body.sort_order as number) || 0, nowISO, nowISO).run()
+      return jsonRes({ success: true, id }, 201, corsHeaders)
+    }
+
+    if (matchPath(path, '/api/subcategories/:id') && method === 'PUT') {
+      const subId = extractParam(path, '/api/subcategories/:id')
+      const body = await request.json<Record<string, unknown>>()
+      const nowISO = new Date().toISOString()
+      await env.DB.prepare(
+        'UPDATE subcategories SET name=?, sort_order=?, updated_at=? WHERE id=?'
+      ).bind((body.name as string) || '', (body.sort_order as number) || 0, nowISO, subId).run()
+      return jsonRes({ success: true }, 200, corsHeaders)
+    }
+
+    if (matchPath(path, '/api/subcategories/:id') && method === 'DELETE') {
+      const subId = extractParam(path, '/api/subcategories/:id')
+      await env.DB.prepare('DELETE FROM subcategories WHERE id=?').bind(subId).run()
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
