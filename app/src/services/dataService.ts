@@ -86,6 +86,7 @@ export interface LinkItem {
   slug: string
   sort_order: number
   visible: boolean
+  _pendingSync?: boolean
 }
 
 // ============ HTTP 工具函数 ============
@@ -127,7 +128,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
       const isRateLimit = lastErr.message.includes('请求过于频繁') || lastErr.message.includes('429')
       if (isWrite && isRateLimit && attempt < maxRetries) {
         const delay = 1000 * Math.pow(2, attempt) // 1s, 2s, 4s
-        console.log(`[DataService] apiFetch 429 重试 ${attempt + 1}/${maxRetries}，等待 ${delay}ms`)
+        if (import.meta.env.DEV) console.log(`[DataService] apiFetch 429 重试 ${attempt + 1}/${maxRetries}，等待 ${delay}ms`)
         await new Promise(r => setTimeout(r, delay))
         continue
       }
@@ -563,7 +564,7 @@ export async function searchLinks(query: string): Promise<LinkItem[]> {
 
 const STORAGE_KEY = 'resource-cloud-storage'
 
-const FALLBACK_DRIVE_TYPES: DriveType[] = [
+export const FALLBACK_DRIVE_TYPES: DriveType[] = [
   { id: 'baidu', name: '百度网盘', icon: 'hard-drive', color: '#3B82F6' },
   { id: 'quark', name: '夸克网盘', icon: 'hard-drive', color: '#F59E0B' },
   { id: 'ali', name: '阿里云盘', icon: 'hard-drive', color: '#06B6D4' },

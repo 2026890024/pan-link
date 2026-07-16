@@ -1,16 +1,9 @@
 import { create } from 'zustand'
 import * as ds from '@/services/dataService'
+import { FALLBACK_DRIVE_TYPES } from '@/services/dataService'
 import type { Category, LinkItem, SubCategory, Tag, DriveType, IconLibraryItem } from '@/services/dataService'
 
-// 默认网盘类型（内联，避免打包 14KB mock 文件）
-const DEFAULT_DRIVE_TYPES: DriveType[] = [
-  { id: 'baidu', name: '百度网盘', icon: 'hard-drive', color: '#3B82F6' },
-  { id: 'quark', name: '夸克网盘', icon: 'hard-drive', color: '#F59E0B' },
-  { id: 'ali', name: '阿里云盘', icon: 'hard-drive', color: '#06B6D4' },
-  { id: 'lanzou', name: '蓝奏云', icon: 'hard-drive', color: '#10B981' },
-  { id: 'xunlei', name: '迅雷云盘', icon: 'hard-drive', color: '#6366F1' },
-  { id: '115', name: '115网盘', icon: 'hard-drive', color: '#EC4899' },
-]
+const devLog = (...args: unknown[]) => { if (import.meta.env.DEV) console.log(...args) }
 const DEFAULT_CUSTOM_DRIVE_TYPES: Record<string, { name: string; icon: string; color: string }> = {}
 
 
@@ -121,7 +114,7 @@ function loadLocalSubCategoriesCompat(): SubCategory[] {
       const parsed = JSON.parse(raw)
       const legacy = parsed?.state?.subCategories || parsed?.subCategories
       if (Array.isArray(legacy) && legacy.length > 0) {
-        console.log('[DataStore] 从旧版存储格式加载', legacy.length, '个子分类')
+        devLog('[DataStore] 从旧版存储格式加载', legacy.length, '个子分类')
         const migrated = legacy.map((sc: Record<string, unknown>) => ({
           id: String(sc.id || ''),
           category_id: String(sc.category_id || ''),
@@ -198,7 +191,7 @@ function mergeLists<T extends { id: string }>(remote: T[], local: T[], fallback:
       const remoteIds = new Set(remote.map(r => r.id))
       const trulyPending = pendingItems.filter(p => !remoteIds.has(p.id))
       if (trulyPending.length > 0) {
-        console.log(`[DataStore] 合并 ${trulyPending.length} 条待同步本地数据到云端数据`)
+        devLog(`[DataStore] 合并 ${trulyPending.length} 条待同步本地数据到云端数据`)
         return [...remote, ...trulyPending]
       }
     }
@@ -206,12 +199,12 @@ function mergeLists<T extends { id: string }>(remote: T[], local: T[], fallback:
   }
   // 云端无数据 → 使用本地数据作为回退
   if (local.length > 0) {
-    console.log('[DataStore] 云端无数据，使用本地数据')
+    devLog('[DataStore] 云端无数据，使用本地数据')
     return local
   }
   // 云端和本地都无数据 → fallback（mock 兜底，确保首次访问不显示空白）
   if (fallback.length > 0) {
-    console.log(`[DataStore] 云端和本地均无数据，使用 fallback（${fallback.length} 条）`)
+    devLog(`[DataStore] 云端和本地均无数据，使用 fallback（${fallback.length} 条）`)
   }
   return fallback
 }
@@ -242,7 +235,7 @@ async function doSyncSubCategories(
         const list = parsed?.state?.categories || parsed?.categories || []
         return Array.isArray(list) ? list : []
       }
-    } catch {}
+    } catch { /* 本地存储解析失败，回退到空数组 */ }
     return [] as Category[]
   })()
 
@@ -284,7 +277,7 @@ async function doSyncSubCategories(
             cloudCatId = newCat.id
             nameToCloudId.set(localCat.name, newCat.id)
             cloudCategories.push(newCat)
-            console.log(`[DataStore] 为同步子分类自动创建分类 "${localCat.name}"，id=${newCat.id}`)
+            devLog(`[DataStore] 为同步子分类自动创建分类 "${localCat.name}"，id=${newCat.id}`)
           } catch (err) {
             console.error(`[DataStore] 自动创建分类 "${localCat.name}" 失败:`, err)
           }
@@ -380,12 +373,12 @@ async function doSyncSubCategories(
       try {
         const raw = localStorage.getItem('panlink_synced_sub_ids')
         if (raw) return new Set(JSON.parse(raw))
-      } catch {}
+      } catch { /* localStorage 读取失败 */ }
       return new Set<string>()
     })()
     for (const id of syncedIds) existing.add(id)
     localStorage.setItem('panlink_synced_sub_ids', JSON.stringify([...existing]))
-  } catch {}
+  } catch { /* localStorage 写入失败 */ }
 
   return result
 }
@@ -414,26 +407,26 @@ async function autoSyncSubCategories(
     try {
       const raw = localStorage.getItem('panlink_synced_sub_ids')
       if (raw) return new Set(JSON.parse(raw))
-    } catch {}
+    } catch { /* localStorage 读取失败 */ }
     return new Set<string>()
   })()
 
   const unsynced = localSubs.filter(sc => !syncedIds.has(sc.id))
   if (unsynced.length === 0) return
 
-  console.log(`[DataStore] 发现 ${unsynced.length} 个本地子分类未同步到云端，开始自动同步...`)
+  devLog(`[DataStore] 发现 ${unsynced.length} 个本地子分类未同步到云端，开始自动同步...`)
 
   const result = await doSyncSubCategories(unsynced, cloudCategories, [], set, get)
 
 
   if (result.success > 0) {
-    console.log(`[DataStore] 已同步 ${result.success} 个子分类到云端`)
+    devLog(`[DataStore] 已同步 ${result.success} 个子分类到云端`)
   }
   if (result.failed > 0) {
-    console.log(`[DataStore] ${result.failed} 个子分类同步失败`, result.errors)
+    devLog(`[DataStore] ${result.failed} 个子分类同步失败`, result.errors)
   }
 
-  try { localStorage.setItem(syncFlagKey, '1') } catch {}
+  try { localStorage.setItem(syncFlagKey, '1') } catch { /* localStorage 写入失败 */ }
 }
 
 
@@ -491,7 +484,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
       )
       set({ cloudSyncError: !hasCloudData && hasLocalOnly })
 
-      console.log(`[DataStore] 加载完成: ${allData.categories.length} 分类, ${allData.links.length} 链接, ${allData.subcategories.length} 子分类`)
+      devLog(`[DataStore] 加载完成: ${allData.categories.length} 分类, ${allData.links.length} 链接, ${allData.subcategories.length} 子分类`)
 
       // 自动同步本地子分类到云端（仅在云端为空且本地有数据时）
       autoSyncSubCategories(allData.subcategories.length, allData.categories, localSubs, set, get)
@@ -500,7 +493,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
     }
 
     // 合并查询失败/未配置，回退到单独请求
-    console.log('[DataStore] 合并查询不可用，回退到单独请求')
+    devLog('[DataStore] 合并查询不可用，回退到单独请求')
     // ... 回退逻辑（与之前相同）
     const [categories, links, subCategories] = await Promise.all([
       ds.fetchCategories(),
@@ -549,7 +542,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
     )
     set({ cloudSyncError: !hasCloudData && hasLocalOnly })
 
-    console.log(`[DataStore] 加载完成: ${categories.length} 分类, ${links.length} 链接`)
+    devLog(`[DataStore] 加载完成: ${categories.length} 分类, ${links.length} 链接`)
 
     // 自动同步本地子分类到云端
     autoSyncSubCategories(subCategories.length, categories, localSubs, set, get)
@@ -577,7 +570,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   links: initLinks,
   subCategories: initSubCategories,
   tags: [],
-  driveTypes: [...DEFAULT_DRIVE_TYPES] as DriveType[],
+  driveTypes: [...FALLBACK_DRIVE_TYPES],
   customDriveTypes: { ...DEFAULT_CUSTOM_DRIVE_TYPES },
   iconLibrary: (() => {
     try {
@@ -606,7 +599,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         subCategories: localSubs,
         initialized: true,
       })
-      console.log('[DataStore] 先显示本地缓存:', localCats.length, '分类,', localLinks.length, '链接,', localSubs.length, '子分类')
+      devLog('[DataStore] 先显示本地缓存:', localCats.length, '分类,', localLinks.length, '链接,', localSubs.length, '子分类')
     }
 
     // 后台静默刷新云端数据
@@ -694,7 +687,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     // 尝试云写入
     try {
       if (ds.isCloudApiConfigured()) {
-        console.log('[DataStore] addLink 尝试云写入:', newLink.name)
+        devLog('[DataStore] addLink 尝试云写入:', newLink.name)
         await ds.createLinkApi({
           name: newLink.name,
           slug: newLink.slug,
@@ -714,7 +707,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         const links = await ds.fetchLinks()
         saveLocalLinks(links)
         set({ links, cloudSyncError: false, lastSyncErrorDetail: '' })
-        console.log('[DataStore] addLink 云写入成功，云端共', links.length, '条链接')
+        devLog('[DataStore] addLink 云写入成功，云端共', links.length, '条链接')
         return
       }
     } catch (err) {

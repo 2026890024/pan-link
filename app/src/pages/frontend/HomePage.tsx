@@ -65,7 +65,7 @@ export default function HomePage() {
     })
     const derived = [...map.values()].sort((a, b) => a.sort_order - b.sort_order)
     if (derived.length > 0) {
-      console.log(`[HomePage] 从 ${links.length} 条链接中自动推导出 ${derived.length} 个分类`)
+      if (import.meta.env.DEV) console.log(`[HomePage] 从 ${links.length} 条链接中自动推导出 ${derived.length} 个分类`)
     }
     return derived
   }, [categories, links])

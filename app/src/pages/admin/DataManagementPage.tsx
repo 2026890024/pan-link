@@ -84,8 +84,8 @@ export default function DataManagementPage() {
   ]
 
   // 云端同步状态
-  const cloudLinksCount = useMemo(() => links.filter(l => !(l as any)._pendingSync).length, [links])
-  const pendingLinksCount = useMemo(() => links.filter(l => (l as any)._pendingSync).length, [links])
+  const cloudLinksCount = useMemo(() => links.filter(l => !l._pendingSync).length, [links])
+  const pendingLinksCount = useMemo(() => links.filter(l => l._pendingSync).length, [links])
   
   // 图标使用计数
   const iconUsageCount = useMemo(() => {
@@ -205,7 +205,7 @@ export default function DataManagementPage() {
     fileInputRef.current?.click()
   }
 
-  const parseCSV = (text: string): any[] => {
+  const parseCSV = (text: string): ImportPreviewItem[] => {
     const lines = text.split(/\r?\n/).filter(line => line.trim())
     if (lines.length < 2) return []
     
@@ -241,13 +241,13 @@ export default function DataManagementPage() {
         is_pinned: row['置顶'] === '是' || row['is_pinned'] === 'true',
         expires_at: row['过期时间'] || row['expires_at'] || '',
       }
-    }).filter((item: any) => item.name || item.url)
+    }).filter((item) => item.name || item.url)
   }
 
-  const parseJSON = (text: string): any[] => {
+  const parseJSON = (text: string): ImportPreviewItem[] => {
     const data = JSON.parse(text)
-    const items = Array.isArray(data) ? data : [data]
-    return items.map((item: any) => ({
+    const items: Record<string, unknown>[] = Array.isArray(data) ? data : [data]
+    return items.map((item) => ({
       name: item.name || item.title || '',
       url: item.url || item.link || '',
       extract_code: item.extract_code || item.code || '',
@@ -273,7 +273,7 @@ export default function DataManagementPage() {
       const text = await file.text()
       const ext = file.name.split('.').pop()?.toLowerCase()
 
-      let parsed: any[] = []
+      let parsed: ImportPreviewItem[] = []
       if (ext === 'csv') {
         parsed = parseCSV(text)
       } else if (ext === 'json') {
@@ -303,7 +303,7 @@ export default function DataManagementPage() {
         })
 
         let dupCount = 0
-        const previewWithDup: ImportPreviewItem[] = parsed.map((item: any) => {
+        const previewWithDup: ImportPreviewItem[] = parsed.map((item) => {
           const itemUrl = (item.url || '').toLowerCase().trim()
           const itemName = (item.name || '').toLowerCase().trim()
           const result: ImportPreviewItem = { ...item }

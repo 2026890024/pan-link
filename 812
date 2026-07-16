@@ -1,4 +1,0 @@
-✓ 资源云 - 一站式网盘资源聚合管理平台
-  http://localhost:5173/
-✓ Done
-"Object.defineProperty(window, 'innerWidth', {get: () =, configurable: true}); Object.defineProperty(window, 'innerHeight', {get: () =, configurable: true}); window.dispatchEvent(new Event('resize'));"

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo, useCallback } from 'react'
 import {
   Plus,
   Edit2,
@@ -20,13 +20,11 @@ import {
   Upload,
   EyeOff,
   ChevronUp,
-  ChevronDown as ChevronDownIcon,
   Image,
   Library,
   AlertTriangle,
   CloudUpload,
   CopyX,
-
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { LinkIcon } from '@/components/LinkIcon'
@@ -59,8 +57,6 @@ export default function ResourceManagementPage() {
     syncSubCategoriesToCloud,
     deduplicateSubCategories,
     iconLibrary,
-
-    addIconToLibrary,
   } = useDataStore()
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
@@ -135,13 +131,17 @@ export default function ResourceManagementPage() {
     )
   }
 
-  // 获取当前分类的链接数量
-  const getCategoryLinkCount = (categoryId: string) => {
-    return links.filter((l) => l.category_id === categoryId).length
-  }
+  // 获取当前分类的链接数量（预计算）
+  const categoryLinkCountMap = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const link of links) {
+      map[link.category_id] = (map[link.category_id] || 0) + 1
+    }
+    return map
+  }, [links])
 
   // 获取过滤后的链接（按 sort_order 排序）
-  const getFilteredLinks = () => {
+  const filteredLinks = useMemo(() => {
     return links
       .filter((link) => {
         const matchesCategory = !selectedCategoryId || link.category_id === selectedCategoryId
@@ -153,12 +153,20 @@ export default function ResourceManagementPage() {
         return matchesCategory && matchesSubCategory && matchesSearch
       })
       .sort((a, b) => a.sort_order - b.sort_order)
-  }
+  }, [links, selectedCategoryId, selectedSubCategoryId, searchQuery])
 
-  // 获取分类的子分类
-  const getCategorySubCategories = (categoryId: string) => {
-    return subCategories.filter((sc) => sc.category_id === categoryId).sort((a, b) => a.sort_order - b.sort_order)
-  }
+  // 获取分类的子分类（预计算）
+  const categorySubCategoryMap = useMemo(() => {
+    const map: Record<string, typeof subCategories> = {}
+    for (const cat of categories) {
+      map[cat.id] = subCategories.filter((sc) => sc.category_id === cat.id).sort((a, b) => a.sort_order - b.sort_order)
+    }
+    return map
+  }, [subCategories, categories])
+
+  const getCategorySubCategories = useCallback((categoryId: string) => {
+    return categorySubCategoryMap[categoryId] || []
+  }, [categorySubCategoryMap])
 
   // 获取链接的显示图标
   const getLinkDisplayIcon = (link: LinkItem) => <LinkIcon link={link} size={link.icon_size || 'md'} />
@@ -343,8 +351,6 @@ export default function ResourceManagementPage() {
     setConfirmOpen(true)
   }
 
-  const filteredLinks = getFilteredLinks()
-
   return (
     <div className="p-4 sm:p-6">
       {/* 云同步警告 */}
@@ -446,7 +452,7 @@ export default function ResourceManagementPage() {
             {categories.map((category) => {
               const isExpanded = expandedCategories.includes(category.id)
               const isSelected = selectedCategoryId === category.id
-              const linkCount = getCategoryLinkCount(category.id)
+              const linkCount = categoryLinkCountMap[category.id] || 0
               const categorySubCategories = getCategorySubCategories(category.id)
 
               return (
@@ -497,7 +503,7 @@ export default function ResourceManagementPage() {
                                 <button onClick={() => moveSubCategorySortOrder(sc.id, 'up', sc.category_id)}
                                   className="p-0 text-gray-400 hover:text-indigo-600 leading-none"><ChevronUp className="w-3 h-3" /></button>
                                 <button onClick={() => moveSubCategorySortOrder(sc.id, 'down', sc.category_id)}
-                                  className="p-0 text-gray-400 hover:text-indigo-600 leading-none"><ChevronDownIcon className="w-3 h-3" /></button>
+                                  className="p-0 text-gray-400 hover:text-indigo-600 leading-none"><ChevronDown className="w-3 h-3" /></button>
                               </div>
                               <button onClick={() => { setSelectedCategoryId(category.id); setSelectedSubCategoryId(sc.id) }}
                                 className={`flex-1 text-left text-xs py-0.5 ${selectedSubCategoryId === sc.id ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-indigo-600'}`}>{sc.name}</button>
@@ -601,7 +607,7 @@ export default function ResourceManagementPage() {
                         className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                         title="下移"
                       >
-                        <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
                     </div>
                   </div>
@@ -657,7 +663,7 @@ export default function ResourceManagementPage() {
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); moveLinkSortOrder(link.id, 'down', selectedCategoryId || undefined) }}
                           className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="下移">
-                          <ChevronDownIcon className="w-3.5 h-3.5" />
+                          <ChevronDown className="w-3.5 h-3.5" />
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); copyToClipboard(link.url, link.id) }}
                           className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors">

@@ -41,7 +41,7 @@ export default defineConfig({
         manualChunks: {
           'vendor-core': ['react', 'react-dom', 'react-router-dom'],
           'vendor-animation': ['framer-motion'],
-          'vendor-utils': ['@tanstack/react-query', '@tanstack/react-table', 'zustand'],
+          'vendor-utils': ['@tanstack/react-query', 'zustand'],
           'vendor-icons': ['lucide-react'],
         },
         assetFileNames: 'assets/[name]-[hash][extname]',
