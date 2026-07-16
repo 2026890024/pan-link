@@ -24,6 +24,7 @@ import {
   Image,
   Library,
   AlertTriangle,
+  CloudUpload,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { LinkIcon } from '@/components/LinkIcon'
@@ -53,6 +54,7 @@ export default function ResourceManagementPage() {
     updateSubCategory,
     deleteSubCategory,
     moveSubCategorySortOrder,
+    syncSubCategoriesToCloud,
     iconLibrary,
     addIconToLibrary,
   } = useDataStore()
@@ -375,8 +377,19 @@ export default function ResourceManagementPage() {
           )}
 
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
               <h3 className="font-medium text-gray-700 text-sm">分类列表</h3>
+              <button
+                onClick={async () => {
+                  const msg = await syncSubCategoriesToCloud()
+                  toast.success(msg)
+                }}
+                className="flex items-center gap-1 px-2 py-1 text-xs text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                title="同步本地子分类到云端"
+              >
+                <CloudUpload className="w-3 h-3" />
+                同步子分类
+              </button>
             </div>
             <button onClick={() => setSelectedCategoryId(null)}
               className={`w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100 ${!selectedCategoryId ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}>
