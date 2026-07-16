@@ -91,7 +91,9 @@ export interface LinkItem {
 // ============ HTTP 工具函数 ============
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const url = `${API_BASE}${path}`
+  // 添加时间戳避免浏览器/ CDN 缓存 API 响应
+  const cacheBuster = `_cb=${Date.now()}`
+  const url = `${API_BASE}${path}${path.includes('?') ? '&' : '?'}${cacheBuster}`
   const token = getAuthToken()
   const isWrite = options?.method && ['POST', 'PUT', 'DELETE'].includes(options.method)
   const headers: Record<string, string> = {
@@ -102,7 +104,11 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const resp = await fetch(url, { ...options, headers })
+  const resp = await fetch(url, {
+    ...options,
+    headers,
+    cache: 'no-store', // 强制不使用缓存
+  })
 
   if (!resp.ok) {
     const errBody = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }))

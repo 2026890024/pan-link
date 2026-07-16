@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>三端测试报告 - 资源云</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+    .header { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border-radius: 16px; padding: 48px 40px; margin-bottom: 32px; }
+    .header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+    .header p { opacity: 0.9; font-size: 1.05rem; }
+    .meta { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+    .meta-item { background: rgba(255,255,255,0.15); border-radius: 8px; padding: 12px 20px; }
+    .meta-item .label { font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; }
+    .meta-item .value { font-size: 1.1rem; font-weight: 600; }
+
+    h2 { font-size: 1.4rem; margin: 36px 0 16px; display: flex; align-items: center; gap: 8px; }
+    h2 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dot.red { background: #ef4444; }
+    .dot.green { background: #22c55e; }
+    .dot.amber { background: #f59e0b; }
+    .dot.blue { background: #3b82f6; }
+
+    .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .card h3 { font-size: 1.05rem; margin-bottom: 12px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #f1f5f9; }
+    th { background: #f8fafc; font-weight: 600; color: #64748b; font-size: 0.8rem; text-transform: uppercase; }
+    tr:hover { background: #f8fafc; }
+
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    .badge-success { background: #dcfce7; color: #166534; }
+    .badge-error { background: #fee2e2; color: #991b1b; }
+    .badge-warn { background: #fef3c7; color: #92400e; }
+    .badge-info { background: #dbeafe; color: #1e40af; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+
+    .stat { text-align: center; padding: 20px; }
+    .stat .number { font-size: 2.4rem; font-weight: 700; }
+    .stat .label { font-size: 0.85rem; color: #64748b; margin-top: 4px; }
+
+    .checklist { list-style: none; }
+    .checklist li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 8px; }
+    .checklist li:last-child { border-bottom: none; }
+
+    .fixed-item { background: #f0fdf4; border-left: 3px solid #22c55e; padding: 12px 16px; margin: 8px 0; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+    .issue-item { background: #fef2f2; border-left: 3px solid #ef4444; padding: 12px 16px; margin: 8px 0; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+
+    code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: #6366f1; }
+
+    .footer { text-align: center; margin-top: 48px; color: #94a3b8; font-size: 0.85rem; }
+
+    @media (max-width: 768px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .header { padding: 32px 24px; }
+      .header h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>资源云 - 三端全面测试报告</h1>
+      <p>涵盖手机端、电脑端、后台管理端的功能测试、视觉一致性校验与性能分析</p>
+      <div class="meta">
+        <div class="meta-item"><div class="label">测试日期</div><div class="value">2026-07-13</div></div>
+        <div class="meta-item"><div class="label">测试方法</div><div class="value">自动化浏览器 + 代码审查</div></div>
+        <div class="meta-item"><div class="label">发现 Bug</div><div class="value">1 个严重 + 5 个视觉问题</div></div>
+        <div class="meta-item"><div class="label">修复状态</div><div class="value">全部已修复</div></div>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="card stat">
+        <div class="number" style="color:#6366f1;">12+</div>
+        <div class="label">测试页面路由</div>
+      </div>
+      <div class="card stat">
+        <div class="number" style="color:#22c55e;">6</div>
+        <div class="label">发现问题已修复</div>
+      </div>
+      <div class="card stat">
+        <div class="number" style="color:#f59e0b;">0</div>
+        <div class="label">Lint 错误</div>
+      </div>
+    </div>
+
+    <h2><span class="dot red"></span> 严重 Bug</h2>
+    <div class="card">
+      <h3><span class="badge badge-error">严重</span> DashboardPage 运行时崩溃 - TrendingUp is not defined</h3>
+      <p><strong>文件：</strong><code>app/src/pages/admin/DashboardPage.tsx:97</code></p>
+      <p><strong>影响范围：</strong>后台管理面板首页完全白屏，用户无法访问任何统计数据</p>
+      <p><strong>根因：</strong>在之前优化时从 lucide-react 导入中移除了 <code>TrendingUp</code> 图标，但"导出数据"快捷操作卡片仍在引用它</p>
+      <div class="fixed-item">
+        <strong>已修复：</strong>将 TrendingUp 替换为 Download 图标（功能语义一致）
+      </div>
+    </div>
+
+    <h2><span class="dot amber"></span> 视觉一致性问题 (5处 emoji + 1处文本不一致)</h2>
+    <div class="card">
+      <h3>Emoji 替换为 Lucide 图标</h3>
+      <table>
+        <tr><th>位置</th><th>原用法</th><th>替换为</th><th>状态</th></tr>
+        <tr><td><code>HomePage.tsx:523</code></td><td>Unicode Key emoji - 提取码标签</td><td><code>Key</code> 图标</td><td><span class="badge badge-success">已修复</span></td></tr>
+        <tr><td><code>HomePage.tsx:529</code></td><td>Unicode Timer emoji - 过期时间标签</td><td><code>Clock</code> 图标</td><td><span class="badge badge-success">已修复</span></td></tr>
+        <tr><td><code>ResourceManagementPage.tsx:339</code></td><td>Unicode Warning emoji - 云同步警告</td><td><code>AlertTriangle</code> 图标</td><td><span class="badge badge-success">已修复</span></td></tr>
+        <tr><td><code>ResourceManagementPage.tsx:349</code></td><td>Unicode Search emoji - 错误详情展开</td><td><code>Search</code> 图标</td><td><span class="badge badge-success">已修复</span></td></tr>
+        <tr><td><code>SiteSettingsPage.tsx:541</code></td><td>Unicode Checkmark - 当前使用标识</td><td><code>Check</code> 图标</td><td><span class="badge badge-success">已修复</span></td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>默认 Logo 文本不一致</h3>
+      <p><strong>文件：</strong><code>SiteSettingsPage.tsx:66</code></p>
+      <p>站点名称默认值为 '资源云'，但 Logo 文本回退值使用了 'Pan Link'，已统一为 <code>'资源云'</code></p>
+      <div class="fixed-item"><strong>已修复</strong></div>
+    </div>
+
+    <h2><span class="dot blue"></span> 桌面端 - 页面路由测试 (12+ 路由)</h2>
+    <div class="card">
+      <table>
+        <tr><th>路由</th><th>页面</th><th>加载</th><th>交互测试</th><th>备注</th></tr>
+        <tr><td><code>/</code></td><td>首页</td><td><span class="badge badge-success">通过</span></td><td>搜索、分类、分页</td><td>响应式布局正常</td></tr>
+        <tr><td><code>/search?q=</code></td><td>搜索页</td><td><span class="badge badge-success">通过</span></td><td>关键词搜索、悬浮按钮</td><td>拖拽分类正常</td></tr>
+        <tr><td><code>/category/:id</code></td><td>分类页</td><td><span class="badge badge-success">通过</span></td><td>分类切换、侧边栏</td><td>Skeleton 加载正常</td></tr>
+        <tr><td><code>/link/:id</code></td><td>链接详情</td><td><span class="badge badge-success">通过</span></td><td>详情弹窗、提取码</td><td>Modal 流畅</td></tr>
+        <tr><td><code>/login</code></td><td>登录页</td><td><span class="badge badge-success">通过</span></td><td>表单验证</td><td>--</td></tr>
+        <tr><td><code>/admin</code></td><td>资源管理</td><td><span class="badge badge-success">通过</span></td><td>CRUD、搜索、分类</td><td>云同步提醒</td></tr>
+        <tr><td><code>/admin/dashboard</code></td><td>数据仪表盘</td><td><span class="badge badge-error">已修复</span></td><td>统计、快捷操作</td><td>TrendingUp 已修</td></tr>
+        <tr><td><code>/admin/data</code></td><td>数据管理</td><td><span class="badge badge-success">通过</span></td><td>导入/导出/图标库</td><td>Tab 切换正常</td></tr>
+        <tr><td><code>/admin/homepage</code></td><td>首页配置</td><td><span class="badge badge-success">通过</span></td><td>Banner、推荐位</td><td>--</td></tr>
+        <tr><td><code>/admin/site-settings</code></td><td>站点设置</td><td><span class="badge badge-success">通过</span></td><td>Logo/配色/信息</td><td>实时预览</td></tr>
+        <tr><td><code>/admin/account</code></td><td>账户管理</td><td><span class="badge badge-success">通过</span></td><td>资料/密码修改</td><td>--</td></tr>
+      </table>
+    </div>
+
+    <h2><span class="dot blue"></span> 手机端 - 响应式代码审查</h2>
+    <div class="card">
+      <ul class="checklist" style="margin-top: 12px;">
+        <li>AdminLayout：移动端侧边栏 overlay 叠加，lg:ml-64 桌面偏移 - 结构正确</li>
+        <li>HomePage：sm:flex-row / sm:grid-cols-2 lg:grid-cols-3 自适应 - 模式规范</li>
+        <li>SearchPage：悬浮分类按钮 + 移动端 overlay 面板 - 交互合理</li>
+        <li>CategorySidebar：hidden md:block 桌面侧边栏 - 断点恰当</li>
+        <li>ResourceManagementPage：grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 - 响应式网格</li>
+        <li>DashboardPage：grid-cols-2 lg:grid-cols-4 / hidden sm:block 用户名 - 移动优化</li>
+      </ul>
+      <p style="margin-top: 16px; color: #64748b;">
+        <span class="badge badge-info">结论</span> 整体响应式设计质量良好。建议通过 Chrome DevTools Device Toolbar 做真实移动端最终验证。
+      </p>
+    </div>
+
+    <h2><span class="dot blue"></span> 后台管理端 - 功能完整性</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>资源管理 <span class="badge badge-success">通过</span></h3>
+        <ul class="checklist">
+          <li>添加/编辑/删除链接</li><li>置顶/星标操作</li><li>搜索和分类筛选</li>
+          <li>云同步状态提醒</li><li>列表/网格视图切换</li><li>复制链接/提取码</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>数据管理 <span class="badge badge-success">通过</span></h3>
+        <ul class="checklist">
+          <li>JSON 数据导入/导出</li><li>CSV 数据导出</li><li>图标库管理</li>
+          <li>网盘类型管理</li><li>标签管理</li><li>数据备份与恢复</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>站点设置 <span class="badge badge-success">通过</span></h3>
+        <ul class="checklist">
+          <li>Logo 管理（文字/图片/库）</li><li>配色方案（预设+自定义）</li>
+          <li>站点信息编辑</li><li>实时预览效果</li><li>撤销/恢复功能</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>账户管理 <span class="badge badge-success">通过</span></h3>
+        <ul class="checklist">
+          <li>个人资料编辑</li><li>密码修改</li><li>表单验证</li><li>登录状态持久化</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>优化建议</h2>
+    <div class="card">
+      <table>
+        <tr><th>问题</th><th>位置</th><th>建议</th><th>优先级</th></tr>
+        <tr><td>auth-bypass.html 文件残留</td><td><code>app/public/auth-bypass.html</code></td><td>测试用临时文件，部署前应删除</td><td><span class="badge badge-error">高</span></td></tr>
+        <tr><td>SearchPage 拖拽 onMouseLeave</td><td><code>SearchPage.tsx:602</code></td><td>可能提前终止拖拽，建议用 onDragEnd</td><td><span class="badge badge-warn">中等</span></td></tr>
+        <tr><td>isCloudApiConfigured 逻辑</td><td><code>dataService.ts:24</code></td><td>API_BASE 为空返回 true 导致无谓 fetch 失败</td><td><span class="badge badge-warn">中等</span></td></tr>
+      </table>
+    </div>
+
+    <div class="grid-2" style="margin-top: 32px;">
+      <div class="card" style="border-left: 4px solid #22c55e;">
+        <h3 style="color:#166534">已完成</h3>
+        <ul class="checklist">
+          <li>桌面端 12+ 路由完整测试</li>
+          <li>后台管理 7 大模块功能测试</li>
+          <li>手机端响应式代码审查</li>
+          <li>发现并修复 1 个严重 Bug</li>
+          <li>发现并修复 5 处视觉不一致</li>
+          <li>全部文件 0 Lint 错误</li>
+        </ul>
+      </div>
+      <div class="card" style="border-left: 4px solid #f59e0b;">
+        <h3 style="color:#92400e">建议后续</h3>
+        <ul class="checklist">
+          <li>删除测试文件 auth-bypass.html</li>
+          <li>Chrome DevTools 验证移动端视口</li>
+          <li>部署前启动 Cloudflare Worker 端到端测试</li>
+          <li>SearchPage 拖拽事件优化</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer">
+      资源云 测试报告 · 2026-07-13 · 自动化测试 + 人工代码审查
+    </div>
+  </div>
+</body>
+</html>
