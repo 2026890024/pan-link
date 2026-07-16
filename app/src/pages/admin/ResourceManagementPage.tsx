@@ -215,21 +215,29 @@ export default function ResourceManagementPage() {
   }
 
   // ===== 子分类操作 =====
-  const handleAddSubCategory = () => {
-    if (newSubCategoryName.trim() && newSubCategoryParentId) {
-      addSubCategory(newSubCategoryParentId, newSubCategoryName.trim())
+  const handleAddSubCategory = async () => {
+    if (!newSubCategoryName.trim() || !newSubCategoryParentId) return
+    try {
+      await addSubCategory(newSubCategoryParentId, newSubCategoryName.trim())
       setNewSubCategoryName('')
       setIsAddingSubCategory(false)
       setNewSubCategoryParentId('')
       toast.success('子分类已添加')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(msg.includes('过于频繁') ? '添加失败：请求过于频繁，请稍后再试' : `添加失败：${msg}`)
     }
   }
 
-  const handleSaveSubCategory = () => {
-    if (editingSubCategoryId && editSubCategoryName.trim()) {
-      updateSubCategory(editingSubCategoryId, { name: editSubCategoryName.trim() })
+  const handleSaveSubCategory = async () => {
+    if (!editingSubCategoryId || !editSubCategoryName.trim()) return
+    try {
+      await updateSubCategory(editingSubCategoryId, { name: editSubCategoryName.trim() })
       setEditingSubCategoryId(null)
       toast.success('子分类已更新')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(msg.includes('过于频繁') ? '更新失败：请求过于频繁，请稍后再试' : `更新失败：${msg}`)
     }
   }
 

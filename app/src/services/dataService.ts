@@ -91,11 +91,9 @@ export interface LinkItem {
 // ============ HTTP 工具函数 ============
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  // 仅对写请求添加时间戳，GET 请求使用 CDN 缓存减少冷启动
+  // 所有请求都加时间戳，避免 CDN/浏览器缓存导致写后读不到最新数据
+  const url = `${API_BASE}${path}${path.includes('?') ? '&' : '?'}_cb=${Date.now()}`
   const isWrite = options?.method && ['POST', 'PUT', 'DELETE'].includes(options.method)
-  const url = isWrite
-    ? `${API_BASE}${path}${path.includes('?') ? '&' : '?'}_cb=${Date.now()}`
-    : `${API_BASE}${path}`
   const token = getAuthToken()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -114,8 +112,8 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
       const resp = await fetch(url, {
         ...options,
         headers,
-        // GET 请求允许使用 CDN 缓存，减少 Workers 冷启动
-        cache: isWrite ? 'no-store' : 'default',
+        // 管理后台需要写后立即可读，禁用缓存
+        cache: 'no-store',
       })
 
       if (!resp.ok) {
