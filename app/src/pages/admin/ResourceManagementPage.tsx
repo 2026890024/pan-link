@@ -382,7 +382,13 @@ export default function ResourceManagementPage() {
               <button
                 onClick={async () => {
                   const msg = await syncSubCategoriesToCloud()
-                  toast.success(msg)
+                  if (msg.includes('失败') || msg.includes('无法') || msg.includes('未配置')) {
+                    // 只显示前 3 条具体失败原因，避免 toast 过长
+                    const lines = msg.split('\n').slice(0, 4)
+                    toast.error(lines.join('\n'))
+                  } else {
+                    toast.success(msg)
+                  }
                 }}
                 className="flex items-center gap-1 px-2 py-1 text-xs text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                 title="同步本地子分类到云端"

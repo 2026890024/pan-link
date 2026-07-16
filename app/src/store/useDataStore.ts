@@ -191,10 +191,115 @@ function mergeLists<T extends { id: string }>(remote: T[], local: T[], fallback:
   return fallback
 }
 
-// ============ 子分类自动同步到云端 ============
+// ============ 子分类同步到云端（核心逻辑） ============
+// 解决本地 category_id 与云端 category_id 不一致的问题：
+// 1. 先按 ID 匹配云端分类
+// 2. ID 不匹配时按本地分类名称匹配云端分类
+// 3. 还找不到则记录失败原因
+async function doSyncSubCategories(
+  localSubs: SubCategory[],
+  cloudCategories: Category[],
+  set: (partial: Partial<DataStore>) => void
+): Promise<{ success: number; failed: number; errors: string[] }> {
+  const result = { success: 0, failed: 0, errors: [] as string[] }
+
+  // 加载本地分类（包括新版和旧版 storage）
+  const localCats = loadLocal<Category[]>('categories', [])
+  const legacyCats = (() => {
+    try {
+      const raw = localStorage.getItem('resource-cloud-storage')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        const list = parsed?.state?.categories || parsed?.categories || []
+        return Array.isArray(list) ? list : []
+      }
+    } catch {}
+    return [] as Category[]
+  })()
+
+  const nameToCloudId = new Map<string, string>()
+  for (const cc of cloudCategories) {
+    nameToCloudId.set(cc.name, cc.id)
+  }
+
+  const syncedIds = new Set<string>()
+
+  for (const sc of localSubs) {
+    let cloudCatId = cloudCategories.find(c => c.id === sc.category_id)?.id
+
+    // ID 不匹配，按本地分类名称查找云端分类
+    if (!cloudCatId) {
+      const localCat = localCats.find(c => c.id === sc.category_id) || legacyCats.find(c => c.id === sc.category_id)
+      if (localCat) {
+        cloudCatId = nameToCloudId.get(localCat.name)
+        // 如果按名称也找不到，尝试在云端创建该分类
+        if (!cloudCatId) {
+          try {
+            const newCat = await ds.createCategory(localCat.name)
+            cloudCatId = newCat.id
+            nameToCloudId.set(localCat.name, newCat.id)
+            cloudCategories.push(newCat)
+            console.log(`[DataStore] 为同步子分类自动创建分类 "${localCat.name}"，id=${newCat.id}`)
+          } catch (err) {
+            console.error(`[DataStore] 自动创建分类 "${localCat.name}" 失败:`, err)
+          }
+        }
+      }
+    }
+
+
+    if (!cloudCatId) {
+      result.failed++
+      const catName = localCats.find(c => c.id === sc.category_id)?.name
+        || legacyCats.find(c => c.id === sc.category_id)?.name
+        || sc.category_id
+      result.errors.push(`"${sc.name}"：找不到对应分类 "${catName}"`)
+      continue
+    }
+
+    try {
+      await ds.addSubCategoryApi(cloudCatId, sc.name)
+      result.success++
+      syncedIds.add(sc.id)
+    } catch (err) {
+      result.failed++
+      const msg = err instanceof Error ? err.message : String(err)
+      result.errors.push(`"${sc.name}"：${msg}`)
+      console.error(`[DataStore] 同步子分类 "${sc.name}" 失败:`, err)
+    }
+  }
+
+  if (result.success > 0) {
+    try {
+      const cloudSubs = await ds.fetchSubCategories()
+      const remainingLocal = localSubs.filter(sc => !syncedIds.has(sc.id))
+      const merged = mergeLists(cloudSubs, remainingLocal)
+      set({ subCategories: merged })
+      saveLocalItem('subcategories', merged)
+    } catch { /* ignore */ }
+  }
+
+  // 保存已同步 ID，避免重复同步
+  try {
+    const existing = (() => {
+      try {
+        const raw = localStorage.getItem('panlink_synced_sub_ids')
+        if (raw) return new Set(JSON.parse(raw))
+      } catch {}
+      return new Set<string>()
+    })()
+    for (const id of syncedIds) existing.add(id)
+    localStorage.setItem('panlink_synced_sub_ids', JSON.stringify([...existing]))
+  } catch {}
+
+  return result
+}
+
+// 子分类自动同步到云端
 // 当云端子分类为空但本地有数据时，自动 POST 到 D1
 async function autoSyncSubCategories(
   cloudSubsLength: number,
+  cloudCategories: Category[],
   localSubs: SubCategory[],
   set: (partial: Partial<DataStore>) => void,
   get: () => DataStore
@@ -207,9 +312,9 @@ async function autoSyncSubCategories(
 
   const syncFlagKey = 'panlink_subcategories_synced'
   const alreadySynced = (() => { try { return localStorage.getItem(syncFlagKey) === '1' } catch { return false } })()
+  if (alreadySynced) return
 
-  // 只对新增未同步的子分类进行同步（避免重复同步）
-  const syncedIds: Set<string> = (() => {
+  const syncedIds = (() => {
     try {
       const raw = localStorage.getItem('panlink_synced_sub_ids')
       if (raw) return new Set(JSON.parse(raw))
@@ -222,33 +327,18 @@ async function autoSyncSubCategories(
 
   console.log(`[DataStore] 发现 ${unsynced.length} 个本地子分类未同步到云端，开始自动同步...`)
 
-  let successCount = 0
-  for (const sc of unsynced) {
-    try {
-      await ds.addSubCategoryApi(sc.category_id, sc.name)
-      syncedIds.add(sc.id)
-      successCount++
-    } catch (err) {
-      console.error(`[DataStore] 同步子分类 "${sc.name}" 失败:`, err)
-    }
+  const result = await doSyncSubCategories(unsynced, cloudCategories, set)
+
+  if (result.success > 0) {
+    console.log(`[DataStore] 已同步 ${result.success} 个子分类到云端`)
+  }
+  if (result.failed > 0) {
+    console.log(`[DataStore] ${result.failed} 个子分类同步失败`, result.errors)
   }
 
-  // 保存已同步 ID
-  try { localStorage.setItem('panlink_synced_sub_ids', JSON.stringify([...syncedIds])) } catch {}
   try { localStorage.setItem(syncFlagKey, '1') } catch {}
-
-  if (successCount > 0) {
-    console.log(`[DataStore] 已同步 ${successCount} 个子分类到云端`)
-    // 重新从云端拉取，更新 store
-    try {
-      const cloudSubs = await ds.fetchSubCategories()
-      const remainingLocal = localSubs.filter(sc => !syncedIds.has(sc.id))
-      const merged = mergeLists(cloudSubs, remainingLocal)
-      set({ subCategories: merged })
-      saveLocalItem('subcategories', merged)
-    } catch { /* ignore */ }
-  }
 }
+
 
 // Helper: reload all data from service (非阻塞)
 // 优化 1: 先显示本地缓存（在 initialize 中完成）
@@ -307,7 +397,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
       console.log(`[DataStore] 加载完成: ${allData.categories.length} 分类, ${allData.links.length} 链接, ${allData.subcategories.length} 子分类`)
 
       // 自动同步本地子分类到云端（仅在云端为空且本地有数据时）
-      autoSyncSubCategories(allData.subcategories.length, localSubs, set, get)
+      autoSyncSubCategories(allData.subcategories.length, allData.categories, localSubs, set, get)
 
       return
     }
@@ -365,7 +455,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
     console.log(`[DataStore] 加载完成: ${categories.length} 分类, ${links.length} 链接`)
 
     // 自动同步本地子分类到云端
-    autoSyncSubCategories(subCategories.length, localSubs, set, get)
+    autoSyncSubCategories(subCategories.length, categories, localSubs, set, get)
   } catch (err) {
     console.error('[DataStore] reloadAll error:', err)
     const fallbackLinks = loadLocalLinks()
@@ -800,40 +890,28 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     const localSubs = loadLocalSubCategoriesCompat()
     if (localSubs.length === 0) return '没有本地子分类需要同步'
 
-    // 获取云端已有子分类，对比差异
+    // 获取云端已有子分类和分类，用于 ID 映射
     let cloudSubs: SubCategory[] = []
-    try { cloudSubs = await ds.fetchSubCategories() } catch { return '无法连接云端，请检查网络' }
+    let cloudCats: Category[] = []
+    try {
+      [cloudSubs, cloudCats] = await Promise.all([
+        ds.fetchSubCategories(),
+        ds.fetchCategories(),
+      ])
+    } catch { return '无法连接云端，请检查网络' }
 
     const cloudIds = new Set(cloudSubs.map(s => s.id))
     const unsynced = localSubs.filter(sc => !cloudIds.has(sc.id))
     if (unsynced.length === 0) return '所有子分类已在云端，无需同步'
 
-    let successCount = 0
-    let failCount = 0
-    for (const sc of unsynced) {
-      try {
-        await ds.addSubCategoryApi(sc.category_id, sc.name)
-        successCount++
-      } catch { failCount++ }
-    }
+    const result = await doSyncSubCategories(unsynced, cloudCats, set)
 
-    if (successCount > 0) {
-      const newCloudSubs = await ds.fetchSubCategories()
-      const remainingLocal = localSubs.filter(sc => {
-        const exists = newCloudSubs.some(cs => cs.id === sc.id || cs.name === sc.name)
-        return !exists
-      })
-      const merged = mergeLists(newCloudSubs, remainingLocal)
-      set({ subCategories: merged })
-      saveLocalItem('subcategories', merged)
-    }
-
-    if (failCount > 0) {
+    if (result.failed > 0) {
       const token = (() => { try { return sessionStorage.getItem('admin_token') } catch { return null } })()
-      if (!token) return `同步失败：${failCount} 个未成功。请先登录管理后台`
-      return `已同步 ${successCount} 个，${failCount} 个失败`
+      if (!token) return `同步失败：${result.failed} 个未成功。请先登录管理后台\n${result.errors.join('\n')}`
+      return `已同步 ${result.success} 个，${result.failed} 个失败\n${result.errors.join('\n')}`
     }
-    return `已成功同步 ${successCount} 个子分类到云端`
+    return `已成功同步 ${result.success} 个子分类到云端`
   },
 
   // ===== DriveTypes =====
