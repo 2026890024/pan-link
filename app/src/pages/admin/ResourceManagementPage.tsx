@@ -25,6 +25,8 @@ import {
   Library,
   AlertTriangle,
   CloudUpload,
+  CopyX,
+
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { LinkIcon } from '@/components/LinkIcon'
@@ -55,7 +57,9 @@ export default function ResourceManagementPage() {
     deleteSubCategory,
     moveSubCategorySortOrder,
     syncSubCategoriesToCloud,
+    deduplicateSubCategories,
     iconLibrary,
+
     addIconToLibrary,
   } = useDataStore()
 
@@ -379,23 +383,40 @@ export default function ResourceManagementPage() {
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
               <h3 className="font-medium text-gray-700 text-sm">分类列表</h3>
-              <button
-                onClick={async () => {
-                  const msg = await syncSubCategoriesToCloud()
-                  if (msg.includes('失败') || msg.includes('无法') || msg.includes('未配置')) {
-                    // 只显示前 3 条具体失败原因，避免 toast 过长
-                    const lines = msg.split('\n').slice(0, 4)
-                    toast.error(lines.join('\n'))
-                  } else {
-                    toast.success(msg)
-                  }
-                }}
-                className="flex items-center gap-1 px-2 py-1 text-xs text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                title="同步本地子分类到云端"
-              >
-                <CloudUpload className="w-3 h-3" />
-                同步子分类
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={async () => {
+                    const msg = await deduplicateSubCategories()
+                    if (msg.includes('失败') || msg.includes('无法')) {
+                      toast.error(msg)
+                    } else {
+                      toast.success(msg)
+                    }
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                  title="清理相同分类下的重复子分类"
+                >
+                  <CopyX className="w-3 h-3" />
+                  清理重复
+                </button>
+                <button
+                  onClick={async () => {
+                    const msg = await syncSubCategoriesToCloud()
+                    if (msg.includes('失败') || msg.includes('无法') || msg.includes('未配置')) {
+                      // 只显示前 3 条具体失败原因，避免 toast 过长
+                      const lines = msg.split('\n').slice(0, 4)
+                      toast.error(lines.join('\n'))
+                    } else {
+                      toast.success(msg)
+                    }
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                  title="同步本地子分类到云端"
+                >
+                  <CloudUpload className="w-3 h-3" />
+                  同步子分类
+                </button>
+              </div>
             </div>
             <button onClick={() => setSelectedCategoryId(null)}
               className={`w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100 ${!selectedCategoryId ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}>

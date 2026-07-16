@@ -63,6 +63,8 @@ interface DataStore {
   moveSubCategorySortOrder: (id: string, direction: 'up' | 'down', categoryId: string) => Promise<void>
   getSubCategoriesByCategory: (categoryId: string) => SubCategory[]
   syncSubCategoriesToCloud: () => Promise<string> // 手动同步，返回结果消息
+  deduplicateSubCategories: () => Promise<string> // 清理重复子分类，返回结果消息
+
 
   // DriveTypes
   addDriveType: (name: string, icon: string, color: string) => void
@@ -195,11 +197,15 @@ function mergeLists<T extends { id: string }>(remote: T[], local: T[], fallback:
 // 解决本地 category_id 与云端 category_id 不一致的问题：
 // 1. 先按 ID 匹配云端分类
 // 2. ID 不匹配时按本地分类名称匹配云端分类
-// 3. 还找不到则记录失败原因
+// 3. 还找不到则自动创建分类
+// 4. 如果云端已存在同名同分类的子分类，则跳过不再重复创建
+// 5. 同步后把本地链接里引用的旧子分类 ID 映射到云端子分类 ID
 async function doSyncSubCategories(
   localSubs: SubCategory[],
   cloudCategories: Category[],
-  set: (partial: Partial<DataStore>) => void
+  cloudSubs: SubCategory[],
+  set: (partial: Partial<DataStore>) => void,
+  get: () => DataStore
 ): Promise<{ success: number; failed: number; errors: string[] }> {
   const result = { success: 0, failed: 0, errors: [] as string[] }
 
@@ -223,6 +229,7 @@ async function doSyncSubCategories(
   }
 
   const syncedIds = new Set<string>()
+  const idMap = new Map<string, string>() // 本地子分类 ID -> 云端子分类 ID
 
   for (const sc of localSubs) {
     let cloudCatId = cloudCategories.find(c => c.id === sc.category_id)?.id
@@ -247,7 +254,6 @@ async function doSyncSubCategories(
       }
     }
 
-
     if (!cloudCatId) {
       result.failed++
       const catName = localCats.find(c => c.id === sc.category_id)?.name
@@ -257,10 +263,24 @@ async function doSyncSubCategories(
       continue
     }
 
-    try {
-      await ds.addSubCategoryApi(cloudCatId, sc.name)
+    // 如果云端已存在同名同分类的子分类，直接复用，避免重复
+    const existingCloud = cloudSubs.find(
+      cs => cs.category_id === cloudCatId && cs.name.trim().toLowerCase() === sc.name.trim().toLowerCase()
+    )
+    if (existingCloud) {
+      idMap.set(sc.id, existingCloud.id)
       result.success++
       syncedIds.add(sc.id)
+      continue
+    }
+
+    try {
+      const newCloud = await ds.addSubCategoryApi(cloudCatId, sc.name)
+      idMap.set(sc.id, newCloud.id)
+      result.success++
+      syncedIds.add(sc.id)
+      // 把新创建的子分类也加入到 cloudSubs，方便后续去重判断
+      cloudSubs.push(newCloud)
     } catch (err) {
       result.failed++
       const msg = err instanceof Error ? err.message : String(err)
@@ -269,11 +289,39 @@ async function doSyncSubCategories(
     }
   }
 
+  // 如果子分类 ID 有映射，更新链接中的旧 ID 为云端 ID
+  if (idMap.size > 0) {
+    const currentLinks = get().links
+    const linkUpdates: { id: string; subcategory_id: string }[] = []
+    const links = currentLinks.map(l => {
+      if (l.subcategory_id && idMap.has(l.subcategory_id)) {
+        const newId = idMap.get(l.subcategory_id)!
+        linkUpdates.push({ id: l.id, subcategory_id: newId })
+        return { ...l, subcategory_id: newId }
+      }
+      return l
+    })
+
+    try {
+      if (ds.isCloudApiConfigured()) {
+        await Promise.all(
+          linkUpdates.map(u => ds.updateLinkApi(u.id, { subcategory_id: u.subcategory_id }))
+        )
+      }
+    } catch (err) {
+      console.error('[DataStore] 更新链接子分类 ID 失败:', err)
+    }
+
+    saveLocalLinks(links)
+    set({ links })
+  }
+
+
   if (result.success > 0) {
     try {
-      const cloudSubs = await ds.fetchSubCategories()
+      const freshCloudSubs = await ds.fetchSubCategories()
       const remainingLocal = localSubs.filter(sc => !syncedIds.has(sc.id))
-      const merged = mergeLists(cloudSubs, remainingLocal)
+      const merged = mergeLists(freshCloudSubs, remainingLocal)
       set({ subCategories: merged })
       saveLocalItem('subcategories', merged)
     } catch { /* ignore */ }
@@ -294,6 +342,7 @@ async function doSyncSubCategories(
 
   return result
 }
+
 
 // 子分类自动同步到云端
 // 当云端子分类为空但本地有数据时，自动 POST 到 D1
@@ -327,7 +376,8 @@ async function autoSyncSubCategories(
 
   console.log(`[DataStore] 发现 ${unsynced.length} 个本地子分类未同步到云端，开始自动同步...`)
 
-  const result = await doSyncSubCategories(unsynced, cloudCategories, set)
+  const result = await doSyncSubCategories(unsynced, cloudCategories, [], set, get)
+
 
   if (result.success > 0) {
     console.log(`[DataStore] 已同步 ${result.success} 个子分类到云端`)
@@ -904,7 +954,8 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     const unsynced = localSubs.filter(sc => !cloudIds.has(sc.id))
     if (unsynced.length === 0) return '所有子分类已在云端，无需同步'
 
-    const result = await doSyncSubCategories(unsynced, cloudCats, set)
+    const result = await doSyncSubCategories(unsynced, cloudCats, cloudSubs, set, get)
+
 
     if (result.failed > 0) {
       const token = (() => { try { return sessionStorage.getItem('admin_token') } catch { return null } })()
@@ -913,6 +964,84 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     }
     return `已成功同步 ${result.success} 个子分类到云端`
   },
+
+  // 清理重复子分类：相同分类 + 相同名称只保留一条
+  // 删除其余重复项，并把链接里引用的重复子分类 ID 迁移到保留项
+  deduplicateSubCategories: async () => {
+    const all = get().subCategories.slice()
+    const links = get().links.slice()
+
+    if (all.length === 0) return '没有子分类'
+
+    // 按 category_id + name 分组（忽略首尾空格，不区分大小写）
+    const groups = new Map<string, SubCategory[]>()
+    for (const sc of all) {
+      const key = `${sc.category_id}::${sc.name.trim().toLowerCase()}`
+      const list = groups.get(key) || []
+      list.push(sc)
+      groups.set(key, list)
+    }
+
+    const toDelete: SubCategory[] = []
+    const idMap = new Map<string, string>() // 被删除子分类 ID -> 保留子分类 ID
+
+    for (const [, list] of groups) {
+      if (list.length <= 1) continue
+      // 保留 sort_order 最小、id 最小的那一条
+      list.sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id))
+      const kept = list[0]
+      for (const dup of list.slice(1)) {
+        toDelete.push(dup)
+        idMap.set(dup.id, kept.id)
+      }
+    }
+
+    if (toDelete.length === 0) return '未发现重复子分类'
+
+    // 先更新链接中的子分类 ID 引用
+    const linkUpdates: { id: string; subcategory_id: string }[] = []
+    let updatedLinks = links.map(l => {
+      if (l.subcategory_id && idMap.has(l.subcategory_id)) {
+        const newId = idMap.get(l.subcategory_id)!
+        linkUpdates.push({ id: l.id, subcategory_id: newId })
+        return { ...l, subcategory_id: newId }
+      }
+      return l
+    })
+
+    try {
+      if (ds.isCloudApiConfigured()) {
+        // 云端：先更新链接，再删除重复子分类
+        await Promise.all(
+          linkUpdates.map(u => ds.updateLinkApi(u.id, { subcategory_id: u.subcategory_id }))
+        )
+        for (const dup of toDelete) {
+          await ds.deleteSubCategoryApi(dup.id)
+        }
+        // 以云端数据为准刷新
+        const [subCategories, refreshedLinks] = await Promise.all([
+          ds.fetchSubCategories(),
+          ds.fetchLinks(),
+        ])
+        set({ subCategories, links: refreshedLinks })
+        saveLocalItem('subcategories', subCategories)
+        saveLocalLinks(refreshedLinks)
+        return `已清理 ${toDelete.length} 个重复子分类`
+      }
+    } catch (err) {
+      console.error('[DataStore] deduplicateSubCategories 云API失败:', err)
+      return `清理失败：${err instanceof Error ? err.message : String(err)}`
+    }
+
+    // 本地回退
+    const updatedSubs = all.filter(sc => !toDelete.some(d => d.id === sc.id))
+    set({ subCategories: updatedSubs, links: updatedLinks })
+    saveLocalItem('subcategories', updatedSubs)
+    saveLocalLinks(updatedLinks)
+    return `已清理 ${toDelete.length} 个重复子分类（本地）`
+
+  },
+
 
   // ===== DriveTypes =====
   addDriveType: (name, icon, color) => {
