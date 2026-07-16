@@ -164,11 +164,7 @@ export default function SearchBar({
                 </span>
               )}
             </div>
-            {link.description && (
-              <div className="text-xs text-gray-400 truncate mt-0.5">
-                {link.description.slice(0, 60)}{link.description.length > 60 ? '...' : ''}
-              </div>
-            )}
+
           </div>
         </button>
       ))}
