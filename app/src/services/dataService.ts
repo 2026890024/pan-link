@@ -105,19 +105,39 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const resp = await fetch(url, {
-    ...options,
-    headers,
-    // GET 请求允许使用 CDN 缓存，减少 Workers 冷启动
-    cache: isWrite ? 'no-store' : 'default',
-  })
+  // 对写请求自动重试（Cloudflare Workers 有 Rate Limit，429 时指数退避）
+  const maxRetries = isWrite ? 3 : 0
+  let lastErr: Error | undefined
 
-  if (!resp.ok) {
-    const errBody = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }))
-    throw new Error(errBody.error || `API error ${resp.status}`)
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const resp = await fetch(url, {
+        ...options,
+        headers,
+        // GET 请求允许使用 CDN 缓存，减少 Workers 冷启动
+        cache: isWrite ? 'no-store' : 'default',
+      })
+
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }))
+        throw new Error(errBody.error || `API error ${resp.status}`)
+      }
+
+      return resp.json() as Promise<T>
+    } catch (err) {
+      lastErr = err instanceof Error ? err : new Error(String(err))
+      const isRateLimit = lastErr.message.includes('请求过于频繁') || lastErr.message.includes('429')
+      if (isWrite && isRateLimit && attempt < maxRetries) {
+        const delay = 1000 * Math.pow(2, attempt) // 1s, 2s, 4s
+        console.log(`[DataService] apiFetch 429 重试 ${attempt + 1}/${maxRetries}，等待 ${delay}ms`)
+        await new Promise(r => setTimeout(r, delay))
+        continue
+      }
+      throw lastErr
+    }
   }
 
-  return resp.json() as Promise<T>
+  throw lastErr || new Error('API request failed')
 }
 
 const log = (action: string, ...args: unknown[]) => {

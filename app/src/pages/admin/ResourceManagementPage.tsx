@@ -238,9 +238,14 @@ export default function ResourceManagementPage() {
       title: '删除子分类',
       message: '确定删除该子分类吗？',
       variant: 'danger',
-      onConfirm: () => {
-        deleteSubCategory(id)
-        toast.success('子分类已删除')
+      onConfirm: async () => {
+        try {
+          await deleteSubCategory(id)
+          toast.success('子分类已删除')
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          toast.error(msg.includes('过于频繁') ? '删除失败：请求过于频繁，请稍后再试' : `删除失败：${msg}`)
+        }
       },
     })
     setConfirmOpen(true)

@@ -122,17 +122,40 @@ function loadLocalSubCategoriesCompat(): SubCategory[] {
       const legacy = parsed?.state?.subCategories || parsed?.subCategories
       if (Array.isArray(legacy) && legacy.length > 0) {
         console.log('[DataStore] 从旧版存储格式加载', legacy.length, '个子分类')
-        return legacy.map((sc: Record<string, unknown>) => ({
+        const migrated = legacy.map((sc: Record<string, unknown>) => ({
           id: String(sc.id || ''),
           category_id: String(sc.category_id || ''),
           name: String(sc.name || ''),
           sort_order: Number(sc.sort_order) || 0,
         }))
+        // 迁移后立即保存到新版键，并清空旧版中的子分类，防止重复读回
+        saveLocalItem('subcategories', migrated)
+        try {
+          const next = { ...parsed, state: { ...parsed?.state, subCategories: [] } }
+          localStorage.setItem('resource-cloud-storage', JSON.stringify(next))
+        } catch { /* ignore */ }
+        return migrated
       }
     }
   } catch { /* ignore */ }
   return []
 }
+
+// 从旧版 storage 中删除指定子分类（防止幽灵数据）
+function removeLegacySubCategory(id: string): void {
+  try {
+    const raw = localStorage.getItem('resource-cloud-storage')
+    if (!raw) return
+    const parsed = JSON.parse(raw)
+    const legacy = parsed?.state?.subCategories || parsed?.subCategories
+    if (!Array.isArray(legacy)) return
+    const filtered = legacy.filter((sc: Record<string, unknown>) => String(sc.id) !== id)
+    if (filtered.length === legacy.length) return
+    const next = { ...parsed, state: { ...parsed?.state, subCategories: filtered } }
+    localStorage.setItem('resource-cloud-storage', JSON.stringify(next))
+  } catch { /* ignore */ }
+}
+
 
 function saveLocal<T>(key: string, data: T): void {
   try {
@@ -231,8 +254,23 @@ async function doSyncSubCategories(
   const syncedIds = new Set<string>()
   const idMap = new Map<string, string>() // 本地子分类 ID -> 云端子分类 ID
 
+  // 同步前先对本地子分类自身去重，防止把重复项批量创建到云端
+  const localUniqueMap = new Map<string, SubCategory>()
+  const localIdMap = new Map<string, string>() // 重复本地子分类 ID -> 保留的本地子分类 ID
   for (const sc of localSubs) {
+    const key = `${sc.category_id}::${sc.name.trim().toLowerCase()}`
+    const existing = localUniqueMap.get(key)
+    if (existing) {
+      localIdMap.set(sc.id, existing.id)
+    } else {
+      localUniqueMap.set(key, sc)
+    }
+  }
+  const uniqueLocalSubs = Array.from(localUniqueMap.values())
+
+  for (const sc of uniqueLocalSubs) {
     let cloudCatId = cloudCategories.find(c => c.id === sc.category_id)?.id
+
 
     // ID 不匹配，按本地分类名称查找云端分类
     if (!cloudCatId) {
@@ -286,6 +324,15 @@ async function doSyncSubCategories(
       const msg = err instanceof Error ? err.message : String(err)
       result.errors.push(`"${sc.name}"：${msg}`)
       console.error(`[DataStore] 同步子分类 "${sc.name}" 失败:`, err)
+    }
+  }
+
+  // 本地重复子分类的 ID 也要映射到最终云端 ID
+  for (const [dupId, keptId] of localIdMap) {
+    const cloudId = idMap.get(keptId)
+    if (cloudId) {
+      idMap.set(dupId, cloudId)
+      syncedIds.add(dupId)
     }
   }
 
@@ -876,21 +923,22 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   },
 
   deleteSubCategory: async (id) => {
-    try {
-      if (ds.isCloudApiConfigured()) {
-        await ds.deleteSubCategoryApi(id)
-        const subCategories = await ds.fetchSubCategories()
-        set({ subCategories, links: get().links.map(l => l.subcategory_id === id ? { ...l, subcategory_id: '' } : l) })
-        saveLocalItem('subcategories', subCategories)
-        return
-      }
-    } catch (err) {
-      console.error('[DataStore] deleteSubCategory 云API失败:', err)
+    if (ds.isCloudApiConfigured()) {
+      // 云端模式：删除失败直接抛出错误，避免前端以为已删除
+      await ds.deleteSubCategoryApi(id)
+      const subCategories = await ds.fetchSubCategories()
+      set({ subCategories, links: get().links.map(l => l.subcategory_id === id ? { ...l, subcategory_id: '' } : l) })
+      saveLocalItem('subcategories', subCategories)
+      removeLegacySubCategory(id)
+      return
     }
+
+    // 本地模式
     const updatedSubs = get().subCategories.filter(sc => sc.id !== id)
     const updatedLinks = get().links.map(l => l.subcategory_id === id ? { ...l, subcategory_id: '' } : l)
     saveLocalItem('subcategories', updatedSubs)
     set({ subCategories: updatedSubs, links: updatedLinks })
+    removeLegacySubCategory(id)
   },
 
   moveSubCategorySortOrder: async (id, direction, categoryId) => {
@@ -1011,12 +1059,15 @@ export const useDataStore = create<DataStore>()((set, get) => ({
 
     try {
       if (ds.isCloudApiConfigured()) {
-        // 云端：先更新链接，再删除重复子分类
-        await Promise.all(
-          linkUpdates.map(u => ds.updateLinkApi(u.id, { subcategory_id: u.subcategory_id }))
-        )
-        for (const dup of toDelete) {
+        // 云端：先串行更新链接（避免并发写触发限流），再串行删除重复子分类
+        for (const u of linkUpdates) {
+          await ds.updateLinkApi(u.id, { subcategory_id: u.subcategory_id })
+        }
+        // 串行删除，每个之间加 200ms 延迟，降低触发限流的概率
+        for (let i = 0; i < toDelete.length; i++) {
+          const dup = toDelete[i]
           await ds.deleteSubCategoryApi(dup.id)
+          if (i < toDelete.length - 1) await new Promise(r => setTimeout(r, 200))
         }
         // 以云端数据为准刷新
         const [subCategories, refreshedLinks] = await Promise.all([
@@ -1026,6 +1077,8 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         set({ subCategories, links: refreshedLinks })
         saveLocalItem('subcategories', subCategories)
         saveLocalLinks(refreshedLinks)
+        // 清理旧版缓存
+        for (const dup of toDelete) removeLegacySubCategory(dup.id)
         return `已清理 ${toDelete.length} 个重复子分类`
       }
     } catch (err) {
@@ -1038,6 +1091,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     set({ subCategories: updatedSubs, links: updatedLinks })
     saveLocalItem('subcategories', updatedSubs)
     saveLocalLinks(updatedLinks)
+    for (const dup of toDelete) removeLegacySubCategory(dup.id)
     return `已清理 ${toDelete.length} 个重复子分类（本地）`
 
   },
