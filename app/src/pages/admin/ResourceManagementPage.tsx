@@ -64,6 +64,7 @@ export default function ResourceManagementPage() {
   } = useDataStore()
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
+  const [selectedSubCategoryId, setSelectedSubCategoryId] = useState<string | null>(null)
   const [expandedCategories, setExpandedCategories] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
@@ -144,11 +145,12 @@ export default function ResourceManagementPage() {
     return links
       .filter((link) => {
         const matchesCategory = !selectedCategoryId || link.category_id === selectedCategoryId
+        const matchesSubCategory = !selectedSubCategoryId || link.subcategory_id === selectedSubCategoryId
         const matchesSearch =
           !searchQuery ||
           link.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           link.keywords?.some(kw => kw.toLowerCase().includes(searchQuery.toLowerCase()))
-        return matchesCategory && matchesSearch
+        return matchesCategory && matchesSubCategory && matchesSearch
       })
       .sort((a, b) => a.sort_order - b.sort_order)
   }
@@ -209,7 +211,10 @@ export default function ResourceManagementPage() {
   const handleDeleteCategory = (id: string) => {
     if (confirm('确定删除该分类吗？该分类下的链接将变为未分类状态，不会被删除。')) {
       deleteCategory(id)
-      if (selectedCategoryId === id) setSelectedCategoryId(null)
+      if (selectedCategoryId === id) {
+        setSelectedCategoryId(null)
+        setSelectedSubCategoryId(null)
+      }
       toast.success('分类已删除，关联链接已移至未分类')
     }
   }
@@ -249,6 +254,7 @@ export default function ResourceManagementPage() {
       onConfirm: async () => {
         try {
           await deleteSubCategory(id)
+          if (selectedSubCategoryId === id) setSelectedSubCategoryId(null)
           toast.success('子分类已删除')
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
@@ -431,7 +437,7 @@ export default function ResourceManagementPage() {
                 </button>
               </div>
             </div>
-            <button onClick={() => setSelectedCategoryId(null)}
+            <button onClick={() => { setSelectedCategoryId(null); setSelectedSubCategoryId(null) }}
               className={`w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100 ${!selectedCategoryId ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}>
               <span className="font-medium">全部资源</span>
               <span className="text-sm opacity-60">{links.length}</span>
@@ -459,7 +465,7 @@ export default function ResourceManagementPage() {
                       </div>
                     ) : (
                       <>
-                        <button onClick={() => { setSelectedCategoryId(category.id); toggleExpand(category.id) }}
+                        <button onClick={() => { setSelectedCategoryId(category.id); setSelectedSubCategoryId(null); toggleExpand(category.id) }}
                           className={`flex-1 flex items-center gap-2 ml-1 text-left ${isSelected ? 'text-blue-600' : 'text-gray-700'}`}>
                           <FolderOpen className="w-4 h-4" />
                           <span className="text-sm font-medium truncate">{category.name}</span>
@@ -493,8 +499,8 @@ export default function ResourceManagementPage() {
                                 <button onClick={() => moveSubCategorySortOrder(sc.id, 'down', sc.category_id)}
                                   className="p-0 text-gray-400 hover:text-indigo-600 leading-none"><ChevronDownIcon className="w-3 h-3" /></button>
                               </div>
-                              <button onClick={() => setSelectedCategoryId(category.id)}
-                                className="flex-1 text-left text-xs text-gray-600 hover:text-indigo-600 py-0.5">{sc.name}</button>
+                              <button onClick={() => { setSelectedCategoryId(category.id); setSelectedSubCategoryId(sc.id) }}
+                                className={`flex-1 text-left text-xs py-0.5 ${selectedSubCategoryId === sc.id ? 'text-blue-600 font-medium' : 'text-gray-600 hover:text-indigo-600'}`}>{sc.name}</button>
                               <button onClick={() => { setEditingSubCategoryId(sc.id); setEditSubCategoryName(sc.name) }}
                                 className="p-0.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded opacity-0 group-hover/sc:opacity-100"><Edit2 className="w-3 h-3" /></button>
                               <button onClick={() => handleDeleteSubCategory(sc.id)}
