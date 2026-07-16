@@ -166,18 +166,72 @@ function mergeLists<T extends { id: string }>(remote: T[], local: T[], fallback:
 }
 
 // Helper: reload all data from service (非阻塞)
-// 优化：分阶段加载，优先渲染核心数据 (categories + links)，延迟加载次要数据
+// 优化 1: 先显示本地缓存（在 initialize 中完成）
+// 优化 2: 使用 /api/all 合并查询，一次请求获取所有核心数据，减少 Workers 冷启动
 async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => DataStore) {
   try {
-    // 阶段 1: 并行加载所有核心数据（categories + links + subcategories）
-    // 子分类是分类展开的关键数据，和核心数据一起加载避免延迟
+    // 尝试合并查询：一次请求获取所有核心数据
+    const allData = await ds.fetchAll()
+
+    if (allData) {
+      // 获取本地数据用于合并
+      const localCats = loadLocal<Category[]>('categories', [])
+      const localLinks = loadLocalLinks()
+      const localSubs = loadLocal<SubCategory[]>('subcategories', [])
+
+      const mergedCategories = mergeLists(allData.categories, localCats, [])
+      const mergedLinks = mergeLists(allData.links, localLinks, [])
+      const mergedSubCategories = mergeLists(allData.subcategories, localSubs)
+
+      // 更新数据（本地已有数据则静默更新，否则设置 initialized）
+      set({
+        categories: mergedCategories,
+        links: mergedLinks,
+        subCategories: mergedSubCategories,
+        initialized: true,
+        error: null,
+      })
+
+      saveLocalItem('categories', mergedCategories)
+      saveLocalLinks(mergedLinks)
+      saveLocalItem('subcategories', mergedSubCategories)
+
+      // 加载次要数据（tags + driveTypes）
+      const [tags, driveTypes] = await Promise.all([
+        ds.fetchTags().catch(() => [] as Tag[]),
+        Promise.resolve(ds.fetchDriveTypes()),
+      ])
+
+      set({
+        tags: tags.map(t => ({
+          ...t,
+          user_id: t.user_id || '1',
+          created_at: t.created_at || new Date().toISOString(),
+          updated_at: t.updated_at || new Date().toISOString(),
+        })),
+        driveTypes: [...driveTypes] as DriveType[],
+      })
+
+      // 判断云同步状态
+      const hasCloudData = allData.categories.length > 0 || allData.links.length > 0
+      const hasLocalOnly = localLinks.some(
+        (l: Record<string, unknown>) => (l as Record<string, unknown>)._pendingSync === true
+      )
+      set({ cloudSyncError: !hasCloudData && hasLocalOnly })
+
+      console.log(`[DataStore] 加载完成: ${allData.categories.length} 分类, ${allData.links.length} 链接, ${allData.subcategories.length} 子分类`)
+      return
+    }
+
+    // 合并查询失败/未配置，回退到单独请求
+    console.log('[DataStore] 合并查询不可用，回退到单独请求')
+    // ... 回退逻辑（与之前相同）
     const [categories, links, subCategories] = await Promise.all([
       ds.fetchCategories(),
       ds.fetchLinks(),
       ds.fetchSubCategories().catch(() => [] as SubCategory[]),
     ])
 
-    // 获取本地数据用于合并
     const localCats = loadLocal<Category[]>('categories', [])
     const localLinks = loadLocalLinks()
     const localSubs = loadLocal<SubCategory[]>('subcategories', [])
@@ -186,27 +240,6 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
     const mergedLinks = mergeLists(links, localLinks, [])
     const mergedSubCategories = mergeLists(subCategories, localSubs)
 
-    // 自动迁移：本地有子分类数据但云端为空 → 批量写入云端
-    if (ds.isCloudApiConfigured() && subCategories.length === 0 && localSubs.length > 0) {
-      console.log(`[DataStore] 检测到 ${localSubs.length} 条本地子分类，自动迁移到云端...`)
-      try {
-        for (const sub of localSubs) {
-          try {
-            await ds.addSubCategoryApi(sub.category_id, sub.name)
-          } catch (e) { console.error('[DataStore] 迁移子分类失败:', sub.name, e) }
-        }
-        // 迁移完成后重新从云端拉取
-        const refreshed = await ds.fetchSubCategories().catch(() => [] as SubCategory[])
-        const mergedAfterMigrate = mergeLists(refreshed, localSubs)
-        set({ subCategories: mergedAfterMigrate })
-        saveLocalItem('subcategories', mergedAfterMigrate)
-        console.log('[DataStore] 子分类迁移完成，云端数据:', mergedAfterMigrate.length)
-      } catch (e) {
-        console.error('[DataStore] 子分类迁移失败:', e)
-      }
-    }
-
-    // 先设置核心数据，让页面立即渲染（包含子分类）
     set({
       categories: mergedCategories,
       links: mergedLinks,
@@ -215,13 +248,10 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
       error: null,
     })
 
-    // 同步核心数据到 localStorage
     saveLocalItem('categories', mergedCategories)
     saveLocalLinks(mergedLinks)
     saveLocalItem('subcategories', mergedSubCategories)
 
-    // 阶段 2: 加载次要数据（tags + driveTypes）
-    // 这些数据不影响首页核心展示，延迟加载可减少首次 API 冷启动压力
     const [tags, driveTypes] = await Promise.all([
       ds.fetchTags().catch(() => [] as Tag[]),
       Promise.resolve(ds.fetchDriveTypes()),
@@ -237,18 +267,15 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
       driveTypes: [...driveTypes] as DriveType[],
     })
 
-    // 判断云同步状态
     const hasCloudData = categories.length > 0 || links.length > 0
     const hasLocalOnly = localLinks.some(
       (l: Record<string, unknown>) => (l as Record<string, unknown>)._pendingSync === true
     )
-
     set({ cloudSyncError: !hasCloudData && hasLocalOnly })
 
-    console.log(`[DataStore] 加载完成: ${categories.length} 分类, ${links.length} 链接, ${tags.length} 标签`)
+    console.log(`[DataStore] 加载完成: ${categories.length} 分类, ${links.length} 链接`)
   } catch (err) {
     console.error('[DataStore] reloadAll error:', err)
-    // 云端加载失败，使用本地缓存（不再回退到 mock）
     const fallbackLinks = loadLocalLinks()
     const fallbackCats = loadLocal<Category[]>('categories', [])
     const fallbackSubs = loadLocal<SubCategory[]>('subcategories', [])
@@ -286,9 +313,24 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   cloudSyncError: false,
   lastSyncErrorDetail: '',
 
-  // 初始化 - 后台静默加载，不阻塞页面渲染
+  // 初始化 - 先加载本地缓存让页面不空白，再后台刷新云端
   initialize: () => {
-    // 立即返回，不阻塞 UI
+    const localCats = loadLocal<Category[]>('categories', [])
+    const localLinks = loadLocalLinks()
+    const localSubs = loadLocal<SubCategory[]>('subcategories', [])
+
+    // 如果本地有缓存，先立即显示，不空白等待
+    if (localCats.length > 0 || localLinks.length > 0) {
+      set({
+        categories: localCats,
+        links: localLinks,
+        subCategories: localSubs,
+        initialized: true,
+      })
+      console.log('[DataStore] 先显示本地缓存:', localCats.length, '分类,', localLinks.length, '链接,', localSubs.length, '子分类')
+    }
+
+    // 后台静默刷新云端数据
     reloadAll(set, get)
   },
 

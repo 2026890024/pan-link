@@ -168,6 +168,37 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       return jsonRes({ status: 'ok', db: env.DB ? 'connected' : 'missing', auth: !!env.ADMIN_USER }, 200, corsHeaders)
     }
 
+    // ====== ALL DATA (合并查询，减少 Workers 冷启动请求次数) ======
+    if (path === '/api/all' && method === 'GET') {
+      const [
+        categories,
+        links,
+        subcategories,
+        tags,
+      ] = await Promise.all([
+        env.DB.prepare('SELECT * FROM categories ORDER BY sort_order ASC').all(),
+        env.DB.prepare(
+          `SELECT l.*, c.name as category_name, c.logo_url as category_logo
+           FROM links l LEFT JOIN categories c ON l.category_id = c.id
+           WHERE l.status = 'active' ORDER BY l.sort_order ASC, l.created_at DESC`
+        ).all(),
+        env.DB.prepare('SELECT * FROM subcategories ORDER BY sort_order ASC').all().catch(() => ({ results: [] })),
+        env.DB.prepare('SELECT * FROM tags ORDER BY name ASC').all(),
+      ])
+      const cacheHeaders = {
+        'Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
+      }
+      return new Response(
+        JSON.stringify({
+          categories: categories.results || [],
+          links: links.results || [],
+          subcategories: subcategories.results || [],
+          tags: tags.results || [],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders, ...cacheHeaders } }
+      )
+    }
+
     // ====== Auth ======
     if (path === '/api/auth/login' && method === 'POST') {
       if (!env.ADMIN_USER || !env.ADMIN_PASS) {
@@ -613,7 +644,7 @@ async function getMaxSort(env: Env): Promise<number> {
 
 function jsonRes(data: unknown, status: number, extraHeaders?: Record<string, string>): Response {
   const isGet = status >= 200 && status < 300
-  const cacheHeaders = isGet ? { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' } : {}
+  const cacheHeaders = isGet ? { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=600' } : {}
   return new Response(JSON.stringify(data), {
     status,
     headers: { 'Content-Type': 'application/json', ...extraHeaders, ...cacheHeaders },

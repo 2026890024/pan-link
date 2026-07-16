@@ -91,11 +91,12 @@ export interface LinkItem {
 // ============ HTTP 工具函数 ============
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  // 添加时间戳避免浏览器/ CDN 缓存 API 响应
-  const cacheBuster = `_cb=${Date.now()}`
-  const url = `${API_BASE}${path}${path.includes('?') ? '&' : '?'}${cacheBuster}`
-  const token = getAuthToken()
+  // 仅对写请求添加时间戳，GET 请求使用 CDN 缓存减少冷启动
   const isWrite = options?.method && ['POST', 'PUT', 'DELETE'].includes(options.method)
+  const url = isWrite
+    ? `${API_BASE}${path}${path.includes('?') ? '&' : '?'}_cb=${Date.now()}`
+    : `${API_BASE}${path}`
+  const token = getAuthToken()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string> || {}),
@@ -107,7 +108,8 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const resp = await fetch(url, {
     ...options,
     headers,
-    cache: 'no-store', // 强制不使用缓存
+    // GET 请求允许使用 CDN 缓存，减少 Workers 冷启动
+    cache: isWrite ? 'no-store' : 'default',
   })
 
   if (!resp.ok) {
@@ -401,6 +403,57 @@ export async function fetchSubCategories(): Promise<SubCategory[]> {
   } catch (err) {
     console.error('[DataService] fetchSubCategories error:', err)
     return getLocalSubCategories()
+  }
+}
+
+// ===== 合并查询：一次请求获取所有核心数据，减少 Workers 冷启动 =====
+export interface AllData {
+  categories: Category[]
+  links: LinkItem[]
+  subcategories: SubCategory[]
+  tags: Tag[]
+}
+export async function fetchAll(): Promise<AllData | null> {
+  if (!isCloudApiConfigured()) return null
+
+  try {
+    const data = await apiFetch<{
+      categories: Array<Record<string, unknown>>
+      links: Array<Record<string, unknown>>
+      subcategories: Array<Record<string, unknown>>
+      tags: Array<Record<string, unknown>>
+    }>('/api/all')
+    log('fetchAll', data.categories?.length, data.links?.length, data.subcategories?.length)
+    return {
+      categories: (data.categories || []).map(c => ({
+        id: String(c.id),
+        name: c.name as string,
+        icon: (c.icon as string) || 'folder',
+        sort_order: Number(c.sort_order || 0),
+        created_at: (c.created_at as string) || new Date().toISOString(),
+        updated_at: (c.updated_at as string) || new Date().toISOString(),
+      })),
+      links: (data.links || []).map(workerLinkToLinkItem),
+      subcategories: (data.subcategories || []).map(sc => ({
+        id: String(sc.id),
+        category_id: String(sc.category_id),
+        name: sc.name as string,
+        sort_order: Number(sc.sort_order || 0),
+        created_at: (sc.created_at as string) || new Date().toISOString(),
+        updated_at: (sc.updated_at as string) || new Date().toISOString(),
+      })),
+      tags: (data.tags || []).map(t => ({
+        id: String(t.id),
+        user_id: String(t.user_id || '1'),
+        name: t.name as string,
+        color: (t.color as string) || '#6B7280',
+        created_at: (t.created_at as string) || new Date().toISOString(),
+        updated_at: (t.updated_at as string) || new Date().toISOString(),
+      })),
+    }
+  } catch (err) {
+    console.error('[DataService] fetchAll error:', err)
+    return null
   }
 }
 
