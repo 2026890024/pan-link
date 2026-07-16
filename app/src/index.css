@@ -197,7 +197,6 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .gradient-hero {
   position: relative;
   background: linear-gradient(180deg, #FAFBFC 0%, #F1F4F9 40%, #FFFFFF 100%);
-  overflow: hidden;
 }
 
 .gradient-hero::before {

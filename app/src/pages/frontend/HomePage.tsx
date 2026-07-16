@@ -160,21 +160,29 @@ export default function HomePage() {
     ? links.filter(link => link.is_featured && link.visible !== false && !isExpired(link))
     : []
 
-  // 搜索建议（实时过滤，最多 5 条）
+  // 搜索建议（实时过滤，最多 10 条，匹配范围更宽）
   const searchSuggestions = useMemo(() => {
     if (!searchQuery.trim()) return []
     const q = searchQuery.toLowerCase()
     return links
       .filter(link => link.visible !== false && !isExpired(link))
-      .filter(link =>
-        link.name.toLowerCase().includes(q) ||
-        link.title.toLowerCase().includes(q) ||
-        link.keywords?.some(kw => kw.toLowerCase().includes(q)) ||
-        link.tags?.some(tag => tag.name.toLowerCase().includes(q))
-      )
+      .filter(link => {
+        const subCategoryName = getSubCategories(link.category_id || '')
+          .find(sc => sc.id === link.subcategory_id)?.name?.toLowerCase() || ''
+        const categoryName = categories.find(c => c.id === link.category_id)?.name?.toLowerCase() || ''
+        return (
+          link.name.toLowerCase().includes(q) ||
+          link.title.toLowerCase().includes(q) ||
+          link.description?.toLowerCase().includes(q) ||
+          categoryName.includes(q) ||
+          subCategoryName.includes(q) ||
+          link.keywords?.some(kw => kw.toLowerCase().includes(q)) ||
+          link.tags?.some(tag => tag.name.toLowerCase().includes(q))
+        )
+      })
       .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || b.click_count - a.click_count)
-      .slice(0, 5)
-  }, [searchQuery, links])
+      .slice(0, 10)
+  }, [searchQuery, links, categories, subCategories])
 
   // 过期资源过滤 + 分类筛选 + 搜索筛选（memo 优化）
   const filteredLinks = useMemo(() => {
@@ -291,7 +299,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen text-gray-900 flex flex-col">
       {/* Hero Section */}
-      <div className={`gradient-hero flex flex-col items-center px-4 pb-12 sm:pb-16 transition-all duration-500 ${isReturning ? 'pt-[max(1.5rem,env(safe-area-inset-top))] gap-3' : 'pt-[max(4rem,env(safe-area-inset-top))] sm:pt-[max(6rem,env(safe-area-inset-top))] gap-6 sm:gap-8'}`}>
+      <div className={`gradient-hero relative z-20 flex flex-col items-center px-4 pb-12 sm:pb-16 transition-all duration-500 ${isReturning ? 'pt-[max(1.5rem,env(safe-area-inset-top))] gap-3' : 'pt-[max(4rem,env(safe-area-inset-top))] sm:pt-[max(6rem,env(safe-area-inset-top))] gap-6 sm:gap-8'}`}>
         {/* Logo + 回访用户收缩 */}
         <Link to="/" onClick={handleClearSearch} className={`flex items-center gap-4 group transition-all duration-500 ${isReturning ? 'scale-75' : 'mb-0'}`}>
           {siteSettingsLoaded && logoType === 'image' && logoUrl ? (
