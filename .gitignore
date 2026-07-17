@@ -31,8 +31,8 @@ Thumbs.db
 
 # Test artifacts
 *.png
-*.yaml
-*.yml
+test-screenshots/
+test-report.html
 screenshots/
 
 # Archive
