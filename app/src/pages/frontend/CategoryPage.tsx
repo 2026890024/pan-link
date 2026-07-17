@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Grid3X3,
@@ -74,31 +74,36 @@ export default function CategoryPage() {
 
   const isExpiredLink = (link: LinkItem) => checkLinkStatus(link.expires_at || null) === 'expired'
 
-  let filteredLinks = links.filter((l) => l.category_id === id && l.visible !== false && !isExpiredLink(l))
+  const filteredLinks = useMemo(() => {
+    let result = links.filter((l) => l.category_id === id && l.visible !== false && !isExpiredLink(l))
 
-  if (debouncedQuery) {
-    filteredLinks = filteredLinks.filter((l) =>
-      l.name.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-      l.description.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-      l.keywords?.some(kw => kw.toLowerCase().includes(debouncedQuery.toLowerCase()))
-    )
-  }
+    if (debouncedQuery) {
+      result = result.filter((l) =>
+        l.name.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
+        l.description.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
+        l.keywords?.some(kw => kw.toLowerCase().includes(debouncedQuery.toLowerCase()))
+      )
+    }
 
-  if (sortBy === 'popular') {
-    filteredLinks = [...filteredLinks].sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || b.click_count - a.click_count)
-  } else if (sortBy === 'recent') {
-    filteredLinks = [...filteredLinks].sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-  } else {
-    filteredLinks = [...filteredLinks].sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || a.sort_order - b.sort_order)
-  }
+    switch (sortBy) {
+      case 'popular':
+        return [...result].sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || b.click_count - a.click_count)
+      case 'recent':
+        return [...result].sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      default:
+        return [...result].sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || a.sort_order - b.sort_order)
+    }
+  }, [links, id, debouncedQuery, sortBy])
 
   // 重置分页
   const resetPage = useCallback(() => setCurrentPage(1), [])
   useEffect(() => { resetPage() }, [debouncedQuery, sortBy, id])
 
   const totalPages = Math.ceil(filteredLinks.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const sortedLinks = filteredLinks.slice(startIndex, startIndex + itemsPerPage)
+  const sortedLinks = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return filteredLinks.slice(startIndex, startIndex + itemsPerPage)
+  }, [filteredLinks, currentPage])
 
   const handleLinkClick = (link: LinkItem) => {
     incrementClicks(link.id)
@@ -220,11 +225,13 @@ export default function CategoryPage() {
             <p className="text-gray-400 text-xs sm:text-sm mt-1">尝试其他关键词或浏览其他分类</p>
           </motion.div>
         ) : viewMode === 'grid' ? (
-          <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <motion.div key="grid"
+            initial="hidden" animate="visible" exit="hidden"
+            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.04 } } }}
             className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4">
-            {sortedLinks.map((link, index) => (
-              <motion.div key={link.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
-                <div onClick={() => setSelectedLink(link)} className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:shadow-gray-900/5 hover:border-gray-200 transition-all duration-200 overflow-hidden group cursor-pointer relative touch-manipulation">
+            {sortedLinks.map((link) => (
+              <motion.div key={link.id} variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}>
+                <div onClick={() => setSelectedLink(link)} className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:shadow-gray-900/5 hover:border-gray-200 transition-[transform,box-shadow,border-color] duration-200 overflow-hidden group cursor-pointer relative touch-manipulation">
                     <div className="bg-gradient-to-br from-brand-50 to-violet-50 relative flex items-center justify-center py-6">
                       <div className="flex items-center justify-center">{getLinkIcon(link)}</div>
                       {link.is_pinned && (
@@ -271,10 +278,13 @@ export default function CategoryPage() {
             ))}
           </motion.div>
         ) : (
-          <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-1.5 sm:space-y-2">
-            {sortedLinks.map((link, index) => (
-              <motion.div key={link.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.03 }}>
-                <div onClick={() => setSelectedLink(link)} className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-150 group cursor-pointer touch-manipulation">
+          <motion.div key="list"
+            initial="hidden" animate="visible" exit="hidden"
+            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.03 } } }}
+            className="space-y-1.5 sm:space-y-2">
+            {sortedLinks.map((link) => (
+              <motion.div key={link.id} variants={{ hidden: { opacity: 0, x: -16 }, visible: { opacity: 1, x: 0 } }}>
+                <div onClick={() => setSelectedLink(link)} className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-[transform,box-shadow,border-color] duration-150 group cursor-pointer touch-manipulation">
                   <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
                     {getLinkIcon(link)}
                   </div>

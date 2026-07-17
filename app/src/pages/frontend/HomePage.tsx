@@ -28,8 +28,8 @@ import { checkLinkStatus, copyToClipboard as copyUtil, buildShareText } from '@/
 import toast from 'react-hot-toast'
 
 // ── 样式常量（提取重复样式）──
-const BTN_PRIMARY = 'py-2 px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium min-h-[44px] sm:min-h-[36px]'
-const BTN_SECONDARY = 'py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 min-h-[44px] sm:min-h-[36px]'
+const BTN_PRIMARY = 'py-2 px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-colors,shadow duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium min-h-[44px] sm:min-h-[36px]'
+const BTN_SECONDARY = 'py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors duration-200 cursor-pointer flex items-center gap-1 min-h-[44px] sm:min-h-[36px]'
 
 
 export default function HomePage() {
@@ -402,7 +402,7 @@ export default function HomePage() {
                     <div
                       key={link.id}
                       onClick={() => setSelectedLink(link)}
-                      className={`group flex flex-col h-full bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
+                      className={`group flex flex-col h-full bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-[transform,box-shadow,border-color] duration-200 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
                     >
                       <div className="flex items-start gap-2 sm:gap-3 flex-1">
                         <div className="shrink-0">
@@ -511,17 +511,17 @@ export default function HomePage() {
                     <AnimatePresence mode="wait">
                       {viewMode === 'list' ? (
                         <motion.div
-                          key="list-view"
+                          key={`list-${selectedCategory || 'all'}-${selectedSubCategory || 'all'}`}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          transition={{ duration: 0.2 }}
+                          transition={{ duration: 0.15 }}
                           className="space-y-3"
                         >
                           {filteredLinks.map((link) => (
                             <div
                               key={link.id}
-                              className={`group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl bg-white border transition-all duration-300 cursor-pointer ${
+                              className={`group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl bg-white border transition-[transform,box-shadow,border-color] duration-200 cursor-pointer ${
                                 link.is_pinned
                                   ? 'border-l-2 border-brand-400 border-l-brand-400 border-gray-100 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300'
                                   : 'border-gray-100 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300'
@@ -586,18 +586,18 @@ export default function HomePage() {
                         </motion.div>
                       ) : (
                         <motion.div
-                          key="grid-view"
-                          initial={{ opacity: 0, scale: 0.98 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.98 }}
-                          transition={{ duration: 0.25 }}
+                          key={`grid-${selectedCategory || 'all'}-${selectedSubCategory || 'all'}`}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
                           className="grid grid-cols-2 lg:grid-cols-3 gap-4"
                         >
                           {filteredLinks.map((link, idx) => (
                             <div
                               key={link.id}
                               onClick={() => setSelectedLink(link)}
-                              className={`group flex flex-col h-full p-3 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
+                              className={`group flex flex-col h-full p-3 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-[transform,box-shadow,border-color] duration-200 cursor-pointer`}
                             >
                               <div className="flex items-start gap-2 sm:gap-3 mb-2 flex-1">
                                 <div className="shrink-0">{getLinkIcon(link)}</div>
