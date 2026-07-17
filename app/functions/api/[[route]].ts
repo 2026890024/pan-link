@@ -281,9 +281,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const result = await env.DB.prepare(
         `SELECT l.*, c.name as category_name, c.logo_url as category_logo
          FROM links l LEFT JOIN categories c ON l.category_id = c.id
-         WHERE l.status = 'active' AND (l.name LIKE ? OR l.description LIKE ?)
+         WHERE l.status = 'active' AND (l.name LIKE ? OR l.description LIKE ? OR l.keywords LIKE ?)
          ORDER BY l.is_pinned DESC, l.created_at DESC LIMIT 50`
-      ).bind(like, like).all()
+      ).bind(like, like, like).all()
       return jsonRes(result.results || [], 200, corsHeaders)
     }
 
@@ -375,6 +375,19 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const existing = await env.DB.prepare('SELECT id FROM links WHERE slug=?').bind(slug).first()
       const finalSlug = existing ? `${slug}-${Math.random().toString(36).slice(2, 6)}` : slug
 
+      // 序列化 keywords: 前端传 string[] / JSON string / 逗号分隔字符串
+      let keywordsJson = '[]'
+      if (body.keywords) {
+        if (Array.isArray(body.keywords)) {
+          keywordsJson = JSON.stringify(body.keywords)
+        } else if (typeof body.keywords === 'string') {
+          // 可能是逗号分隔或 JSON string
+          try { keywordsJson = JSON.stringify(JSON.parse(body.keywords)) } catch {
+            keywordsJson = JSON.stringify((body.keywords as string).split(',').map((k: string) => k.trim()).filter(Boolean))
+          }
+        }
+      }
+
       // 排除前端不发的不必要字段，只保留 API 需要的字段
       const insertBody: Record<string, unknown> = {
         id,
@@ -395,21 +408,22 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         description: (body.description as string) || null,
         visible: body.visible !== undefined ? (body.visible ? 1 : 0) : 1,
         sort_order: (body.sort_order as number) ?? (maxSort + 1),
+        keywords: keywordsJson,
       }
 
       await env.DB.prepare(
         `INSERT INTO links (id, user_id, name, slug, url, category_id, subcategory_id,
           extract_code, validity_period, expires_at, click_count, registration_count,
           is_pinned, is_favorited, status, drive_type, icon, description,
-          created_at, updated_at, visible, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?)`
+          created_at, updated_at, visible, sort_order, keywords)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(
         insertBody.id, insertBody.user_id, insertBody.name, insertBody.slug,
         insertBody.url, insertBody.category_id, insertBody.subcategory_id,
         insertBody.extract_code, insertBody.validity_period, insertBody.expires_at,
         insertBody.is_pinned, insertBody.is_favorited,
         insertBody.drive_type, insertBody.icon, insertBody.description,
-        nowISO, nowISO, insertBody.visible, insertBody.sort_order
+        nowISO, nowISO, insertBody.visible, insertBody.sort_order, insertBody.keywords
       ).run()
 
       const link = await env.DB.prepare('SELECT * FROM links WHERE id = ?').bind(id).first()
@@ -428,10 +442,31 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         body.name = body.title
         delete body.title
       }
+      // slug 去重检查
+      if (body.slug !== undefined) {
+        const conflict = await env.DB.prepare(
+          'SELECT id FROM links WHERE slug = ? AND id != ?'
+        ).bind(body.slug as string, linkId).first()
+        if (conflict) {
+          return jsonRes({ error: `URL标识符 "${body.slug}" 已被其他链接使用，请更换` }, 409, corsHeaders)
+        }
+      }
+      // keywords 序列化
+      if (body.keywords !== undefined) {
+        let keywordsJson = '[]'
+        if (Array.isArray(body.keywords)) {
+          keywordsJson = JSON.stringify(body.keywords)
+        } else if (typeof body.keywords === 'string') {
+          try { keywordsJson = JSON.stringify(JSON.parse(body.keywords)) } catch {
+            keywordsJson = JSON.stringify((body.keywords as string).split(',').map(k => k.trim()).filter(Boolean))
+          }
+        }
+        body.keywords = keywordsJson
+      }
       const allowedFields = [
         'name', 'url', 'category_id', 'subcategory_id', 'extract_code',
         'validity_period', 'expires_at', 'is_pinned', 'is_favorited', 'status',
-        'drive_type', 'icon', 'description', 'visible', 'sort_order', 'slug',
+        'drive_type', 'icon', 'description', 'visible', 'sort_order', 'slug', 'keywords',
       ]
       for (const field of allowedFields) {
         if (body[field] !== undefined) {

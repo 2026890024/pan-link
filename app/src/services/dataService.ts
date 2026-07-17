@@ -147,6 +147,18 @@ const log = (action: string, ...args: unknown[]) => {
 
 // ============ 数据转换 ============
 
+function parseKeywords(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.map(k => String(k).trim()).filter(Boolean)
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed.map((k: unknown) => String(k).trim()).filter(Boolean)
+    } catch { /* not JSON */ }
+    return raw.split(',').map(k => k.trim()).filter(Boolean)
+  }
+  return []
+}
+
 function workerLinkToLinkItem(data: Record<string, unknown>): LinkItem {
   return {
     id: String(data.id || ''),
@@ -173,7 +185,7 @@ function workerLinkToLinkItem(data: Record<string, unknown>): LinkItem {
           color: String(t.color || '#6366F1'),
         }))
       : [],
-    keywords: [],
+    keywords: parseKeywords(data.keywords),
     created_at: String(data.created_at || new Date().toISOString()),
     slug: String(data.slug || ''),
     sort_order: Number(data.sort_order) || 999,
@@ -272,7 +284,7 @@ export async function createLinkApi(linkData: {
   extract_code?: string; expires_at?: string | null; is_pinned?: boolean;
   is_featured?: boolean; drive_type?: string; subcategory_id?: string;
   icon?: string; description?: string; tags?: string[]; sort_order?: number;
-  visible?: boolean;
+  visible?: boolean; keywords?: string[];
 }, userId?: string): Promise<LinkItem> {
   if (!isCloudApiConfigured()) return addLocalLink(linkData)
 

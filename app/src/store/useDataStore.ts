@@ -700,8 +700,8 @@ export const useDataStore = create<DataStore>()((set, get) => ({
           drive_type: newLink.drive_type,
           subcategory_id: newLink.subcategory_id,
           icon: newLink.icon,
-          icon_size: newLink.icon_size,
           description: newLink.description,
+          keywords: newLink.keywords,
         })
         // 云写入成功 → 从云端重新拉取完整数据（以云端为准）
         const links = await ds.fetchLinks()

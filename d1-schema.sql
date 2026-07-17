@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS links (
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now')),
   visible INTEGER DEFAULT 1,
-  sort_order INTEGER DEFAULT 999
+  sort_order INTEGER DEFAULT 999,
+  keywords TEXT DEFAULT '[]'
 );
 
 -- 链接访问记录表
