@@ -1,6 +1,6 @@
 /**
  * 统一数据服务层
- * - 优先使用 Cloudflare Worker + D1 数据库（国内可访问）
+ * - 优先使用 Cloudflare Worker + D1 数据库
  * - 未配置时自动回退到 localStorage
  */
 // ============ 配置 ============
