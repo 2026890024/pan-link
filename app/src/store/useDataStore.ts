@@ -462,18 +462,26 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
       saveLocalItem('subcategories', mergedSubCategories)
 
       // 加载次要数据（tags + driveTypes）
+      const localTags = loadLocal<Tag[]>('tags', [])
       const [tags, driveTypes] = await Promise.all([
         ds.fetchTags().catch(() => [] as Tag[]),
         Promise.resolve(ds.fetchDriveTypes()),
       ])
 
-      set({
-        tags: tags.map(t => ({
+      // 云端标签规范化 + 过滤待删除
+      const pendingDeletes = loadLocal<string[]>('tag_delete_pending', [])
+      const cloudTags = tags
+        .filter(t => !pendingDeletes.includes(t.id))
+        .map(t => ({
           ...t,
           user_id: t.user_id || '1',
           created_at: t.created_at || new Date().toISOString(),
           updated_at: t.updated_at || new Date().toISOString(),
-        })),
+        }))
+      const mergedTags = mergeLists(cloudTags, localTags, [])
+
+      set({
+        tags: mergedTags,
         driveTypes: [...driveTypes] as DriveType[],
       })
 
@@ -533,18 +541,26 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
     saveLocalLinks(mergedLinks)
     saveLocalItem('subcategories', mergedSubCategories)
 
+    const localTags = loadLocal<Tag[]>('tags', [])
     const [tags, driveTypes] = await Promise.all([
       ds.fetchTags().catch(() => [] as Tag[]),
       Promise.resolve(ds.fetchDriveTypes()),
     ])
 
-    set({
-      tags: tags.map(t => ({
+    // 云端标签规范化 + 过滤待删除
+    const pendingDeletes = loadLocal<string[]>('tag_delete_pending', [])
+    const cloudTags = tags
+      .filter(t => !pendingDeletes.includes(t.id))
+      .map(t => ({
         ...t,
         user_id: t.user_id || '1',
         created_at: t.created_at || new Date().toISOString(),
         updated_at: t.updated_at || new Date().toISOString(),
-      })),
+      }))
+    const mergedTags = mergeLists(cloudTags, localTags, [])
+
+    set({
+      tags: mergedTags,
       driveTypes: [...driveTypes] as DriveType[],
     })
 
@@ -1160,15 +1176,18 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   addTag: async (name, color) => {
     try {
       const tag = await ds.createTagApi(name, color)
-      set({ tags: [...get().tags, tag] })
+      const merged = [...get().tags, tag]
+      set({ tags: merged })
+      saveLocalItem('tags', merged)
     } catch {
       const now = new Date().toISOString()
-      set({
-        tags: [...get().tags, {
-          id: Date.now().toString(), user_id: '1', name, color,
-          created_at: now, updated_at: now,
-        }],
-      })
+      const pendingTag = {
+        id: Date.now().toString(), user_id: '1', name, color,
+        created_at: now, updated_at: now, _pendingSync: true,
+      } as Tag & { _pendingSync?: boolean }
+      const merged = [...get().tags, pendingTag as Tag]
+      set({ tags: merged, cloudSyncError: true })
+      saveLocalItem('tags', merged)
     }
   },
 
@@ -1184,16 +1203,27 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   },
 
   deleteTag: async (id) => {
+    const updatedTags = get().tags.filter(t => t.id !== id)
+    const updatedLinks = get().links.map(l => ({
+      ...l,
+      tags: l.tags.filter(t => t.id !== id),
+    }))
+    set({ tags: updatedTags, links: updatedLinks })
+    saveLocalItem('tags', updatedTags)
+
     try {
       await ds.deleteTagApi(id)
-    } catch { /* ignore */ }
-    set({
-      tags: get().tags.filter(t => t.id !== id),
-      links: get().links.map(l => ({
-        ...l,
-        tags: l.tags.filter(t => t.id !== id),
-      })),
-    })
+    } catch {
+      // 云端删除失败 → 标记该 ID 为待删除，下次 reloadAll 时跳过云端中该标签
+      try {
+        const pendingDeletes = loadLocal<string[]>('tag_delete_pending', [])
+        if (!pendingDeletes.includes(id)) {
+          pendingDeletes.push(id)
+          saveLocalItem('tag_delete_pending', pendingDeletes)
+        }
+      } catch { /* ignore */ }
+      set({ cloudSyncError: true })
+    }
   },
 
   // ===== Icon Library =====

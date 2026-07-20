@@ -24,8 +24,7 @@ import LinkDetailModal from '@/components/LinkDetailModal'
 import SiteFooter from '@/components/SiteFooter'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { useBackToTop } from '@/hooks/useBackToTop'
-import { checkLinkStatus, copyToClipboard as copyUtil, buildShareText } from '@/lib/utils'
-import toast from 'react-hot-toast'
+import { useLinkActions } from '@/hooks/useLinkActions'
 
 // ── 样式常量（提取重复样式）──
 const BTN_PRIMARY = 'py-2 px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-colors,shadow duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium min-h-[44px] sm:min-h-[36px]'
@@ -35,7 +34,7 @@ const BTN_SECONDARY = 'py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hove
 export default function HomePage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { categories, links, subCategories, incrementClicks, initialized } = useDataStore()
+  const { categories, links, subCategories, initialized } = useDataStore()
   const siteSettings = useSiteSettingsStore()
   const siteSettingsLoaded = siteSettings.loaded
   const siteName = siteSettings.settings.site_name || '资源云'
@@ -117,6 +116,11 @@ export default function HomePage() {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid')
   const [isSearchMode, setIsSearchMode] = useState(false)
   const { showBackToTop, scrollToTop } = useBackToTop()
+  const { isExpired, shareLink, handleLinkClick } = useLinkActions({
+    shareUrlFn: (link) => link.url,
+    onCopied: setCopiedId,
+    onCopyClear: () => setCopiedId(null),
+  })
 
   // 回访用户检测：第二次访问自动收窄 Hero
   const [isReturning, setIsReturning] = useState(false)
@@ -153,9 +157,6 @@ export default function HomePage() {
 
   // 数据是否加载中（用 initialized 标记，而非依赖数据长度——空数据库 ≠ 未加载）
   const isLoading = !initialized
-
-  // 过期资源过滤
-  const isExpired = (link: LinkItem) => checkLinkStatus(link.expires_at || null) === 'expired'
 
   const featuredLinks = showFeaturedSection
     ? links.filter(link => link.is_featured && link.visible !== false && !isExpired(link))
@@ -230,35 +231,6 @@ export default function HomePage() {
     setShowSuggestions(false)
     navigate(`/s/${link.slug}`)
   }, [navigate])
-
-  const handleLinkClick = useCallback((link: LinkItem) => {
-    incrementClicks(link.id)
-    window.open(link.url, '_blank', 'noopener,noreferrer')
-  }, [incrementClicks])
-
-  const shareLink = useCallback(async (link: LinkItem) => {
-    const shareText = buildShareText(link.name, link.url, link.extract_code || undefined)
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: link.name,
-          text: shareText,
-          url: link.url,
-        })
-      } catch {
-        // 用户取消
-      }
-    } else {
-      const success = await copyUtil(shareText)
-      if (success) {
-        setCopiedId(link.id)
-        toast.success('已复制分享内容')
-        setTimeout(() => setCopiedId(null), 2000)
-      } else {
-        toast.error('复制失败')
-      }
-    }
-  }, [])
 
   const updateUrlParams = useCallback((categoryId: string | null, subCategoryId: string | null) => {
     const params = new URLSearchParams()

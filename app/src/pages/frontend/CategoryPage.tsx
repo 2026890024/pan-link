@@ -19,18 +19,22 @@ import { LinkIcon } from '@/components/LinkIcon'
 import LinkDetailModal from '@/components/LinkDetailModal'
 import SiteFooter from '@/components/SiteFooter'
 import { useBackToTop } from '@/hooks/useBackToTop'
-import { getDaysRemaining, checkLinkStatus, copyToClipboard as copyUtil } from '@/lib/utils'
-import toast from 'react-hot-toast'
+import { useLinkActions } from '@/hooks/useLinkActions'
+import { getDaysRemaining } from '@/lib/utils'
 
 export default function CategoryPage() {
   const { id } = useParams<{ id: string }>()
-  const { links, categories, incrementClicks } = useDataStore()
+  const { links, categories } = useDataStore()
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [sortBy, setSortBy] = useState<'default' | 'recent' | 'popular'>('default')
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const { showBackToTop, scrollToTop } = useBackToTop()
+  const { isExpired: isExpiredLink, shareLink, handleLinkClick } = useLinkActions({
+    onCopied: setCopiedId,
+    onCopyClear: () => setCopiedId(null),
+  })
 
   const category = categories.find(c => c.id === id)
 
@@ -72,8 +76,6 @@ export default function CategoryPage() {
     )
   }
 
-  const isExpiredLink = (link: LinkItem) => checkLinkStatus(link.expires_at || null) === 'expired'
-
   const filteredLinks = useMemo(() => {
     let result = links.filter((l) => l.category_id === id && l.visible !== false && !isExpiredLink(l))
 
@@ -104,36 +106,6 @@ export default function CategoryPage() {
     const startIndex = (currentPage - 1) * itemsPerPage
     return filteredLinks.slice(startIndex, startIndex + itemsPerPage)
   }, [filteredLinks, currentPage])
-
-  const handleLinkClick = (link: LinkItem) => {
-    incrementClicks(link.id)
-    window.open(link.url, '_blank', 'noopener,noreferrer')
-  }
-
-  // 分享：手机端用系统分享面板，桌面端复制链接
-  const shareLink = async (link: LinkItem) => {
-    const shareUrl = `${window.location.origin}/s/${link.slug}`
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: link.name,
-          text: `发现优质资源：${link.name}`,
-          url: shareUrl,
-        })
-      } catch {
-        // 用户取消
-      }
-    } else {
-      const success = await copyUtil(link.url)
-      if (success) {
-        setCopiedId(link.id)
-        toast.success('链接已复制')
-        setTimeout(() => setCopiedId(null), 2000)
-      } else {
-        toast.error('复制失败')
-      }
-    }
-  }
 
   const getLinkIcon = (link: LinkItem) => <LinkIcon link={link} size={link.icon_size || 'md'} />
 

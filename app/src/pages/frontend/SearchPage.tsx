@@ -16,15 +16,14 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
-import { checkLinkStatus, copyToClipboard as copyUtil } from '@/lib/utils'
 import { LinkIcon } from '@/components/LinkIcon'
 import LinkDetailModal from '@/components/LinkDetailModal'
 import SiteFooter from '@/components/SiteFooter'
-import toast from 'react-hot-toast'
+import { useLinkActions } from '@/hooks/useLinkActions'
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const { links, categories, subCategories, incrementClicks } = useDataStore()
+  const { links, categories, subCategories } = useDataStore()
   const [query, setQuery] = useState(searchParams.get('q') || '')
   const [results, setResults] = useState<LinkItem[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -34,6 +33,10 @@ export default function SearchPage() {
     document.title = query ? `搜索: ${query} - 资源云` : '搜索 - 资源云'
   }, [query])
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const { isExpired, shareLink, handleLinkClick } = useLinkActions({
+    onCopied: setCopiedId,
+    onCopyClear: () => setCopiedId(null),
+  })
   const [sortBy, setSortBy] = useState<'relevance' | 'recent' | 'popular'>('relevance')
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterSubCategory, setFilterSubCategory] = useState<string>('all')
@@ -77,8 +80,6 @@ export default function SearchPage() {
     const sub = subCategories.find(sc => sc.id === subcategoryId)
     return sub ? sub.name : ''
   }
-
-  const isExpired = (link: LinkItem) => checkLinkStatus(link.expires_at || null) === 'expired'
 
   // 执行搜索
   useEffect(() => {
@@ -139,42 +140,6 @@ export default function SearchPage() {
     if (query.trim()) {
       setHasSearched(true)
       setSearchParams({ q: query })
-    }
-  }
-
-  const handleLinkClick = (link: LinkItem) => {
-    incrementClicks(link.id)
-    window.open(link.url, '_blank', 'noopener,noreferrer')
-  }
-
-  const shareLink = async (link: LinkItem) => {
-    const shareUrl = `${window.location.origin}/s/${link.slug}`
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: link.name,
-          text: `发现优质资源：${link.name}`,
-          url: shareUrl,
-        })
-      } catch {
-        // 用户取消
-      }
-    } else {
-      const success = await copyUtil(link.url)
-      if (success) {
-        setCopiedId(link.id)
-        toast.success('已添加到剪贴板', {
-          style: {
-            borderRadius: '12px',
-            background: '#1F2937',
-            color: '#F9FAFB',
-            fontSize: '14px',
-          },
-        })
-        setTimeout(() => setCopiedId(null), 2000)
-      } else {
-        toast.error('复制失败')
-      }
     }
   }
 
