@@ -625,10 +625,10 @@ export default function SearchPage() {
           e.preventDefault()
           handleDragStart(e.touches[0].clientX, e.touches[0].clientY)
         }}
-        onTouchMove={(e) => {
-          e.preventDefault()
-          handleDragMove(e.touches[0].clientX, e.touches[0].clientY)
-        }}
+          onTouchMove={(e) => {
+            e.preventDefault()
+            handleWindowMouseMove(e as unknown as MouseEvent)
+          }}
         onTouchEnd={handleDragEnd}
       >
         <Menu className="w-4.5 h-4.5 sm:w-5 sm:h-5" />

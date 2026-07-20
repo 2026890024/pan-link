@@ -30,7 +30,8 @@ function base64urlDecode(str: string): string {
 }
 
 async function createToken(env: Env): Promise<string> {
-  const secret = env.JWT_SECRET || 'pan-link-default-secret-change-me'
+  const secret = env.JWT_SECRET
+  if (!secret) throw new Error('JWT_SECRET 未配置')
   const encoder = new TextEncoder()
   const header = base64url(encoder.encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' })))
   const payload = base64url(encoder.encode(JSON.stringify({
@@ -49,7 +50,8 @@ async function createToken(env: Env): Promise<string> {
 
 async function verifyToken(token: string, env: Env): Promise<boolean> {
   try {
-    const secret = env.JWT_SECRET || 'pan-link-default-secret-change-me'
+    const secret = env.JWT_SECRET
+    if (!secret) return false
     const parts = token.split('.')
     if (parts.length !== 3) return false
     const [header, payload, sig] = parts
@@ -75,7 +77,7 @@ async function verifyToken(token: string, env: Env): Promise<boolean> {
 }
 
 async function requireAuth(request: Request, env: Env): Promise<boolean> {
-  if (!env.ADMIN_USER || !env.JWT_SECRET) return true // 未配置则不强制
+  if (!env.ADMIN_USER || !env.JWT_SECRET) return false // 未配置则拒绝所有写操作
   const auth = request.headers.get('Authorization') || ''
   if (!auth.startsWith('Bearer ')) return false
   return verifyToken(auth.slice(7), env)
@@ -467,6 +469,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       if (body.title !== undefined && body.name === undefined) {
         body.name = body.title
         delete body.title
+      }
+      // is_featured 映射为 is_favorited（D1 列名是 is_favorited，前端使用 is_featured）
+      if (body.is_featured !== undefined && body.is_favorited === undefined) {
+        body.is_favorited = body.is_featured
+        delete body.is_featured
       }
       // slug 去重检查
       if (body.slug !== undefined) {

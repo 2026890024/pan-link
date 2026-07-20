@@ -444,11 +444,8 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
       const localLinks = loadLocalLinks()
       const localSubs = loadLocalSubCategoriesCompat()
 
-      // 链接数据需单独获取（fetchAll 的 /api/all 仅返回可见链接，fetchLinks 返回全部）
-      const allLinks = await ds.fetchLinks().catch(() => [] as LinkItem[])
-
       const mergedCategories = mergeLists(allData.categories, localCats, [])
-      const mergedLinks = mergeLists(allLinks.length > 0 ? allLinks : allData.links, localLinks, [])
+      const mergedLinks = mergeLists(allData.links, localLinks, [])
       const mergedSubCategories = mergeLists(allData.subcategories, localSubs)
 
       // 更新数据（本地已有数据则静默更新，否则设置 initialized）
