@@ -68,6 +68,9 @@ interface DataStore {
   addTag: (name: string, color: string) => Promise<void>
   updateTag: (id: string, updates: Partial<Tag>) => Promise<void>
   deleteTag: (id: string) => Promise<void>
+
+  // 待同步数据自动重试（网络恢复/页面加载后自动触发）
+  syncPendingItems: () => Promise<number>
 }
 
 // Helper: generate unique slug from name
@@ -602,6 +605,191 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
   }
 }
 
+// ============ 待同步数据自动重试 ============
+// 遍历所有标记为 _pendingSync 的数据，逐个重试云端创建
+// 按依赖顺序：categories → subcategories → links → tags → pending tag deletes
+async function syncPendingToCloud(
+  set: (partial: Partial<DataStore>) => void,
+  get: () => DataStore,
+): Promise<number> {
+  if (!ds.isCloudApiConfigured()) return 0
+
+  let synced = 0
+  const state = get()
+
+  // 1. 同步 pending categories（先同步，因为 links/subcategories 依赖它们）
+  const pendingCats = state.categories.filter(c => (c as Record<string, unknown>)._pendingSync === true)
+  if (pendingCats.length > 0) {
+    const idMap = new Map<string, string>() // 旧 ID → 新云端 ID
+    for (const cat of pendingCats) {
+      try {
+        const cloudCat = await ds.createCategory(cat.name)
+        idMap.set(cat.id, cloudCat.id)
+        synced++
+        devLog(`[DataStore] ✅ 重试同步分类 "${cat.name}" 成功`)
+      } catch (err) {
+        console.error(`[DataStore] ❌ 重试同步分类 "${cat.name}" 失败:`, err)
+      }
+    }
+    if (idMap.size > 0) {
+      // 更新所有引用旧 ID 的地方
+      const fresh = get()
+      const updatedCats = fresh.categories.map(c => {
+        if (idMap.has(c.id)) {
+          const { _pendingSync, ...rest } = c as Record<string, unknown>
+          return { ...rest, id: idMap.get(c.id)! } as Category
+        }
+        return c
+      })
+      const updatedLinks = fresh.links.map(l =>
+        idMap.has(l.category_id) ? { ...l, category_id: idMap.get(l.category_id)! } : l
+      )
+      const updatedSubs = fresh.subCategories.map(sc =>
+        idMap.has(sc.category_id) ? { ...sc, category_id: idMap.get(sc.category_id)! } : sc
+      )
+      saveLocalItem('categories', updatedCats)
+      saveLocalLinks(updatedLinks)
+      saveLocalItem('subcategories', updatedSubs)
+      set({ categories: updatedCats, links: updatedLinks, subCategories: updatedSubs })
+    }
+  }
+
+  // 2. 同步 pending subcategories
+  const fresh1 = get()
+  const pendingSubs = fresh1.subCategories.filter(sc => (sc as Record<string, unknown>)._pendingSync === true)
+  if (pendingSubs.length > 0) {
+    const idMap = new Map<string, string>()
+    for (const sc of pendingSubs) {
+      try {
+        const cloudSub = await ds.addSubCategoryApi(sc.category_id, sc.name)
+        idMap.set(sc.id, cloudSub.id)
+        synced++
+        devLog(`[DataStore] ✅ 重试同步子分类 "${sc.name}" 成功`)
+      } catch (err) {
+        console.error(`[DataStore] ❌ 重试同步子分类 "${sc.name}" 失败:`, err)
+      }
+    }
+    if (idMap.size > 0) {
+      const fresh = get()
+      const updatedSubs = fresh.subCategories.map(sc => {
+        if (idMap.has(sc.id)) {
+          const { _pendingSync, ...rest } = sc as Record<string, unknown>
+          return { ...rest, id: idMap.get(sc.id)! } as SubCategory
+        }
+        return sc
+      })
+      const updatedLinks = fresh.links.map(l =>
+        idMap.has(l.subcategory_id || '') ? { ...l, subcategory_id: idMap.get(l.subcategory_id!)! } : l
+      )
+      saveLocalItem('subcategories', updatedSubs)
+      saveLocalLinks(updatedLinks)
+      set({ subCategories: updatedSubs, links: updatedLinks })
+    }
+  }
+
+  // 3. 同步 pending links
+  const fresh2 = get()
+  const pendingLinks = fresh2.links.filter(l => (l as Record<string, unknown>)._pendingSync === true)
+  if (pendingLinks.length > 0) {
+    for (const link of pendingLinks) {
+      try {
+        await ds.createLinkApi({
+          name: link.name,
+          slug: link.slug,
+          url: link.url,
+          category_id: link.category_id,
+          extract_code: link.extract_code,
+          expires_at: link.expires_at,
+          is_pinned: link.is_pinned,
+          is_featured: link.is_featured,
+          drive_type: link.drive_type,
+          subcategory_id: link.subcategory_id,
+          icon: link.icon,
+          description: link.description,
+          keywords: link.keywords,
+          tags: (link.tags || []).map(t => t.id),
+          sort_order: link.sort_order,
+          visible: link.visible,
+        })
+        synced++
+        devLog(`[DataStore] ✅ 重试同步链接 "${link.name}" 成功`)
+      } catch (err) {
+        console.error(`[DataStore] ❌ 重试同步链接 "${link.name}" 失败:`, err)
+        break // 链路上一个失败后续大概率也失败，等下次
+      }
+    }
+    // 同步成功后从云端拉取最新数据
+    try {
+      const cloudLinks = await ds.fetchLinks()
+      const localLinks = loadLocalLinks()
+      const merged = mergeLists(cloudLinks, localLinks, [])
+      saveLocalLinks(merged)
+      set({ links: merged })
+    } catch { /* 云端拉取失败不影响已同步的结果 */ }
+  }
+
+  // 4. 同步 pending tags
+  const fresh3 = get()
+  const pendingTags = fresh3.tags.filter(t => (t as Record<string, unknown>)._pendingSync === true)
+  if (pendingTags.length > 0) {
+    for (const tag of pendingTags) {
+      try {
+        await ds.createTagApi(tag.name, tag.color)
+        synced++
+        devLog(`[DataStore] ✅ 重试同步标签 "${tag.name}" 成功`)
+      } catch (err) {
+        console.error(`[DataStore] ❌ 重试同步标签 "${tag.name}" 失败:`, err)
+        break
+      }
+    }
+    try {
+      const cloudTags = await ds.fetchTags()
+      const localTags = loadLocal<Tag[]>('tags', [])
+      const pendingDeletes = loadLocal<string[]>('tag_delete_pending', [])
+      const filteredCloud = cloudTags
+        .filter(t => !pendingDeletes.includes(t.id))
+        .map(t => ({ ...t, user_id: t.user_id || '1', created_at: t.created_at || new Date().toISOString(), updated_at: t.updated_at || new Date().toISOString() }))
+      const merged = mergeLists(filteredCloud, localTags, [])
+      saveLocalItem('tags', merged)
+      set({ tags: merged })
+    } catch { /* 非关键 */ }
+  }
+
+  // 5. 重试 pending tag deletes
+  const pendingDeletes = loadLocal<string[]>('tag_delete_pending', [])
+  if (pendingDeletes.length > 0) {
+    const remaining: string[] = []
+    for (const id of pendingDeletes) {
+      try {
+        await ds.deleteTagApi(id)
+        synced++
+        devLog(`[DataStore] ✅ 重试删除标签 ${id} 成功`)
+      } catch {
+        remaining.push(id)
+      }
+    }
+    saveLocalItem('tag_delete_pending', remaining)
+  }
+
+  // 更新 cloudSyncError 状态
+  const check = get()
+  const stillPending =
+    check.links.some(l => (l as Record<string, unknown>)._pendingSync) ||
+    check.categories.some(c => (c as Record<string, unknown>)._pendingSync) ||
+    check.subCategories.some(sc => (sc as Record<string, unknown>)._pendingSync) ||
+    check.tags.some(t => (t as Record<string, unknown>)._pendingSync) ||
+    loadLocal<string[]>('tag_delete_pending', []).length > 0
+
+  if (!stillPending) {
+    set({ cloudSyncError: false, lastSyncErrorDetail: '' })
+    devLog('[DataStore] 🎉 所有待同步数据已成功推送到云端')
+  } else {
+    devLog('[DataStore] ⚠️ 仍有部分数据未能同步到云端')
+  }
+
+  return synced
+}
+
 // ============ 创建 Store ============
 
 export const useDataStore = create<DataStore>()((set, get) => ({
@@ -644,6 +832,26 @@ export const useDataStore = create<DataStore>()((set, get) => ({
 
     // 后台静默刷新云端数据
     reloadAll(set, get)
+
+    // 云端加载完成后自动重试同步待处理数据
+    setTimeout(() => {
+      if (ds.isCloudApiConfigured() && get().initialized) {
+        syncPendingToCloud(set, get)
+      }
+    }, 3000)
+
+    // 监听网络恢复：从离线回到在线时自动重试
+    const handleOnline = () => {
+      if (ds.isCloudApiConfigured()) {
+        devLog('[DataStore] 网络恢复，自动重试同步待处理数据')
+        syncPendingToCloud(set, get)
+      }
+    }
+    // 避免重复注册
+    if (typeof window !== 'undefined' && !(window as unknown as Record<string, unknown>).__panlinkOnlineHandler) {
+      window.addEventListener('online', handleOnline)
+      ;(window as unknown as Record<string, unknown>).__panlinkOnlineHandler = true
+    }
   },
 
   // ===== Categories =====
@@ -1172,6 +1380,11 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   deleteDriveType: async (id) => {
     try { await ds.deleteDriveTypeApi(id) } catch { /* ignore */ }
     set({ driveTypes: get().driveTypes.filter(dt => dt.id !== id) })
+  },
+
+  // 自动重试待同步数据到云端
+  syncPendingItems: async () => {
+    return syncPendingToCloud(set, get)
   },
 
   // ===== Tags =====
