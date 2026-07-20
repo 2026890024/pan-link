@@ -185,13 +185,15 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         env.DB.prepare('SELECT * FROM subcategories ORDER BY sort_order ASC').all().catch(() => ({ results: [] })),
         env.DB.prepare('SELECT * FROM tags ORDER BY name ASC').all(),
       ])
+      const linksList = (links.results || []) as Record<string, unknown>[]
+      await batchAttachTags(env, linksList)
       const cacheHeaders = {
         'Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
       }
       return new Response(
         JSON.stringify({
           categories: categories.results || [],
-          links: links.results || [],
+          links: linksList,
           subcategories: subcategories.results || [],
           tags: tags.results || [],
         }),
@@ -270,7 +272,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const stmt = env.DB.prepare(query)
       for (const p of params) stmt.bind(p as string)
       const result = await stmt.all()
-      return jsonRes(result.results || [], 200, corsHeaders)
+      const list = (result.results || []) as Record<string, unknown>[]
+      await batchAttachTags(env, list)
+      return jsonRes(list, 200, corsHeaders)
     }
 
     // GET /api/links/search?q=
@@ -284,7 +288,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
          WHERE l.status = 'active' AND (l.name LIKE ? OR l.description LIKE ? OR l.keywords LIKE ?)
          ORDER BY l.is_pinned DESC, l.created_at DESC LIMIT 50`
       ).bind(like, like, like).all()
-      return jsonRes(result.results || [], 200, corsHeaders)
+      const searchList = (result.results || []) as Record<string, unknown>[]
+      await batchAttachTags(env, searchList)
+      return jsonRes(searchList, 200, corsHeaders)
     }
 
     // GET /api/links/public
@@ -316,9 +322,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
             ).bind((result.results[0] as Record<string, unknown>).id as string).run()
           }
         } catch (_e) { /* ignore */ }
-        return jsonRes(result.results?.[0] || null, 200, corsHeaders)
+        const single = (result.results?.[0] || null) as Record<string, unknown> | null
+        if (single) { const arr = [single]; await batchAttachTags(env, arr); Object.assign(single, arr[0]) }
+        return jsonRes(single, 200, corsHeaders)
       }
-      return jsonRes(result.results || [], 200, corsHeaders)
+      const pubList = (result.results || []) as Record<string, unknown>[]
+      await batchAttachTags(env, pubList)
+      return jsonRes(pubList, 200, corsHeaders)
     }
 
     // GET /api/links/stats
@@ -426,6 +436,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         nowISO, nowISO, insertBody.visible, insertBody.sort_order, insertBody.keywords
       ).run()
 
+      // 保存标签关联
+      if (Array.isArray(body.tags)) {
+        try { await setLinkTags(env, String(id), body.tags as string[]) } catch { /* ignore */ }
+      }
+
       const link = await env.DB.prepare('SELECT * FROM links WHERE id = ?').bind(id).first()
       return jsonRes(link, 201, corsHeaders)
     }
@@ -479,6 +494,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         values.push(nowISO)
         values.push(linkId)
         await env.DB.prepare(`UPDATE links SET ${fields.join(', ')} WHERE id = ?`).bind(...values).run()
+      }
+      // 更新标签关联（如果传了 tags 字段）
+      if (body.tags !== undefined) {
+        const tagIds = Array.isArray(body.tags) ? (body.tags as string[]) : []
+        try { await setLinkTags(env, linkId, tagIds) } catch { /* ignore */ }
       }
       return jsonRes({ success: true }, 200, corsHeaders)
     }
@@ -675,6 +695,44 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
+}
+
+/** 批量查询链接的标签并附加到 link 对象上 */
+async function batchAttachTags(env: Env, links: Record<string, unknown>[]) {
+  if (links.length === 0) return
+  const ids = links.map(l => l.id as string).filter(Boolean)
+  if (ids.length === 0) return
+  const ph = ids.map(() => '?').join(',')
+  const tagRows = await env.DB.prepare(
+    `SELECT lt.link_id, t.id as tag_id, t.name as tag_name, t.color as tag_color
+     FROM link_tags lt JOIN tags t ON lt.tag_id = t.id
+     WHERE lt.link_id IN (${ph})`
+  ).bind(...ids).all()
+  const byLink = new Map<string, { id: string; name: string; color: string }[]>()
+  const rows = tagRows.results as Array<Record<string, unknown>>
+  for (let i = 0; i < (rows?.length || 0); i++) {
+    const lid = String(rows[i].link_id)
+    if (!byLink.has(lid)) byLink.set(lid, [])
+    byLink.get(lid)!.push({
+      id: String(rows[i].tag_id),
+      name: String(rows[i].tag_name),
+      color: String(rows[i].tag_color || '#6366F1'),
+    })
+  }
+  for (const l of links) {
+    l.tags = byLink.get(String(l.id)) || []
+  }
+}
+
+/** 写入链接的标签关联 */
+async function setLinkTags(env: Env, linkId: string, tagIds: string[]) {
+  await env.DB.prepare('DELETE FROM link_tags WHERE link_id = ?').bind(linkId).run()
+  if (tagIds.length === 0) return
+  // 批量插入
+  const phs = tagIds.map(() => '(?, ?)').join(', ')
+  const vals: string[] = []
+  for (const tid of tagIds) { vals.push(linkId, tid) }
+  await env.DB.prepare(`INSERT INTO link_tags (link_id, tag_id) VALUES ${phs}`).bind(...vals).run()
 }
 
 function matchPath(path: string, pattern: string): boolean {

@@ -61,7 +61,7 @@ interface DataStore {
 
   // DriveTypes
   addDriveType: (name: string, icon: string, color: string) => Promise<void>
-  updateDriveType: (id: string, updates: Partial<DriveType>) => void
+  updateDriveType: (id: string, updates: Partial<DriveType>) => Promise<void>
   deleteDriveType: (id: string) => Promise<void>
 
   // Tags
@@ -548,6 +548,18 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
       driveTypes: [...driveTypes] as DriveType[],
     })
 
+    // 从云端加载图标库（回退路径也需要）
+    try {
+      const siteSettings = await ds.fetchSiteSettings()
+      if (siteSettings.icon_library && siteSettings.icon_library.length > 0) {
+        const merged = [...(get().iconLibrary || []), ...siteSettings.icon_library.filter(
+          (ci: IconLibraryItem) => !(get().iconLibrary || []).find(li => li.id === ci.id || li.name === ci.name)
+        )]
+        try { localStorage.setItem('panlink_icon_library', JSON.stringify(merged)) } catch { /* ignore */ }
+        set({ iconLibrary: merged })
+      }
+    } catch { /* icon library sync non-critical */ }
+
     const hasCloudData = categories.length > 0 || links.length > 0
     const hasLocalOnly = localLinks.some(
       (l: Record<string, unknown>) => (l as Record<string, unknown>)._pendingSync === true
@@ -714,6 +726,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
           icon: newLink.icon,
           description: newLink.description,
           keywords: newLink.keywords,
+          tags: (newLink.tags || []).map(t => t.id),
         })
         // 云写入成功 → 从云端重新拉取完整数据（以云端为准）
         const links = await ds.fetchLinks()
@@ -750,6 +763,10 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     try {
       if (ds.isCloudApiConfigured()) {
         const cloudUpdates = { ...updates } as Record<string, unknown>
+        // 标签需要转换为云端的 ID 数组格式
+        if (Array.isArray(cloudUpdates.tags)) {
+          cloudUpdates.tags = (cloudUpdates.tags as Array<{ id: string }>).map(t => t.id)
+        }
         await ds.updateLinkApi(id, cloudUpdates)
         // 云写入成功 → 以云端数据为准
         const links = await ds.fetchLinks()
@@ -1116,10 +1133,22 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     }
   },
 
-  updateDriveType: (id, updates) => {
+  updateDriveType: async (id, updates) => {
     set({
       driveTypes: get().driveTypes.map(dt => dt.id === id ? { ...dt, ...updates } : dt),
     })
+    // 同步到云端
+    if (ds.isCloudApiConfigured()) {
+      try {
+        const settings = await ds.fetchSiteSettings()
+        const driveTypes: DriveType[] = (settings as Record<string, unknown>).drive_types as DriveType[] || []
+        const idx = driveTypes.findIndex(dt => dt.id === id)
+        if (idx >= 0) {
+          driveTypes[idx] = { ...driveTypes[idx], ...updates }
+          await ds.updateSiteSettings({ drive_types: driveTypes } as unknown as Parameters<typeof ds.updateSiteSettings>[0])
+        }
+      } catch { /* ignore */ }
+    }
   },
 
   deleteDriveType: async (id) => {
