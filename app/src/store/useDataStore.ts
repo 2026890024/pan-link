@@ -444,8 +444,11 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
       const localLinks = loadLocalLinks()
       const localSubs = loadLocalSubCategoriesCompat()
 
+      // 链接数据需单独获取（fetchAll 的 /api/all 仅返回可见链接，fetchLinks 返回全部）
+      const allLinks = await ds.fetchLinks().catch(() => [] as LinkItem[])
+
       const mergedCategories = mergeLists(allData.categories, localCats, [])
-      const mergedLinks = mergeLists(allData.links, localLinks, [])
+      const mergedLinks = mergeLists(allLinks.length > 0 ? allLinks : allData.links, localLinks, [])
       const mergedSubCategories = mergeLists(allData.subcategories, localSubs)
 
       // 更新数据（本地已有数据则静默更新，否则设置 initialized）
@@ -496,7 +499,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
       )
       set({ cloudSyncError: !hasCloudData && hasLocalOnly })
 
-      devLog(`[DataStore] 加载完成: ${allData.categories.length} 分类, ${allData.links.length} 链接, ${allData.subcategories.length} 子分类`)
+      devLog(`[DataStore] 加载完成: ${mergedCategories.length} 分类, ${mergedLinks.length} 链接, ${mergedSubCategories.length} 子分类`)
 
       // 自动同步本地子分类到云端（仅在云端为空且本地有数据时）
       autoSyncSubCategories(allData.subcategories.length, allData.categories, localSubs, set, get)
