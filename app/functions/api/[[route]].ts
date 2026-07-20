@@ -214,6 +214,17 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       return jsonRes({ error: '用户名或密码错误' }, 401, corsHeaders)
     }
 
+    // ====== Click tracking (公开接口, 无需认证) ======
+    if (matchPath(path, '/api/links/:id/click') && method === 'POST') {
+      const linkId = extractParam(path, '/api/links/:id/click')
+      if (linkId) {
+        try {
+          await env.DB.prepare('UPDATE links SET click_count = click_count + 1 WHERE id = ?').bind(linkId).run()
+        } catch (_e) { /* ignore - best-effort click tracking */ }
+      }
+      return jsonRes({ success: true }, 200, corsHeaders)
+    }
+
     // ====== Write operations require auth ======
     const isWriteOp = ['POST', 'PUT', 'DELETE'].includes(method)
     if (isWriteOp && !(await requireAuth(request, env))) {

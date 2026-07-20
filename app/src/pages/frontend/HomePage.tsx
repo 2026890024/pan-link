@@ -70,39 +70,36 @@ export default function HomePage() {
     return derived
   }, [categories, links])
 
+  // 辅助函数：优先读云配置，fallback 到 localStorage
+  const getVisibilityJson = (key: string): Record<string, boolean> => {
+    // 优先从云 site_settings 读取
+    const cloudVal = siteSettings.settings[key]
+    if (cloudVal) {
+      try { return JSON.parse(cloudVal) } catch { /* fall through */ }
+    }
+    // 向后兼容：从 localStorage 读取
+    try { return JSON.parse(localStorage.getItem(key) || '{}') } catch { return {} }
+  }
+
   // 首页分类按钮：按可见性过滤 + sort_order 排序
   const visibleCategories = useMemo(() => {
-    try {
-      const visibility: Record<string, boolean> = JSON.parse(
-        localStorage.getItem('homepage_category_visibility') || '{}'
-      )
-      return [...effectiveCategories]
-        .filter(c => visibility[c.id] !== false)
-        .sort((a, b) => a.sort_order - b.sort_order)
-    } catch {
-      return [...effectiveCategories].sort((a, b) => a.sort_order - b.sort_order)
-    }
-  }, [effectiveCategories])
+    const visibility = getVisibilityJson('homepage_category_visibility')
+    return [...effectiveCategories]
+      .filter(c => visibility[c.id] !== false)
+      .sort((a, b) => a.sort_order - b.sort_order)
+  }, [effectiveCategories, siteSettings.settings])
 
   // 子分类可见性过滤（已按 sort_order 排序）
   const visibleSubCategories = useMemo(() => {
-    try {
-      const subVis: Record<string, boolean> = JSON.parse(
-        localStorage.getItem('homepage_subcategory_visibility') || '{}'
-      )
-      return subCategories
-        .filter(sc => {
-          const parentVisible = visibleCategories.some(c => c.id === sc.category_id)
-          if (!parentVisible) return false
-          return subVis[sc.id] !== false
-        })
-        .sort((a, b) => a.sort_order - b.sort_order)
-    } catch {
-      return subCategories.filter(sc =>
-        visibleCategories.some(c => c.id === sc.category_id)
-      ).sort((a, b) => a.sort_order - b.sort_order)
-    }
-  }, [subCategories, visibleCategories])
+    const subVis = getVisibilityJson('homepage_subcategory_visibility')
+    return subCategories
+      .filter(sc => {
+        const parentVisible = visibleCategories.some(c => c.id === sc.category_id)
+        if (!parentVisible) return false
+        return subVis[sc.id] !== false
+      })
+      .sort((a, b) => a.sort_order - b.sort_order)
+  }, [subCategories, visibleCategories, siteSettings.settings])
   
   // 获取某个分类的子分类（已全局排序，无需再排）
   const getSubCategories = (categoryId: string) => {
@@ -141,8 +138,12 @@ export default function HomePage() {
     if (urlSubCategory) setSelectedSubCategory(urlSubCategory)
   }, [urlCategory, urlSubCategory])
 
-  // 精选推荐开关（从 localStorage 读取，默认开启）
-  const showFeaturedSection = localStorage.getItem('homepage_show_featured') !== 'false'
+  // 精选推荐开关（优先云配置，fallback localStorage，默认开启）
+  const showFeaturedSection = (() => {
+    const cloudVal = siteSettings.settings['homepage_show_featured']
+    if (cloudVal !== undefined) return cloudVal !== 'false'
+    return localStorage.getItem('homepage_show_featured') !== 'false'
+  })()
 
   // SEO 标题
   useEffect(() => {

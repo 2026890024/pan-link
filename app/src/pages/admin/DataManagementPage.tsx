@@ -37,6 +37,7 @@ interface ImportPreviewItem {
   extract_code?: string
   description?: string
   keywords?: string | string[]
+  tags?: string[]
   category_name?: string
   category_id?: string
   drive_type?: string
@@ -145,7 +146,7 @@ export default function DataManagementPage() {
     if (exportFormat === 'csv') {
       // BOM for Excel UTF-8 compatibility
       const BOM = '\uFEFF'
-      const headers = ['名称', 'Slug', '链接', '提取码', '分类', '描述', '关键词', '网盘类型', '精选', '置顶', '可见', '过期时间', '点击量', '创建时间']
+      const headers = ['名称', 'Slug', '链接', '提取码', '分类', '描述', '关键词', '标签', '网盘类型', '精选', '置顶', '可见', '过期时间', '点击量', '创建时间']
       const rows = dataToExport.map((l) => [
         l.name || l.title || '',
         l.slug || '',
@@ -154,6 +155,7 @@ export default function DataManagementPage() {
         l.category_name || categories.find(c => c.id === l.category_id)?.name || '',
         l.description || '',
         (l.keywords || []).join('; '),
+        (l.tags || []).map(t => t.name).join('; '),
         l.drive_type || '',
         l.is_featured ? '是' : '否',
         l.is_pinned ? '是' : '否',
@@ -182,6 +184,7 @@ export default function DataManagementPage() {
         expires_at: l.expires_at,
         click_count: l.click_count,
         created_at: l.created_at,
+        tags: (l.tags || []).map(t => ({ id: t.id, name: t.name, color: t.color })),
       })), null, 2)
       filename = `资源链接_导出_${new Date().toISOString().split('T')[0]}.json`
       mimeType = 'application/json'
@@ -235,6 +238,7 @@ export default function DataManagementPage() {
         extract_code: row['提取码'] || row['extract_code'] || row['code'] || '',
         description: row['描述'] || row['description'] || '',
         keywords: row['关键词'] || row['keywords'] || row['搜索关键词'] || '',
+        tags: (row['标签'] || row['tags'] || '').split(/[;,]/).map(s => s.trim()).filter(Boolean),
         category_name: row['分类'] || row['category_name'] || row['category'] || '',
         drive_type: row['网盘类型'] || row['drive_type'] || '',
         is_featured: row['精选'] === '是' || row['is_featured'] === 'true',
@@ -253,6 +257,7 @@ export default function DataManagementPage() {
       extract_code: item.extract_code || item.code || '',
       description: item.description || '',
       keywords: item.keywords || [],
+      tags: Array.isArray(item.tags) ? (item.tags as Array<{ name?: string; id?: string }>).map(t => t.name || t.id || '').filter(Boolean) as string[] : (typeof item.tags === 'string' ? (item.tags as string).split(/[;,]/).map((s: string) => s.trim()).filter(Boolean) : []),
       category_name: item.category_name || '',
       category_id: item.category_id || '',
       drive_type: item.drive_type || 'baidu',
@@ -393,6 +398,11 @@ export default function DataManagementPage() {
       if (item.visible === '否' || item.visible === 'false' || item.visible === false || item.visible === '0') {
         visible = false
       }
+      // 将导入的标签名匹配到已有标签（按名称匹配，取标签 ID）
+      const importTagNames: string[] = Array.isArray(item.tags)
+        ? item.tags.filter((t): t is string => typeof t === 'string')
+        : []
+      const matchedTags = (tags || []).filter(t => importTagNames.includes(t.name))
       return {
         name: item.name || '未命名资源',
         title: item.name || '未命名资源',
@@ -401,6 +411,7 @@ export default function DataManagementPage() {
         category_id: categoryId,
         extract_code: item.extract_code || '',
         keywords,
+        tags: matchedTags,
         is_pinned: !!item.is_pinned,
         is_featured: !!item.is_featured,
         expires_at: item.expires_at && item.expires_at !== '永久' ? item.expires_at : null,
@@ -459,6 +470,7 @@ export default function DataManagementPage() {
                 is_featured: item.is_featured ?? existing.is_featured,
                 is_pinned: item.is_pinned ?? existing.is_pinned,
                 expires_at: item.expires_at && item.expires_at !== '永久' ? item.expires_at : existing.expires_at,
+                tags: item.tags?.length ? (tags || []).filter(t => (item.tags as string[]).includes(t.name)) : undefined,
               })
               duplicatesOverwritten++
               setImportStats(prev => prev ? { ...prev, duplicatesOverwritten } : null)

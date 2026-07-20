@@ -10,13 +10,21 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useDataStore } from '@/store/useDataStore'
+import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
+import * as ds from '@/services/dataService'
 
-// 首页分类可见性配置存储在 localStorage
+// 首页分类可见性配置存储在 localStorage（向后兼容），同时同步到云 site_settings
 const CAT_VIS_KEY = 'homepage_category_visibility'
 const SUB_VIS_KEY = 'homepage_subcategory_visibility'
+const FEATURED_KEY = 'homepage_show_featured'
 type VisibilityMap = Record<string, boolean>
 
 function loadVisibility(key: string): VisibilityMap {
+  // 优从云端缓存读取，回退到 localStorage
+  const storeVal = (useSiteSettingsStore.getState().settings as Record<string, unknown>)[key]
+  if (typeof storeVal === 'string') {
+    try { return JSON.parse(storeVal) } catch { /* fall through */ }
+  }
   try {
     return JSON.parse(localStorage.getItem(key) || '{}')
   } catch { return {} }
@@ -26,14 +34,22 @@ function saveVisibility(key: string, map: VisibilityMap) {
   localStorage.setItem(key, JSON.stringify(map))
 }
 
+function syncVisibilityToCloud(key: string, map: VisibilityMap) {
+  ds.updateSiteSettings({ [key]: JSON.stringify(map) } as Record<string, string>).catch(() => {})
+}
+
+function getShowFeaturedInitial(): boolean {
+  const storeVal = (useSiteSettingsStore.getState().settings as Record<string, unknown>)[FEATURED_KEY]
+  if (storeVal !== undefined) return storeVal !== 'false'
+  return localStorage.getItem(FEATURED_KEY) !== 'false'
+}
+
 export default function HomepageSettingsPage() {
   const { categories, updateCategory, subCategories } = useDataStore()
   const [catVisibility, setCatVisibility] = useState<VisibilityMap>(() => loadVisibility(CAT_VIS_KEY))
   const [subVisibility, setSubVisibility] = useState<VisibilityMap>(() => loadVisibility(SUB_VIS_KEY))
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
-  const [showFeatured, setShowFeatured] = useState(
-    localStorage.getItem('homepage_show_featured') !== 'false'
-  )
+  const [showFeatured, setShowFeatured] = useState(getShowFeaturedInitial)
 
   // 合并 visibility 与 Store 数据，按 sort_order 排序
   const displayCategories = useMemo(() => {
@@ -55,7 +71,8 @@ export default function HomepageSettingsPage() {
   const toggleFeatured = () => {
     const newValue = !showFeatured
     setShowFeatured(newValue)
-    localStorage.setItem('homepage_show_featured', String(newValue))
+    localStorage.setItem(FEATURED_KEY, String(newValue))
+    ds.updateSiteSettings({ [FEATURED_KEY]: String(newValue) } as Record<string, string>).catch(() => {})
     toast.success(newValue ? '精选推荐已开启' : '精选推荐已关闭')
   }
 
@@ -63,6 +80,7 @@ export default function HomepageSettingsPage() {
     const updated = { ...catVisibility, [id]: !catVisibility[id] !== false }
     setCatVisibility(updated)
     saveVisibility(CAT_VIS_KEY, updated)
+    syncVisibilityToCloud(CAT_VIS_KEY, updated)
     toast.success(updated[id] ? '分类已设为可见' : '分类已隐藏')
   }
 
@@ -70,6 +88,7 @@ export default function HomepageSettingsPage() {
     const updated = { ...subVisibility, [id]: !subVisibility[id] !== false }
     setSubVisibility(updated)
     saveVisibility(SUB_VIS_KEY, updated)
+    syncVisibilityToCloud(SUB_VIS_KEY, updated)
     toast.success(updated[id] ? '子分类已设为可见' : '子分类已隐藏')
   }
 
@@ -79,6 +98,7 @@ export default function HomepageSettingsPage() {
     subs.forEach(sc => { updated[sc.id] = visible })
     setSubVisibility(updated)
     saveVisibility(SUB_VIS_KEY, updated)
+    syncVisibilityToCloud(SUB_VIS_KEY, updated)
     toast.success(visible ? '所有子分类已显示' : '所有子分类已隐藏')
   }
 

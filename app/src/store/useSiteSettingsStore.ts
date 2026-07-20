@@ -87,6 +87,7 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
     try {
       const settings = await ds.fetchSiteSettings()
       const merged: SiteSettings = {
+        ...settings, // 保留所有云端字段（homepage_show_featured、homepage_category_visibility 等）
         current_logo_type: settings.current_logo_type || DEFAULT_SETTINGS.current_logo_type,
         current_logo_text: settings.current_logo_text || DEFAULT_SETTINGS.current_logo_text,
         current_logo_url: settings.current_logo_url || DEFAULT_SETTINGS.current_logo_url,

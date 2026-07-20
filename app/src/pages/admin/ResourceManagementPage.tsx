@@ -25,8 +25,9 @@ import {
   AlertTriangle,
   CloudUpload,
   CopyX,
+  Tag as TagIcon,
 } from 'lucide-react'
-import { useDataStore, type LinkItem } from '@/store/useDataStore'
+import { useDataStore, type LinkItem, type Tag } from '@/store/useDataStore'
 import { LinkIcon } from '@/components/LinkIcon'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import toast from 'react-hot-toast'
@@ -57,6 +58,7 @@ export default function ResourceManagementPage() {
     syncSubCategoriesToCloud,
     deduplicateSubCategories,
     iconLibrary,
+    tags,
   } = useDataStore()
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
@@ -94,6 +96,7 @@ export default function ResourceManagementPage() {
     keywords: '', is_pinned: false, is_featured: false,
   })
   const [formLinkIcon, setFormLinkIcon] = useState('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [showIconPicker, setShowIconPicker] = useState(false)
   const [iconPickerSearch, setIconPickerSearch] = useState('')
   const formFileInputRef = useRef<HTMLInputElement>(null)
@@ -102,6 +105,7 @@ export default function ResourceManagementPage() {
   const openAddModal = () => {
     setFormLink({ id: '', title: '', url: '', category_id: selectedCategoryId || categories[0]?.id || '', subcategory_id: '', drive_type: 'baidu', slug: '', icon: '', extract_code: '', expires_at: '', keywords: '', is_pinned: false, is_featured: false })
     setFormLinkIcon('')
+    setSelectedTags([])
     setShowIconPicker(false)
     setLinkModalMode('add')
     setLinkModalOpen(true)
@@ -119,6 +123,7 @@ export default function ResourceManagementPage() {
       is_featured: link.is_featured || false,
     })
     setFormLinkIcon(link.icon || '')
+    setSelectedTags((link.tags || []).map(t => t.id))
     setShowIconPicker(false)
     setLinkModalMode('edit')
     setLinkModalOpen(true)
@@ -290,7 +295,7 @@ export default function ResourceManagementPage() {
         expires_at: formLink.expires_at || null,
         is_pinned: formLink.is_pinned,
         is_featured: formLink.is_featured,
-        tags: [],
+        tags: (tags || []).filter(t => selectedTags.includes(t.id)),
         keywords: formLink.keywords ? formLink.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
         category_logo: '',
       })
@@ -316,6 +321,7 @@ export default function ResourceManagementPage() {
         keywords: formLink.keywords ? formLink.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
         is_pinned: formLink.is_pinned,
         is_featured: formLink.is_featured,
+        tags: (tags || []).filter(t => selectedTags.includes(t.id)),
       })
       setLinkModalOpen(false)
       toast.success('链接已更新')
@@ -779,6 +785,48 @@ export default function ResourceManagementPage() {
                   <input type="text" value={formLink.keywords} onChange={(e) => setFormLink({ ...formLink, keywords: e.target.value })}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm" placeholder="别名、缩写、常用搜索词" />
                 </div>
+              </div>
+              {/* 标签选择 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1.5">
+                  <TagIcon className="w-4 h-4 text-indigo-500" />
+                  关联标签
+                  <span className="text-xs text-gray-400 font-normal ml-1">（点击选择，支持多选）</span>
+                </label>
+                {tags && tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((tag) => {
+                      const isSelected = selectedTags.includes(tag.id)
+                      const tagColor = tag.color || '#6366f1'
+                      return (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedTags(prev =>
+                              isSelected
+                                ? prev.filter(id => id !== tag.id)
+                                : [...prev, tag.id]
+                            )
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 ${
+                            isSelected
+                              ? 'text-white shadow-sm'
+                              : 'text-gray-600 bg-white hover:bg-gray-50 border-gray-200'
+                          }`}
+                          style={isSelected ? { backgroundColor: tagColor, borderColor: tagColor } : {}}
+                        >
+                          {isSelected && <Check className="w-3 h-3" />}
+                          {tag.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">
+                    暂无标签，请先在「标签管理」页面创建标签
+                  </p>
+                )}
               </div>
               {/* 精选/置顶开关 */}
               <div className="flex items-center gap-6">

@@ -332,8 +332,11 @@ export async function deleteLinkApi(id: string): Promise<void> {
 
 export async function incrementLinkClicks(id: string): Promise<void> {
   if (!isCloudApiConfigured()) { incrementLocalClicks(id); return }
-  // Worker 的 /api/links/public GET 会自动记录点击
-  log('incrementClicks', id)
+  // 通过公开 POST API 记录点击（无需认证，best-effort）
+  try {
+    await apiFetch(`/api/links/${id}/click`, { method: 'POST' })
+    log('incrementClicks', id)
+  } catch { /* ignore - 点击记录为 best-effort */ }
 }
 
 // ============ Tags API ============
