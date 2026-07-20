@@ -658,11 +658,12 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       const errDetail = JSON.stringify(err, null, 2)
       console.error('[DataStore] addCategory 云写入失败，回退到本地存储:', err)
       const categories = get().categories
-      const newCat: Category = {
+      const newCat = {
         id: Date.now().toString(), name, icon: 'folder',
         sort_order: categories.length + 1,
-      }
-      const updated = [...categories, newCat]
+        _pendingSync: true,
+      } as Category & { _pendingSync?: boolean }
+      const updated = [...categories, newCat as Category]
       // 回退到 localStorage
       saveLocalItem('categories', updated)
       set({ categories: updated, cloudSyncError: true, lastSyncErrorDetail: `addCategory 失败: ${errMsg}\n${errDetail}` })
@@ -934,9 +935,10 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       const newSub = {
         id: Date.now().toString(), category_id: categoryId, name,
         sort_order: existing.length + 1,
-      }
-      const updated = [...subCategories, newSub]
-      set({ subCategories: updated })
+        _pendingSync: true,
+      } as SubCategory & { _pendingSync?: boolean }
+      const updated = [...subCategories, newSub as SubCategory]
+      set({ subCategories: updated, cloudSyncError: true })
       saveLocalItem('subcategories', updated)
     }
   },
@@ -1192,14 +1194,20 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   },
 
   updateTag: async (id, updates) => {
+    let cloudFailed = false
     try {
-      await ds.updateTagApi(id, updates)
+      if (ds.isCloudApiConfigured()) {
+        await ds.updateTagApi(id, updates)
+      }
     } catch (err) {
       console.error('[DataStore] updateTag cloud sync error:', err)
+      cloudFailed = true
     }
-    set({
-      tags: get().tags.map(t => t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t),
-    })
+    const updatedTags = get().tags.map(t =>
+      t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
+    )
+    saveLocalItem('tags', updatedTags)
+    set({ tags: updatedTags, cloudSyncError: cloudFailed })
   },
 
   deleteTag: async (id) => {
