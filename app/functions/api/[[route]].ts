@@ -569,6 +569,28 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       return jsonRes({ success: true, id }, 201, corsHeaders)
     }
 
+    if (matchPath(path, '/api/tags/:id') && method === 'PUT') {
+      const tagId = extractParam(path, '/api/tags/:id')
+      const body = await request.json<Record<string, unknown>>()
+      const nowISO = new Date().toISOString()
+      const fields: string[] = []
+      const values: unknown[] = []
+      const allowedFields = ['name', 'color']
+      for (const field of allowedFields) {
+        if (body[field] !== undefined) {
+          fields.push(`${field} = ?`)
+          values.push(body[field])
+        }
+      }
+      if (fields.length > 0) {
+        fields.push('updated_at = ?')
+        values.push(nowISO)
+        values.push(tagId)
+        await env.DB.prepare(`UPDATE tags SET ${fields.join(', ')} WHERE id = ?`).bind(...values).run()
+      }
+      return jsonRes({ success: true }, 200, corsHeaders)
+    }
+
     if (matchPath(path, '/api/tags/:id') && method === 'DELETE') {
       const tagId = extractParam(path, '/api/tags/:id')
       await env.DB.prepare('DELETE FROM tags WHERE id = ?').bind(tagId).run()

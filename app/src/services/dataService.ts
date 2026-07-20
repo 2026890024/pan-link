@@ -365,6 +365,16 @@ export async function createTagApi(name: string, color: string, userId?: string)
   } catch (err) { throw err }
 }
 
+export async function updateTagApi(id: string, updates: { name?: string; color?: string }): Promise<void> {
+  if (!isCloudApiConfigured()) { updateLocalTag(id, updates); return }
+  try {
+    await apiFetch(`/api/tags/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    })
+  } catch (err) { throw err }
+}
+
 export async function deleteTagApi(id: string): Promise<void> {
   if (!isCloudApiConfigured()) { deleteLocalTag(id); return }
   
@@ -460,7 +470,9 @@ export async function fetchAll(): Promise<AllData | null> {
         id: String(c.id),
         name: c.name as string,
         icon: (c.icon as string) || 'folder',
+        logo_url: (c.logo_url as string) || null,
         sort_order: Number(c.sort_order || 0),
+        is_system: Boolean(c.is_system),
         created_at: (c.created_at as string) || new Date().toISOString(),
         updated_at: (c.updated_at as string) || new Date().toISOString(),
       })),
@@ -521,11 +533,66 @@ export async function deleteSubCategoryApi(id: string): Promise<void> {
   } catch (err) { throw err }
 }
 
-// ============ DriveTypes (local only) ============
+// ============ DriveTypes (cloud + local) ============
 
-export function fetchDriveTypes(): DriveType[] { return getLocalDriveTypes() }
-export function addDriveTypeApi(name: string, icon: string, color: string): DriveType { return addLocalDriveType(name, icon, color) }
-export function deleteDriveTypeApi(id: string): void { deleteLocalDriveType(id) }
+export async function fetchDriveTypes(): Promise<DriveType[]> {
+  const base = [...FALLBACK_DRIVE_TYPES]
+  
+  if (!isCloudApiConfigured()) {
+    const local = getLocalDriveTypes()
+    const custom = local.filter(dt => !base.find(b => b.id === dt.id))
+    return [...base, ...custom]
+  }
+  
+  try {
+    const settings = await fetchSiteSettings()
+    const cloudCustom: DriveType[] = (settings as Record<string, unknown>).drive_types as DriveType[] || []
+    if (cloudCustom.length > 0) {
+      const customMap = new Map(cloudCustom.map(dt => [dt.id, dt]))
+      // Deduplicate: cloud types override local with same id
+      const local = getLocalDriveTypes()
+      const localCustom = local.filter(dt => !base.find(b => b.id === dt.id) && !customMap.has(dt.id))
+      return [...base, ...cloudCustom, ...localCustom]
+    }
+    const local = getLocalDriveTypes()
+    const custom = local.filter(dt => !base.find(b => b.id === dt.id))
+    return [...base, ...custom]
+  } catch {
+    const local = getLocalDriveTypes()
+    const custom = local.filter(dt => !base.find(b => b.id === dt.id))
+    return [...base, ...custom]
+  }
+}
+
+export async function addDriveTypeApi(name: string, icon: string, color: string): Promise<DriveType> {
+  const dt: DriveType = { id: `custom-${Date.now()}`, name, icon, color }
+  addLocalDriveType(name, icon, color)
+  if (isCloudApiConfigured()) {
+    try {
+      const settings = await fetchSiteSettings()
+      const driveTypes: DriveType[] = (settings as Record<string, unknown>).drive_types as DriveType[] || []
+      driveTypes.push(dt)
+      await updateSiteSettings({ drive_types: driveTypes } as unknown as SiteSettings)
+    } catch (err) {
+      console.error('[DataService] addDriveTypeApi cloud sync error:', err)
+    }
+  }
+  return dt
+}
+
+export async function deleteDriveTypeApi(id: string): Promise<void> {
+  deleteLocalDriveType(id)
+  if (isCloudApiConfigured()) {
+    try {
+      const settings = await fetchSiteSettings()
+      const driveTypes: DriveType[] = (settings as Record<string, unknown>).drive_types as DriveType[] || []
+      const updated = driveTypes.filter(dt => dt.id !== id)
+      await updateSiteSettings({ drive_types: updated } as unknown as SiteSettings)
+    } catch (err) {
+      console.error('[DataService] deleteDriveTypeApi cloud sync error:', err)
+    }
+  }
+}
 
 
 // ============ 公共接口（给前端页面直接调用）============
@@ -716,6 +783,12 @@ function addLocalTag(name: string, color: string): Tag {
   saveStorage(storage)
   return tag
 }
+function updateLocalTag(id: string, updates: { name?: string; color?: string }): void {
+  const storage = loadStorage()
+  storage.tags = storage.tags.map(t => t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t)
+  saveStorage(storage)
+}
+
 function deleteLocalTag(id: string): void {
   const storage = loadStorage()
   storage.tags = storage.tags.filter(t => t.id !== id)
@@ -802,6 +875,7 @@ export interface SiteSettings {
   color_history?: ColorScheme[]
   site_name?: string
   site_description?: string
+  drive_types?: DriveType[]
 }
 
 // 本地 site settings 回退

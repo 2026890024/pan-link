@@ -60,9 +60,9 @@ interface DataStore {
 
 
   // DriveTypes
-  addDriveType: (name: string, icon: string, color: string) => void
+  addDriveType: (name: string, icon: string, color: string) => Promise<void>
   updateDriveType: (id: string, updates: Partial<DriveType>) => void
-  deleteDriveType: (id: string) => void
+  deleteDriveType: (id: string) => Promise<void>
 
   // Tags
   addTag: (name: string, color: string) => Promise<void>
@@ -476,6 +476,18 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
         })),
         driveTypes: [...driveTypes] as DriveType[],
       })
+
+      // 从云端加载图标库
+      try {
+        const siteSettings = await ds.fetchSiteSettings()
+        if (siteSettings.icon_library && siteSettings.icon_library.length > 0) {
+          const merged = [...(get().iconLibrary || []), ...siteSettings.icon_library.filter(
+            (ci: IconLibraryItem) => !(get().iconLibrary || []).find(li => li.id === ci.id || li.name === ci.name)
+          )]
+          try { localStorage.setItem('panlink_icon_library', JSON.stringify(merged)) } catch { /* ignore */ }
+          set({ iconLibrary: merged })
+        }
+      } catch { /* icon library sync non-critical */ }
 
       // 判断云同步状态
       const hasCloudData = allData.categories.length > 0 || allData.links.length > 0
@@ -1091,9 +1103,9 @@ export const useDataStore = create<DataStore>()((set, get) => ({
 
 
   // ===== DriveTypes =====
-  addDriveType: (name, icon, color) => {
+  addDriveType: async (name, icon, color) => {
     try {
-      const dt = ds.addDriveTypeApi(name, icon, color)
+      const dt = await ds.addDriveTypeApi(name, icon, color)
       set({ driveTypes: [...get().driveTypes, dt] })
     } catch {
       set({
@@ -1110,8 +1122,8 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     })
   },
 
-  deleteDriveType: (id) => {
-    try { ds.deleteDriveTypeApi(id) } catch { /* ignore */ }
+  deleteDriveType: async (id) => {
+    try { await ds.deleteDriveTypeApi(id) } catch { /* ignore */ }
     set({ driveTypes: get().driveTypes.filter(dt => dt.id !== id) })
   },
 
@@ -1132,6 +1144,11 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   },
 
   updateTag: async (id, updates) => {
+    try {
+      await ds.updateTagApi(id, updates)
+    } catch (err) {
+      console.error('[DataStore] updateTag cloud sync error:', err)
+    }
     set({
       tags: get().tags.map(t => t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t),
     })
@@ -1161,12 +1178,20 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     }
     const updated = [...get().iconLibrary, newIcon]
     try { localStorage.setItem('panlink_icon_library', JSON.stringify(updated)) } catch { /* quota exceeded */ }
+    // 同步到云端
+    if (ds.isCloudApiConfigured()) {
+      ds.updateSiteSettings({ icon_library: updated } as unknown as Parameters<typeof ds.updateSiteSettings>[0]).catch(() => {})
+    }
     set({ iconLibrary: updated })
   },
 
   deleteIconFromLibrary: (id) => {
     const updated = get().iconLibrary.filter(i => i.id !== id)
     try { localStorage.setItem('panlink_icon_library', JSON.stringify(updated)) } catch { /* quota exceeded */ }
+    // 同步到云端
+    if (ds.isCloudApiConfigured()) {
+      ds.updateSiteSettings({ icon_library: updated } as unknown as Parameters<typeof ds.updateSiteSettings>[0]).catch(() => {})
+    }
     // 同时清除所有使用该图标的链接的 icon 字段
     const updatedLinks = get().links.map(l =>
       l.icon && l.icon === get().iconLibrary.find(i => i.id === id)?.dataUrl
