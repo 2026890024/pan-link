@@ -113,6 +113,15 @@ export default function HomepageSettingsPage() {
     const currentSort = sorted[index].sort_order
     const targetSort = sorted[newIndex].sort_order
 
+    // 如果相邻项 sort_order 相同或存在重复，先规范化所有大分类
+    const hasDuplicate = new Set(sorted.map(c => c.sort_order)).size !== sorted.length
+    if (hasDuplicate || currentSort === targetSort) {
+      const normalized = sorted.map((c, idx) => ({ ...c, sort_order: (idx + 1) * 10 }))
+      await Promise.all(normalized.map(c => updateCategory(c.id, { sort_order: c.sort_order })))
+      toast.success('排序已规范化')
+      return
+    }
+
     await Promise.all([
       updateCategory(id, { sort_order: targetSort }),
       updateCategory(sorted[newIndex].id, { sort_order: currentSort }),
