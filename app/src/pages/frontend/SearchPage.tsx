@@ -258,12 +258,19 @@ export default function SearchPage() {
             <nav className="space-y-0.5">
               <button
                 onClick={() => { setFilterCategory('all'); setFilterSubCategory('all'); setExpandedCategory(null) }}
-                className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 flex items-center gap-2.5 cursor-pointer ${
+                className={`relative w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150 flex items-center gap-2.5 cursor-pointer ${
                   filterCategory === 'all'
-                    ? 'bg-brand-600 text-white shadow-button'
+                    ? 'text-white'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
+                {filterCategory === 'all' && (
+                  <motion.div
+                    layoutId="searchActiveCategory"
+                    className="absolute inset-0 bg-brand-600 rounded-xl shadow-button -z-10"
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  />
+                )}
                 <FolderOpen className={`w-4 h-4 ${filterCategory === 'all' ? 'text-white/70' : 'text-gray-400'}`} />
                 <span>全部资源</span>
               </button>
@@ -285,12 +292,19 @@ export default function SearchPage() {
                             setExpandedCategory(category.id)
                           }
                         }}
-                        className={`flex-1 text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 flex items-center justify-between cursor-pointer ${
+                        className={`relative flex-1 text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150 flex items-center justify-between cursor-pointer ${
                           isSelected && filterSubCategory === 'all'
-                            ? 'bg-brand-600 text-white shadow-button'
+                            ? 'text-white'
                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                         }`}
                       >
+                        {isSelected && filterSubCategory === 'all' && (
+                          <motion.div
+                            layoutId="searchActiveCategory"
+                            className="absolute inset-0 bg-brand-600 rounded-xl shadow-button -z-10"
+                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                          />
+                        )}
                         <div className="flex items-center gap-2.5">
                           <FolderOpen className={`w-4 h-4 ${isSelected && filterSubCategory === 'all' ? 'text-white/70' : 'text-gray-400'}`} />
                           <span>{category.name}</span>

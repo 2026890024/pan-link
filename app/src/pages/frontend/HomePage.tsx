@@ -32,6 +32,72 @@ import { useLinkActions } from '@/hooks/useLinkActions'
 const BTN_PRIMARY = 'py-2 px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-colors,shadow duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium min-h-[44px] sm:min-h-[36px]'
 const BTN_SECONDARY = 'py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors duration-200 cursor-pointer flex items-center gap-1 min-h-[44px] sm:min-h-[36px]'
 
+// ── 120fps 级切换动画配置 ──
+const contentVariants = {
+  hidden: { opacity: 0, x: 16 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.26, ease: [0.25, 0.1, 0.25, 1] },
+  },
+  exit: {
+    opacity: 0,
+    x: -14,
+    transition: { duration: 0.18, ease: 'easeIn' },
+  },
+}
+
+const listContainerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.032, delayChildren: 0.04 },
+  },
+  exit: {
+    opacity: 0,
+    transition: { duration: 0.1 },
+  },
+}
+
+const gridContainerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.028, delayChildren: 0.04 },
+  },
+  exit: {
+    opacity: 0,
+    transition: { duration: 0.1 },
+  },
+}
+
+const listItemVariants = {
+  hidden: { opacity: 0, y: 16, scale: 0.985 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: 'spring', stiffness: 400, damping: 30 },
+  },
+  exit: { opacity: 0, y: -8, transition: { duration: 0.1 } },
+}
+
+const gridItemVariants = {
+  hidden: { opacity: 0, y: 18, scale: 0.96 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: 'spring', stiffness: 380, damping: 28 },
+  },
+  exit: { opacity: 0, scale: 0.98, transition: { duration: 0.1 } },
+}
+
+const titleVariants = {
+  hidden: { opacity: 0, y: -8 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.25, 0.1, 0.25, 1] } },
+  exit: { opacity: 0, y: 6, transition: { duration: 0.14 } },
+}
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -462,17 +528,34 @@ export default function HomePage() {
               <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-6 bg-gradient-to-b from-brand-500 to-brand-600 rounded-full"></div>
-                  <h2 className="text-base sm:text-lg font-bold text-gray-900">
-                    {isSearchMode
-                      ? '搜索结果'
-                      : selectedSubCategory
-                        ? getSubCategories(selectedCategory || '').find(sc => sc.id === selectedSubCategory)?.name || '资源列表'
-                        : selectedCategory
-                          ? effectiveCategories.find(c => c.id === selectedCategory)?.name
-                          : '全部资源'
-                    }
-                  </h2>
-                  <span className="px-2 py-0.5 bg-brand-50 rounded-full text-xs text-brand-500 font-semibold">{filteredLinks.length} 个</span>
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.h2
+                      key={isSearchMode ? 'search' : selectedSubCategory || selectedCategory || 'all'}
+                      variants={titleVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      className="text-base sm:text-lg font-bold text-gray-900"
+                    >
+                      {isSearchMode
+                        ? '搜索结果'
+                        : selectedSubCategory
+                          ? getSubCategories(selectedCategory || '').find(sc => sc.id === selectedSubCategory)?.name || '资源列表'
+                          : selectedCategory
+                            ? effectiveCategories.find(c => c.id === selectedCategory)?.name
+                            : '全部资源'
+                      }
+                    </motion.h2>
+                  </AnimatePresence>
+                  <motion.span
+                    key={filteredLinks.length}
+                    initial={{ scale: 0.85, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                    className="px-2 py-0.5 bg-brand-50 rounded-full text-xs text-brand-500 font-semibold"
+                  >
+                    {filteredLinks.length} 个
+                  </motion.span>
                 </div>
                 <div className="flex items-center gap-2">
                   {isSearchMode && (
@@ -526,19 +609,27 @@ export default function HomePage() {
                       {viewMode === 'list' ? (
                         <motion.div
                           key={`list-${selectedCategory || 'all'}-${selectedSubCategory || 'all'}`}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.15 }}
-                          className="space-y-3"
+                          variants={contentVariants}
+                          initial="hidden"
+                          animate="visible"
+                          exit="exit"
+                          className="space-y-3 will-change-transform"
                         >
+                          <motion.div
+                            variants={listContainerVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                            className="space-y-3"
+                          >
                           {filteredLinks.map((link) => (
-                            <div
+                            <motion.div
                               key={link.id}
+                              variants={listItemVariants}
                               role="button"
                               tabIndex={0}
                               aria-label={`查看 ${link.name} 详情`}
-                              className={`group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl bg-white border transition-[transform,box-shadow,border-color] duration-200 cursor-pointer ${
+                              className={`group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl bg-white border transition-[transform,box-shadow,border-color] duration-200 cursor-pointer will-change-transform ${
                                 link.is_pinned
                                   ? 'border-l-2 border-brand-400 border-l-brand-400 border-gray-100 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300'
                                   : 'border-gray-100 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300'
@@ -604,21 +695,30 @@ export default function HomePage() {
                                   分享
                                 </button>
                               </div>
-                            </div>
+                            </motion.div>
                           ))}
+                          </motion.div>
                         </motion.div>
                       ) : (
                         <motion.div
                           key={`grid-${selectedCategory || 'all'}-${selectedSubCategory || 'all'}`}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.15 }}
-                          className="grid grid-cols-2 lg:grid-cols-3 gap-4"
+                          variants={contentVariants}
+                          initial="hidden"
+                          animate="visible"
+                          exit="exit"
+                          className="will-change-transform"
                         >
+                          <motion.div
+                            variants={gridContainerVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                            className="grid grid-cols-2 lg:grid-cols-3 gap-4"
+                          >
                           {filteredLinks.map((link) => (
-                            <div
+                            <motion.div
                               key={link.id}
+                              variants={gridItemVariants}
                               role="button"
                               tabIndex={0}
                               aria-label={`查看 ${link.name} 详情`}
@@ -629,7 +729,7 @@ export default function HomePage() {
                                   setSelectedLink(link)
                                 }
                               }}
-                              className={`group flex flex-col h-full p-3 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-[transform,box-shadow,border-color] duration-200 cursor-pointer`}
+                              className={`group flex flex-col h-full p-3 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-[transform,box-shadow,border-color] duration-200 cursor-pointer will-change-transform`}
                             >
                               <div className="flex items-start gap-2 sm:gap-3 mb-2 flex-1">
                                 <div className="shrink-0">{getLinkIcon(link)}</div>
@@ -663,8 +763,9 @@ export default function HomePage() {
                                   分享
                                 </button>
                               </div>
-                            </div>
+                            </motion.div>
                           ))}
+                          </motion.div>
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -683,11 +784,13 @@ export default function HomePage() {
       <SiteFooter />
 
       {/* 资源详情弹窗 - 懒加载 */}
-      {selectedLink && (
-        <Suspense fallback={null}>
-          <LinkDetailModal link={selectedLink} onClose={() => setSelectedLink(null)} />
-        </Suspense>
-      )}
+      <AnimatePresence>
+        {selectedLink && (
+          <Suspense fallback={null}>
+            <LinkDetailModal link={selectedLink} onClose={() => setSelectedLink(null)} />
+          </Suspense>
+        )}
+      </AnimatePresence>
 
       {/* 回到顶部按钮 */}
       {showBackToTop && (

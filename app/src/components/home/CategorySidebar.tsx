@@ -1,4 +1,5 @@
 import { FolderOpen, X, ChevronDown, ChevronRight } from 'lucide-react'
+import { motion } from 'framer-motion'
 import type { Category, SubCategory } from '@/store/useDataStore'
 
 interface CategorySidebarProps {
@@ -77,14 +78,21 @@ export default function CategorySidebar({
             {/* 全部 */}
             <button
               onClick={onAllClick}
-              className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2.5 cursor-pointer ${
+              className={`relative w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-200 flex items-center gap-2.5 cursor-pointer ${
                 !selectedCategory
-                  ? 'bg-brand-600 text-white shadow-button'
+                  ? 'text-white'
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
               aria-label="查看全部资源"
               aria-current={!selectedCategory ? 'page' : undefined}
             >
+              {!selectedCategory && (
+                <motion.div
+                  layoutId="activeCategory"
+                  className="absolute inset-0 bg-brand-600 rounded-xl shadow-button -z-10"
+                  transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                />
+              )}
               <FolderOpen className={`w-4 h-4 ${!selectedCategory ? 'text-white/90' : 'text-brand-400'}`} />
               <span>全部资源</span>
             </button>
@@ -98,12 +106,19 @@ export default function CategorySidebar({
                   <div className="flex items-center">
                     <button
                       onClick={() => onCategoryClick(category.id)}
-                      className={`flex-1 text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 flex items-center justify-between cursor-pointer ${
+                      className={`relative flex-1 text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-200 flex items-center justify-between cursor-pointer ${
                         isSelected
-                          ? 'bg-brand-600 text-white shadow-button'
+                          ? 'text-white'
                           : 'text-gray-700 hover:bg-gray-50'
                       }`}
                     >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="activeCategory"
+                          className="absolute inset-0 bg-brand-600 rounded-xl shadow-button -z-10"
+                          transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                        />
+                      )}
                       <div className="flex items-center gap-2.5">
                         <FolderOpen className={`w-4 h-4 ${isSelected ? 'text-white/90' : 'text-brand-400'}`} />
                         <span>{category.name}</span>

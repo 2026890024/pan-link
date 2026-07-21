@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react'
 import { Loader2, AlertTriangle, X } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -82,27 +83,36 @@ export default function ConfirmDialog({
     }
   }, [open, handleKeyDown])
 
-  if (!open) {return null}
-
   const variantStyles = {
     danger: { bg: 'bg-red-600 hover:bg-red-700', ring: 'ring-red-300', icon: 'text-red-500' },
     warning: { bg: 'bg-amber-500 hover:bg-amber-600', ring: 'ring-amber-300', icon: 'text-amber-500' },
     info: { bg: 'bg-brand-600 hover:bg-brand-700', ring: 'ring-brand-300', icon: 'text-brand-500' },
   }
-
   const styles = variantStyles[variant]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
-        onClick={onCancel}
-      />
-      <div
-        ref={modalRef}
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-slide-up sm:animate-scale-in"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div
+            key="confirm-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={onCancel}
+          />
+          <motion.div
+            key="confirm-dialog"
+            ref={modalRef}
+            initial={{ opacity: 0, scale: 0.94, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94, y: 12 }}
+            transition={{ type: 'spring', stiffness: 450, damping: 28 }}
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
         {/* 关闭按钮：纯图标，hover 出灰底 */}
         <button
           onClick={onCancel}
@@ -138,7 +148,9 @@ export default function ConfirmDialog({
             {confirmLabel}
           </button>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   )
 }

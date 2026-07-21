@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { motion } from 'framer-motion'
 import {
   Copy,
   Check,
@@ -140,19 +141,27 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
     // 移动端底部抽屉 → 桌面端居中弹窗
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       {/* 背景遮罩 */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* 弹窗本体：移动端贴底全宽+顶部大圆角，桌面端居中卡片 */}
-      <div
+      <motion.div
         ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-glass-lg animate-slide-up sm:animate-scale-in max-h-[90vh] sm:max-h-[85vh] overflow-y-auto"
+        initial={{ opacity: 0, y: 30, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 20, scale: 0.96 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+        className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-glass-lg max-h-[90vh] sm:max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 顶部彩色状态条 */}
@@ -307,7 +316,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }
