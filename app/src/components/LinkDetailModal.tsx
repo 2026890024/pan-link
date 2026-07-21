@@ -157,10 +157,10 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        initial={{ opacity: 0, y: 30, scale: 0.96 }}
+        initial={{ opacity: 0, y: 30, scale: 0.94 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 20, scale: 0.96 }}
-        transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+        exit={{ opacity: 0, y: 20, scale: 0.94 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 28, mass: 0.6 }}
         className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-glass-lg max-h-[90vh] sm:max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >

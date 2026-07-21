@@ -90,7 +90,7 @@ export default function CategorySidebar({
                 <motion.div
                   layoutId="activeCategory"
                   className="absolute inset-0 bg-brand-600 rounded-xl shadow-button -z-10"
-                  transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 30, mass: 0.5 }}
                 />
               )}
               <FolderOpen className={`w-4 h-4 ${!selectedCategory ? 'text-white/90' : 'text-brand-400'}`} />
@@ -116,7 +116,7 @@ export default function CategorySidebar({
                         <motion.div
                           layoutId="activeCategory"
                           className="absolute inset-0 bg-brand-600 rounded-xl shadow-button -z-10"
-                          transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                          transition={{ type: 'spring', stiffness: 380, damping: 30, mass: 0.5 }}
                         />
                       )}
                       <div className="flex items-center gap-2.5">

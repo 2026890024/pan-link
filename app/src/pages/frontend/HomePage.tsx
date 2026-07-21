@@ -34,16 +34,16 @@ const BTN_SECONDARY = 'py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hove
 
 // ── 120fps 级切换动画配置 ──
 const contentVariants = {
-  hidden: { opacity: 0, x: 16 },
+  hidden: { opacity: 0, x: 20 },
   visible: {
     opacity: 1,
     x: 0,
-    transition: { duration: 0.26, ease: [0.25, 0.1, 0.25, 1] },
+    transition: { type: 'spring', stiffness: 300, damping: 30, mass: 0.7 },
   },
   exit: {
     opacity: 0,
     x: -14,
-    transition: { duration: 0.18, ease: 'easeIn' },
+    transition: { duration: 0.16, ease: 'easeIn' },
   },
 }
 
@@ -51,11 +51,11 @@ const listContainerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.032, delayChildren: 0.04 },
+    transition: { staggerChildren: 0.03, delayChildren: 0.03 },
   },
   exit: {
     opacity: 0,
-    transition: { duration: 0.1 },
+    transition: { duration: 0.08 },
   },
 }
 
@@ -63,40 +63,40 @@ const gridContainerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.028, delayChildren: 0.04 },
+    transition: { staggerChildren: 0.025, delayChildren: 0.03 },
   },
   exit: {
     opacity: 0,
-    transition: { duration: 0.1 },
+    transition: { duration: 0.08 },
   },
 }
 
 const listItemVariants = {
-  hidden: { opacity: 0, y: 16, scale: 0.985 },
+  hidden: { opacity: 0, y: 18, scale: 0.98 },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { type: 'spring', stiffness: 400, damping: 30 },
+    transition: { type: 'spring', stiffness: 380, damping: 29, mass: 0.5 },
   },
   exit: { opacity: 0, y: -8, transition: { duration: 0.1 } },
 }
 
 const gridItemVariants = {
-  hidden: { opacity: 0, y: 18, scale: 0.96 },
+  hidden: { opacity: 0, y: 20, scale: 0.95 },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { type: 'spring', stiffness: 380, damping: 28 },
+    transition: { type: 'spring', stiffness: 360, damping: 28, mass: 0.55 },
   },
   exit: { opacity: 0, scale: 0.98, transition: { duration: 0.1 } },
 }
 
 const titleVariants = {
   hidden: { opacity: 0, y: -8 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.25, 0.1, 0.25, 1] } },
-  exit: { opacity: 0, y: 6, transition: { duration: 0.14 } },
+  visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 280, damping: 28 } },
+  exit: { opacity: 0, y: 6, transition: { duration: 0.12 } },
 }
 
 export default function HomePage() {

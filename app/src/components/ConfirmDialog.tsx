@@ -106,10 +106,10 @@ export default function ConfirmDialog({
           <motion.div
             key="confirm-dialog"
             ref={modalRef}
-            initial={{ opacity: 0, scale: 0.94, y: 16 }}
+            initial={{ opacity: 0, scale: 0.92, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 12 }}
-            transition={{ type: 'spring', stiffness: 450, damping: 28 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 28, mass: 0.55 }}
             className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
             onClick={(e) => e.stopPropagation()}
           >

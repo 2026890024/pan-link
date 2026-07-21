@@ -268,7 +268,7 @@ export default function SearchPage() {
                   <motion.div
                     layoutId="searchActiveCategory"
                     className="absolute inset-0 bg-brand-600 rounded-xl shadow-button -z-10"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    transition={{ type: 'spring', stiffness: 370, damping: 30, mass: 0.5 }}
                   />
                 )}
                 <FolderOpen className={`w-4 h-4 ${filterCategory === 'all' ? 'text-white/70' : 'text-gray-400'}`} />
@@ -302,7 +302,7 @@ export default function SearchPage() {
                           <motion.div
                             layoutId="searchActiveCategory"
                             className="absolute inset-0 bg-brand-600 rounded-xl shadow-button -z-10"
-                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                            transition={{ type: 'spring', stiffness: 370, damping: 30, mass: 0.5 }}
                           />
                         )}
                         <div className="flex items-center gap-2.5">

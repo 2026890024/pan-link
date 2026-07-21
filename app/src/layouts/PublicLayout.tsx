@@ -1,6 +1,23 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { Home, Search } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
+
+const pageVariants = {
+  initial: { opacity: 0, y: 16, scale: 0.995 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: 'spring', stiffness: 340, damping: 28, mass: 0.6 },
+  },
+  exit: {
+    opacity: 0,
+    y: -10,
+    scale: 0.995,
+    transition: { duration: 0.2, ease: 'easeInOut' },
+  },
+}
 
 export default function PublicLayout() {
   const navigate = useNavigate()
@@ -17,7 +34,12 @@ export default function PublicLayout() {
     <div className="min-h-screen flex flex-col">
       {/* 全局导航栏 - 首页和搜索页不显示（它们有自己的顶栏） */}
       {!isHomePage && !isSearchPage && (
-        <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-gray-100">
+        <motion.header
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+          className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-gray-100"
+        >
           <div className="container mx-auto px-4 h-14 flex items-center justify-between">
             {/* Logo / 品牌 */}
             <Link
@@ -40,11 +62,21 @@ export default function PublicLayout() {
               </button>
             </div>
           </div>
-        </header>
+        </motion.header>
       )}
 
       <main className="flex-1">
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            variants={pageVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   )

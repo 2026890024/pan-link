@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus,
   Edit2,
@@ -390,10 +391,22 @@ export default function ResourceManagementPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+      className="p-4 sm:p-6"
+    >
       {/* 云同步警告 */}
-      {cloudSyncError && (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-sm text-amber-800">
+      <AnimatePresence>
+        {cloudSyncError && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+            className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-sm text-amber-800 overflow-hidden"
+          >
           <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="font-medium">云同步不可用</p>
@@ -411,8 +424,9 @@ export default function ResourceManagementPage() {
               </details>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">资源管理</h1>
@@ -610,8 +624,14 @@ export default function ResourceManagementPage() {
                 <p>暂无链接</p>
               </div>
             ) : viewMode === 'list' ? (
-              filteredLinks.map((link) => (
-                <div key={link.id} className={`grid grid-cols-12 gap-2 sm:gap-4 px-2 sm:px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors items-center ${!link.visible ? 'opacity-60 bg-gray-50/50' : ''}`}>
+              filteredLinks.map((link, idx) => (
+                <motion.div
+                  key={link.id}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.03, type: 'spring', stiffness: 360, damping: 28 }}
+                  className={`grid grid-cols-12 gap-2 sm:gap-4 px-2 sm:px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors items-center ${!link.visible ? 'opacity-60 bg-gray-50/50' : ''}`}
+                >
                   <div className="col-span-6 sm:col-span-5">
                     <div
                       role="button"
@@ -678,15 +698,18 @@ export default function ResourceManagementPage() {
                       <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> <span className="hidden sm:inline">删除</span>
                     </button>
                   </div>
-                </div>
+                </motion.div>
               ))
             ) : (
               <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredLinks.map((link) => (
-                  <div
+                {filteredLinks.map((link, idx) => (
+                  <motion.div
                     key={link.id}
                     role="button"
                     tabIndex={0}
+                    initial={{ opacity: 0, y: 12, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ delay: idx * 0.04, type: 'spring', stiffness: 360, damping: 28 }}
                     aria-label={`编辑 "${link.title}"`}
                     className={`border border-gray-200 rounded-xl p-4 hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer ${!link.visible ? 'opacity-60 bg-gray-50/50' : ''}`}
                     onClick={() => openEditModal(link)}
@@ -733,7 +756,7 @@ export default function ResourceManagementPage() {
                         <button onClick={(e) => { e.stopPropagation(); handleDeleteLink(link.id) }} className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-lg transition-colors text-xs font-medium flex items-center gap-1"><Trash2 className="w-3 h-3" /> 删除</button>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             )}
@@ -1036,6 +1059,6 @@ export default function ResourceManagementPage() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }

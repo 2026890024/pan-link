@@ -41,9 +41,9 @@ export default function DashboardPage() {
         {kpiCards.map((card, index) => (
           <motion.div
             key={card.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.08 }}
+            initial={{ opacity: 0, y: 24, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: index * 0.06, type: 'spring', stiffness: 380, damping: 28, mass: 0.6 }}
             className="glass rounded-2xl p-5 card-hover"
           >
             <div className="flex items-start justify-between">
@@ -60,7 +60,7 @@ export default function DashboardPage() {
       </div>
 
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass rounded-2xl p-5">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12, type: 'spring', stiffness: 340, damping: 28 }} className="glass rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-base font-bold text-gray-900">热门链接 Top 5</h3>
             <a href="/admin/resources" className="text-sm text-brand-500 hover:text-brand-600 flex items-center gap-1 font-medium transition-colors cursor-pointer">
@@ -87,7 +87,7 @@ export default function DashboardPage() {
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-2xl p-5">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16, type: 'spring', stiffness: 340, damping: 28 }} className="glass rounded-2xl p-5">
         <h3 className="text-base font-bold text-gray-900 mb-4">快捷操作</h3>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <a href="/admin/resources" className="flex items-center gap-3 p-4 rounded-xl border border-gray-100 bg-white/50 hover:border-brand-200 hover:bg-brand-50/50 transition-all duration-200 cursor-pointer">
