@@ -1361,12 +1361,14 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   addDriveType: async (name, icon, color) => {
     try {
       const dt = await ds.addDriveTypeApi(name, icon, color)
-      set({ driveTypes: [...get().driveTypes, dt] })
+      set({ driveTypes: [...get().driveTypes, dt], cloudSyncError: false })
     } catch {
+      console.error('[DataStore] addDriveType 云写入失败')
       set({
         driveTypes: [...get().driveTypes, {
           id: `custom-${Date.now()}`, name, icon, color,
         }],
+        cloudSyncError: true,
       })
     }
   },
@@ -1385,13 +1387,18 @@ export const useDataStore = create<DataStore>()((set, get) => ({
           driveTypes[idx] = { ...driveTypes[idx], ...updates }
           await ds.updateSiteSettings({ drive_types: driveTypes } as unknown as Parameters<typeof ds.updateSiteSettings>[0])
         }
-      } catch { /* ignore */ }
+      } catch (err) {
+        console.error('[DataStore] updateDriveType 云同步失败:', err)
+        set({ cloudSyncError: true })
+      }
     }
   },
 
   deleteDriveType: async (id) => {
-    try { await ds.deleteDriveTypeApi(id) } catch { /* ignore */ }
-    set({ driveTypes: get().driveTypes.filter(dt => dt.id !== id) })
+    let cloudFailed = false
+    try { await ds.deleteDriveTypeApi(id) } catch { cloudFailed = true }
+    const updated = get().driveTypes.filter(dt => dt.id !== id)
+    set({ driveTypes: updated, cloudSyncError: cloudFailed })
   },
 
   // 自动重试待同步数据到云端
