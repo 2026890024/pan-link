@@ -451,7 +451,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
       // 保存标签关联
       if (Array.isArray(body.tags)) {
-        try { await setLinkTags(env, String(id), body.tags as string[]) } catch { /* ignore */ }
+        try { await setLinkTags(env, String(id), body.tags as string[]) } catch (e) {
+          console.error(`[POST /api/links] 标签关联失败 link_id=${id} tags=${JSON.stringify(body.tags)}:`, e)
+        }
       }
 
       const link = await env.DB.prepare('SELECT * FROM links WHERE id = ?').bind(id).first()
@@ -516,7 +518,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       // 更新标签关联（如果传了 tags 字段）
       if (body.tags !== undefined) {
         const tagIds = Array.isArray(body.tags) ? (body.tags as string[]) : []
-        try { await setLinkTags(env, linkId, tagIds) } catch { /* ignore */ }
+        try { await setLinkTags(env, linkId, tagIds) } catch (e) {
+          console.error(`[PUT /api/links/${linkId}] 标签关联失败 tags=${JSON.stringify(tagIds)}:`, e)
+        }
       }
       return jsonRes({ success: true }, 200, corsHeaders)
     }

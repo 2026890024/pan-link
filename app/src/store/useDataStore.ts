@@ -892,9 +892,10 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   },
 
   deleteCategory: async (id) => {
+    let cloudFailed = false
     try {
       await ds.deleteCategoryApi(id)
-    } catch { /* 回退 */ }
+    } catch { cloudFailed = true }
     const updatedCategories = get().categories.filter(c => c.id !== id)
     saveLocalItem('categories', updatedCategories)
     const updatedLinks = get().links.map(l => l.category_id === id ? { ...l, category_id: '', subcategory_id: '' } : l)
@@ -905,6 +906,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       categories: updatedCategories,
       links: updatedLinks,
       subCategories: filteredSubs,
+      cloudSyncError: cloudFailed,
     })
   },
 
@@ -1041,13 +1043,14 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       if (ds.isCloudApiConfigured()) {
         await ds.updateLinkApi(id, { is_pinned: !link.is_pinned })
         const links = await ds.fetchLinks()
+        saveLocalLinks(links)
         set({ links, cloudSyncError: false })
         return
       }
     } catch (err) { console.error('[DataStore] togglePin 云API失败:', err) }
     const updated = get().links.map(l => l.id === id ? { ...l, is_pinned: !l.is_pinned } : l)
     saveLocalLinks(updated)
-    set({ links: updated })
+    set({ links: updated, cloudSyncError: true })
   },
 
   toggleFeatured: async (id) => {
@@ -1057,13 +1060,14 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       if (ds.isCloudApiConfigured()) {
         await ds.updateLinkApi(id, { is_featured: !link.is_featured })
         const links = await ds.fetchLinks()
+        saveLocalLinks(links)
         set({ links, cloudSyncError: false })
         return
       }
     } catch (err) { console.error('[DataStore] toggleFeatured 云API失败:', err) }
     const updated = get().links.map(l => l.id === id ? { ...l, is_featured: !l.is_featured } : l)
     saveLocalLinks(updated)
-    set({ links: updated })
+    set({ links: updated, cloudSyncError: true })
   },
 
   toggleLinkVisibility: async (id) => {
@@ -1074,13 +1078,14 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       if (ds.isCloudApiConfigured()) {
         await ds.updateLinkApi(id, { visible: newVisible })
         const links = await ds.fetchLinks()
+        saveLocalLinks(links)
         set({ links, cloudSyncError: false })
         return
       }
     } catch (err) { console.error('[DataStore] toggleLinkVisibility 云API失败:', err) }
     const updated = get().links.map(l => l.id === id ? { ...l, visible: newVisible } : l)
     saveLocalLinks(updated)
-    set({ links: updated })
+    set({ links: updated, cloudSyncError: true })
   },
 
   moveLinkSortOrder: async (id, direction, categoryId) => {
@@ -1110,7 +1115,8 @@ export const useDataStore = create<DataStore>()((set, get) => ({
           ds.updateLinkApi(swapLink.id, { sort_order: swapNewSortOrder }),
         ])
         const refreshedLinks = await ds.fetchLinks()
-        set({ links: refreshedLinks })
+        saveLocalLinks(refreshedLinks)
+        set({ links: refreshedLinks, cloudSyncError: false })
         return
       }
     } catch (err) { console.error('[DataStore] moveLinkSortOrder 云API失败:', err) }
@@ -1121,7 +1127,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         return l
       })
     saveLocalLinks(updatedLinks)
-    set({ links: updatedLinks })
+    set({ links: updatedLinks, cloudSyncError: true })
   },
 
   incrementClicks: async (id) => {
@@ -1217,7 +1223,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
           ds.updateSubCategoryApi(swapSc.id, { sort_order: currentSort }),
         ])
         const subCategories = await ds.fetchSubCategories()
-        set({ subCategories })
+        set({ subCategories, cloudSyncError: false })
         saveLocalItem('subcategories', subCategories)
         return
       }
@@ -1229,7 +1235,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       return sc
     })
     saveLocalItem('subcategories', updated)
-    set({ subCategories: updated })
+    set({ subCategories: updated, cloudSyncError: true })
   },
 
   getSubCategoriesByCategory: (categoryId) => {
