@@ -137,12 +137,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       { 'Retry-After': String(Math.ceil((rl.resetAt - now) / 1000)) })
   }
 
-  // CORS - 生产环境同域 + 本地开发 + 精确匹配的 preview 域名
+  // CORS - 生产环境同域 + 本地开发 + preview 域名
+  // 更换域名时设置 CORS_PREVIEW_PATTERN 环境变量（正则字符串），默认为 pan110.pages.dev
   const origin = request.headers.get('Origin') || ''
   const requestHost = new URL(request.url).host
   const isSameOrigin = !origin || requestHost === new URL(origin).host
-  // 只允许精确匹配的 .pages.dev 子域名（而非所有 .pages.dev）
-  const isAllowedPreview = requestHost.match(/^[a-f0-9]+\.pan110\.pages\.dev$/)
+  // 通过环境变量配置 preview 域名匹配规则，支持域名迁移
+  const previewPattern = (env as Record<string, unknown>).CORS_PREVIEW_PATTERN as string || 'pan110\\.pages\\.dev'
+  const isAllowedPreview = requestHost.match(new RegExp(String.raw`^[a-f0-9]+\.${previewPattern}$`))
   const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
@@ -676,7 +678,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           "UPDATE links SET subcategory_id = NULL, updated_at = ? WHERE subcategory_id = ?"
         ).bind(new Date().toISOString(), subId).run()
         await env.DB.prepare('DELETE FROM subcategories WHERE id = ?').bind(subId).run()
-      } catch { /* 表不存在时忽略 */ }
+      } catch (err) {
+        console.error('DELETE subcategory error:', err)
+        return jsonRes({ success: false, error: '删除子分类失败' }, 500, corsHeaders)
+      }
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
@@ -758,15 +763,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     if (path === '/api/site-settings' && method === 'PUT') {
       const body = await request.json<Record<string, unknown>>()
-      const allowedKeys = new Set(['site_name', 'site_description', 'site_logo', 'site_favicon',
-        'site_keywords', 'enable_notifications', 'enable_auto_approval', 'banner_image',
-        'footer_text', 'show_banner', 'home_categories', 'default_link_icon', 'maintenance_mode'])
+      // 使用黑名单机制，只阻止危险/敏感字段，允许其余所有字段通过
+      const blockedKeys = new Set(['custom_css', 'admin_password', 'admin_token', 'api_key', 'db_id', 'db_name'])
       const nowISO = new Date().toISOString()
       for (const [key, value] of Object.entries(body)) {
-        if (!allowedKeys.has(key) && !key.startsWith('custom_') && !key.startsWith('logo_')) {
-          continue // 忽略不允许的 key
+        if (blockedKeys.has(key)) {
+          continue // 拒绝危险字段
         }
-        if (key === 'custom_css') {continue} // 禁止注入自定义 CSS
         const jsonValue = typeof value === 'string' ? value : JSON.stringify(value)
         if (jsonValue.length > 65535) {continue} // 拒绝超大数据
         await env.DB.prepare(

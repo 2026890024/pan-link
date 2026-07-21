@@ -35,7 +35,7 @@ function saveVisibility(key: string, map: VisibilityMap) {
 }
 
 function syncVisibilityToCloud(key: string, map: VisibilityMap) {
-  ds.updateSiteSettings({ [key]: JSON.stringify(map) } as Record<string, string>).catch(() => {})
+  ds.updateSiteSettings({ [key]: JSON.stringify(map) } as Record<string, string>).catch(err => console.error('可见性云端同步失败:', err))
 }
 
 function getShowFeaturedInitial(): boolean {
@@ -72,7 +72,7 @@ export default function HomepageSettingsPage() {
     const newValue = !showFeatured
     setShowFeatured(newValue)
     localStorage.setItem(FEATURED_KEY, String(newValue))
-    ds.updateSiteSettings({ [FEATURED_KEY]: String(newValue) } as Record<string, string>).catch(() => {})
+    ds.updateSiteSettings({ [FEATURED_KEY]: String(newValue) } as Record<string, string>).catch(err => console.error('精选推荐设置同步失败:', err))
     toast.success(newValue ? '精选推荐已开启' : '精选推荐已关闭')
   }
 

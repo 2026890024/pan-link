@@ -898,7 +898,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     let cloudFailed = false
     try {
       await ds.updateCategoryApi(id, updates)
-    } catch { cloudFailed = true }
+    } catch { cloudFailed = true; console.error('updateCategory cloud sync error:', id, updates) }
     const updated = get().categories.map(c => c.id === id ? { ...c, ...updates } : c)
     saveLocalItem('categories', updated)
     set({ categories: updated, cloudSyncError: cloudFailed })
@@ -908,7 +908,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     let cloudFailed = false
     try {
       await ds.deleteCategoryApi(id)
-    } catch { cloudFailed = true }
+    } catch { cloudFailed = true; console.error('deleteCategory cloud sync error:', id) }
     const updatedCategories = get().categories.filter(c => c.id !== id)
     saveLocalItem('categories', updatedCategories)
     const updatedLinks = get().links.map(l => l.category_id === id ? { ...l, category_id: '', subcategory_id: '' } : l)
@@ -1161,7 +1161,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       if (ds.isCloudApiConfigured()) {
         await ds.incrementLinkClicks(id)
       }
-    } catch { /* ignore */ }
+    } catch (err) { console.error('点击计数同步失败:', err) }
     set({
       links: get().links.map(l => l.id === id ? { ...l, click_count: l.click_count + 1 } : l),
     })
@@ -1176,6 +1176,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       set({ subCategories })
       saveLocalItem('subcategories', subCategories)
     } catch {
+      console.error('addSubCategory cloud sync error:', 'categoryId:', categoryId, 'name:', name)
       const subCategories = get().subCategories
       const existing = subCategories.filter(sc => sc.category_id === categoryId)
       const newSub = {
@@ -1524,7 +1525,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     try { localStorage.setItem('panlink_icon_library', JSON.stringify(updated)) } catch { /* quota exceeded */ }
     // 同步到云端
     if (ds.isCloudApiConfigured()) {
-      ds.updateSiteSettings({ icon_library: updated } as unknown as Parameters<typeof ds.updateSiteSettings>[0]).catch(() => {})
+      ds.updateSiteSettings({ icon_library: updated } as unknown as Parameters<typeof ds.updateSiteSettings>[0]).catch(err => console.error('云端图标库同步失败:', err))
     }
     set({ iconLibrary: updated })
   },
@@ -1534,7 +1535,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     try { localStorage.setItem('panlink_icon_library', JSON.stringify(updated)) } catch { /* quota exceeded */ }
     // 同步到云端
     if (ds.isCloudApiConfigured()) {
-      ds.updateSiteSettings({ icon_library: updated } as unknown as Parameters<typeof ds.updateSiteSettings>[0]).catch(() => {})
+      ds.updateSiteSettings({ icon_library: updated } as unknown as Parameters<typeof ds.updateSiteSettings>[0]).catch(err => console.error('云端图标库同步失败:', err))
     }
     // 同时清除所有使用该图标的链接的 icon 字段
     const updatedLinks = get().links.map(l =>
