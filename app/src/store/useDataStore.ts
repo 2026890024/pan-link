@@ -1209,21 +1209,27 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   },
 
   deleteSubCategory: async (id) => {
-    if (ds.isCloudApiConfigured()) {
-      // 云端模式：删除失败直接抛出错误，避免前端以为已删除
-      await ds.deleteSubCategoryApi(id)
-      const subCategories = await ds.fetchSubCategories()
-      set({ subCategories, links: get().links.map(l => l.subcategory_id === id ? { ...l, subcategory_id: '' } : l) })
-      saveLocalItem('subcategories', subCategories)
-      removeLegacySubCategory(id)
-      return
+    let cloudFailed = false
+    try {
+      if (ds.isCloudApiConfigured()) {
+        await ds.deleteSubCategoryApi(id)
+        const subCategories = await ds.fetchSubCategories()
+        const updatedLinks = get().links.map(l => l.subcategory_id === id ? { ...l, subcategory_id: '' } : l)
+        set({ subCategories, links: updatedLinks, cloudSyncError: false })
+        saveLocalItem('subcategories', subCategories)
+        removeLegacySubCategory(id)
+        return
+      }
+    } catch (err) {
+      console.error('[DataStore] deleteSubCategory 云API失败:', err)
+      cloudFailed = true
     }
 
-    // 本地模式
+    // 本地模式 / 云端降级
     const updatedSubs = get().subCategories.filter(sc => sc.id !== id)
     const updatedLinks = get().links.map(l => l.subcategory_id === id ? { ...l, subcategory_id: '' } : l)
     saveLocalItem('subcategories', updatedSubs)
-    set({ subCategories: updatedSubs, links: updatedLinks })
+    set({ subCategories: updatedSubs, links: updatedLinks, cloudSyncError: cloudFailed })
     removeLegacySubCategory(id)
   },
 

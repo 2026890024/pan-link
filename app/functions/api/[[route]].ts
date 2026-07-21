@@ -158,13 +158,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     'Access-Control-Max-Age': '86400',
   }
 
-  // Security headers
-  const securityHeaders = {
-    'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
-    'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'X-XSS-Protection': '1; mode=block',
-  }
+
 
   if (method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: { ...corsHeaders, ...securityHeaders } })
@@ -897,6 +891,14 @@ async function getMaxSort(env: Env): Promise<number> {
   } catch { return 0 }
 }
 
+/** Security headers for all responses */
+const securityHeaders = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'X-XSS-Protection': '1; mode=block',
+}
+
 function jsonRes(data: unknown, status: number, extraHeaders?: Record<string, string>): Response {
   const isGet = status >= 200 && status < 300
   const cacheHeaders = isGet ? { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=600' } : {}
@@ -904,6 +906,7 @@ function jsonRes(data: unknown, status: number, extraHeaders?: Record<string, st
     status,
     headers: { 'Content-Type': 'application/json', ...securityHeaders, ...extraHeaders, ...cacheHeaders },
   })
+}
 
 /** 安全协议白名单 */
 const ALLOWED_PROTOCOLS = new Set([
@@ -933,5 +936,4 @@ function sanitizeLinkUrl(rawUrl: string): string {
   if (/^\s*data\s*:/i.test(url)) return ''
   if (/^\s*file\s*:/i.test(url)) return ''
   return url
-}
 }
