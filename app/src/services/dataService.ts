@@ -248,7 +248,8 @@ export async function createCategory(name: string, userId?: string): Promise<Cat
     log('createCategory', name)
     return { id: result.id, name, icon: 'folder', logo_url: null, sort_order: 0 }
   } catch (err) {
-    throw err
+    console.error('[DataService] createCategory cloud error, falling back to local:', err)
+    return addLocalCategory(name)
   }
 }
 
@@ -261,7 +262,10 @@ export async function updateCategoryApi(id: string, updates: { name?: string; so
       body: JSON.stringify(updates),
     })
     log('updateCategory', id, updates)
-  } catch (err) { throw err }
+  } catch (err) {
+    console.error('[DataService] updateCategoryApi cloud error, falling back to local:', err)
+    updateLocalCategory(id, updates as Record<string, unknown>)
+  }
 }
 
 export async function deleteCategoryApi(id: string): Promise<void> {
@@ -270,7 +274,10 @@ export async function deleteCategoryApi(id: string): Promise<void> {
   try {
     await apiFetch(`/api/categories/${id}`, { method: 'DELETE' })
     log('deleteCategory', id)
-  } catch (err) { throw err }
+  } catch (err) {
+    console.error('[DataService] deleteCategoryApi cloud error, falling back to local:', err)
+    deleteLocalCategory(id)
+  }
 }
 
 // ============ Links API ============
@@ -320,7 +327,10 @@ export async function createLinkApi(linkData: {
     })
     log('createLink', linkData.name)
     return workerLinkToLinkItem(data)
-  } catch (err) { throw err }
+  } catch (err) {
+    console.error('[DataService] createLinkApi cloud error, falling back to local:', err)
+    return addLocalLink(linkData)
+  }
 }
 
 export async function updateLinkApi(id: string, updates: Record<string, unknown>): Promise<void> {
@@ -339,7 +349,10 @@ export async function updateLinkApi(id: string, updates: Record<string, unknown>
       body: JSON.stringify(workerUpdates),
     })
     log('updateLink', id, Object.keys(workerUpdates))
-  } catch (err) { throw err }
+  } catch (err) {
+    console.error('[DataService] updateLinkApi cloud error, falling back to local:', err)
+    updateLocalLink(id, updates)
+  }
 }
 
 export async function deleteLinkApi(id: string): Promise<void> {
@@ -348,7 +361,10 @@ export async function deleteLinkApi(id: string): Promise<void> {
   try {
     await apiFetch(`/api/links/${id}`, { method: 'DELETE' })
     log('deleteLink', id)
-  } catch (err) { throw err }
+  } catch (err) {
+    console.error('[DataService] deleteLinkApi cloud error, falling back to local:', err)
+    deleteLocalLink(id)
+  }
 }
 
 export async function incrementLinkClicks(id: string): Promise<void> {
@@ -386,7 +402,10 @@ export async function createTagApi(name: string, color: string, userId?: string)
       body: JSON.stringify({ name, color, user_id: userId || '' }),
     })
     return { id: result.id, user_id: userId || '', name, color, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
-  } catch (err) { throw err }
+  } catch (err) {
+    console.error('[DataService] createTagApi cloud error, falling back to local:', err)
+    return addLocalTag(name, color)
+  }
 }
 
 export async function updateTagApi(id: string, updates: { name?: string; color?: string }): Promise<void> {
@@ -396,7 +415,10 @@ export async function updateTagApi(id: string, updates: { name?: string; color?:
       method: 'PUT',
       body: JSON.stringify(updates),
     })
-  } catch (err) { throw err }
+  } catch (err) {
+    console.error('[DataService] updateTagApi cloud error, falling back to local:', err)
+    updateLocalTag(id, updates)
+  }
 }
 
 export async function deleteTagApi(id: string): Promise<void> {
@@ -404,7 +426,10 @@ export async function deleteTagApi(id: string): Promise<void> {
   
   try {
     await apiFetch(`/api/tags/${id}`, { method: 'DELETE' })
-  } catch (err) { throw err }
+  } catch (err) {
+    console.error('[DataService] deleteTagApi cloud error, falling back to local:', err)
+    deleteLocalTag(id)
+  }
 }
 
 // ============ Dashboard Stats ============
@@ -446,8 +471,18 @@ export async function fetchDashboardStats(_userId?: string): Promise<{
       favorited_links: data.favorited_links || 0,
     }
   } catch (err) {
-    console.error('[DataService] fetchStats error:', err)
-    throw err
+    console.error('[DataService] fetchStats error, falling back to local:', err)
+    const links = getLocalLinks()
+    return {
+      total_links: links.length,
+      total_clicks: links.reduce((s, l) => s + l.click_count, 0),
+      total_registrations: links.reduce((s, l) => s + l.registration_count, 0),
+      active_links: links.length,
+      expiring_soon: links.filter(l => l.expires_at && new Date(l.expires_at) < new Date(Date.now() + 7 * 86400000)).length,
+      expired_links: links.filter(l => l.expires_at && new Date(l.expires_at) < new Date()).length,
+      pinned_links: links.filter(l => l.is_pinned).length,
+      favorited_links: links.filter(l => l.is_featured).length,
+    }
   }
 }
 
@@ -533,7 +568,10 @@ export async function addSubCategoryApi(categoryId: string, name: string): Promi
       body: JSON.stringify({ category_id: categoryId, name }),
     })
     return { id: result.id, category_id: categoryId, name, sort_order: 0 }
-  } catch (err) { throw err }
+  } catch (err) {
+    console.error('[DataService] addSubCategoryApi cloud error, falling back to local:', err)
+    return addLocalSubCategory(categoryId, name)
+  }
 }
 
 export async function updateSubCategoryApi(id: string, updates: Partial<SubCategory>): Promise<void> {
@@ -545,7 +583,10 @@ export async function updateSubCategoryApi(id: string, updates: Partial<SubCateg
       body: JSON.stringify(updates),
     })
     log('updateSubCategory', id, updates)
-  } catch (err) { throw err }
+  } catch (err) {
+    console.error('[DataService] updateSubCategoryApi cloud error, falling back to local:', err)
+    updateLocalSubCategory(id, updates)
+  }
 }
 
 export async function deleteSubCategoryApi(id: string): Promise<void> {
@@ -554,7 +595,10 @@ export async function deleteSubCategoryApi(id: string): Promise<void> {
   try {
     await apiFetch(`/api/subcategories/${id}`, { method: 'DELETE' })
     log('deleteSubCategory', id)
-  } catch (err) { throw err }
+  } catch (err) {
+    console.error('[DataService] deleteSubCategoryApi cloud error, falling back to local:', err)
+    deleteLocalSubCategory(id)
+  }
 }
 
 // ============ DriveTypes (cloud + local) ============
@@ -939,7 +983,16 @@ export async function fetchSiteSettings(): Promise<SiteSettings> {
   if (!isCloudApiConfigured()) {return getLocalSiteSettings()}
   try {
     const data = await apiFetch<SiteSettings>('/api/site-settings')
-    return { ...getLocalSiteSettings(), ...data }
+    // 深度合并：云端有值的字段优先，空值/null/undefined 回退到本地
+    const local = getLocalSiteSettings()
+    const result = { ...local }
+    for (const key of Object.keys(data) as Array<keyof SiteSettings>) {
+      const val = data[key]
+      if (val !== null && val !== undefined && !(typeof val === 'string' && val === '')) {
+        result[key] = val as never
+      }
+    }
+    return result
   } catch (err) {
     console.error('[DataService] fetchSiteSettings error:', err)
     return getLocalSiteSettings()

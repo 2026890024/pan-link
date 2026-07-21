@@ -176,7 +176,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     // ====== Health Check ======
     if (path === '/api/health') {
-      return jsonRes({ status: 'ok', db: env.DB ? 'connected' : 'missing', auth: !!env.ADMIN_USER }, 200, corsHeaders)
+      return jsonRes({ status: 'ok' }, 200, corsHeaders)
     }
 
     // ====== ALL DATA (合并查询，减少 Workers 冷启动请求次数) ======
@@ -242,6 +242,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       return jsonRes({ error: '未授权，请先登录' }, 401, corsHeaders)
     }
 
+    // ====== All data routes that need auth should come after this line ======
+
     // ====== CATEGORIES ======
 
     if (path === '/api/categories' && method === 'GET') {
@@ -253,6 +255,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     if (path === '/api/categories' && method === 'POST') {
       const body = await request.json<Record<string, unknown>>()
+      const name = sanitizeString((body.name as string) || '')
+      if (!name || name.length > 100) {
+        return jsonRes({ error: '分类名称不能为空且不超过100个字符' }, 400, corsHeaders)
+      }
       const id = (body.id as string) || generateId()
       const nowISO = new Date().toISOString()
       let sortOrder = (body.sort_order as number) ?? 0
@@ -263,7 +269,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       await env.DB.prepare(
         `INSERT INTO categories (id, user_id, name, logo_url, sort_order, is_system, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(id, (body.user_id as string) || '', (body.name as string) || '',
+      ).bind(id, (body.user_id as string) || '', name,
         (body.logo_url as string) || null, sortOrder,
         body.is_system ? 1 : 0, nowISO, nowISO).run()
       return jsonRes({ success: true, id }, 201, corsHeaders)
@@ -272,17 +278,28 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     if (matchPath(path, '/api/categories/:id') && method === 'PUT') {
       const catId = extractParam(path, '/api/categories/:id')
       const body = await request.json<Record<string, unknown>>()
+      const name = sanitizeString((body.name as string) || '')
+      if (body.name !== undefined && (!name || name.length > 100)) {
+        return jsonRes({ error: '分类名称不能为空且不超过100个字符' }, 400, corsHeaders)
+      }
       const nowISO = new Date().toISOString()
+      const updateName = body.name !== undefined ? name : undefined
       await env.DB.prepare(
-        'UPDATE categories SET name=?, logo_url=?, sort_order=?, updated_at=? WHERE id=?'
-      ).bind((body.name as string) || '', (body.logo_url as string) || null,
+        'UPDATE categories SET name=COALESCE(?, name), logo_url=COALESCE(?, logo_url), sort_order=COALESCE(?, sort_order), updated_at=? WHERE id=?'
+      ).bind(updateName || null, (body.logo_url as string) || null,
         (body.sort_order as number) || 0, nowISO, catId).run()
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
     if (matchPath(path, '/api/categories/:id') && method === 'DELETE') {
       const catId = extractParam(path, '/api/categories/:id')
-      await env.DB.prepare('DELETE FROM categories WHERE id=?').bind(catId).run()
+      // Clean up related links: set category_id and subcategory_id to NULL
+      await env.DB.prepare(
+        "UPDATE links SET category_id = NULL, subcategory_id = NULL, updated_at = ? WHERE category_id = ?"
+      ).bind(new Date().toISOString(), catId).run()
+      // Delete related subcategories
+      await env.DB.prepare('DELETE FROM subcategories WHERE category_id = ?').bind(catId).run()
+      await env.DB.prepare('DELETE FROM categories WHERE id = ?').bind(catId).run()
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
@@ -358,8 +375,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       return jsonRes(pubList, 200, corsHeaders)
     }
 
-    // GET /api/links/stats
+    // GET /api/links/stats - 需要认证（管理统计）
     if (path === '/api/links/stats' && method === 'GET') {
+      if (!(await requireAuth(request, env))) {
+        return jsonRes({ error: '需要管理员认证' }, 401, corsHeaders)
+      }
       const nowISO = new Date().toISOString()
       const weekLater = new Date(Date.now() + 7 * 86400000).toISOString()
 
@@ -403,6 +423,20 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // POST /api/links
     if (path === '/api/links' && method === 'POST') {
       const body = await request.json<Record<string, unknown>>()
+      const name = sanitizeString((body.name as string) || '')
+      const url = sanitizeLinkUrl((body.url as string) || '')
+      if (!name || name.length > 200) {
+        return jsonRes({ error: '链接名称不能为空且不超过200个字符' }, 400, corsHeaders)
+      }
+      if (!url) {
+        return jsonRes({ error: '链接地址不能为空' }, 400, corsHeaders)
+      }
+      if (!isSafeUrl(url)) {
+        return jsonRes({ error: '不支持的链接协议，仅允许 http/https/ftp/magnet/ed2k/thunder' }, 400, corsHeaders)
+      }
+      if ((body.description as string)?.length > 2000) {
+        return jsonRes({ error: '描述不能超过2000个字符' }, 400, corsHeaders)
+      }
       const id = (body.id as string) || generateId()
       const nowISO = new Date().toISOString()
       const maxSort = await getMaxSort(env)
@@ -429,10 +463,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const insertBody: Record<string, unknown> = {
         id,
         user_id: (body.user_id as string) || '',
-        name: (body.name as string) || '',
-        title: (body.title as string) || (body.name as string) || '',
+        name,
+        title: (body.title as string) || name,
         slug: finalSlug,
-        url: (body.url as string) || '',
+        url,
         category_id: (body.category_id as string) || null,
         subcategory_id: (body.subcategory_id as string) || null,
         extract_code: (body.extract_code as string) || null,
@@ -478,6 +512,27 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     if (matchPath(path, '/api/links/:id') && method === 'PUT') {
       const linkId = extractParam(path, '/api/links/:id')
       const body = await request.json<Record<string, unknown>>()
+      // 验证 URL 安全性
+      if (body.url !== undefined) {
+        const url = sanitizeLinkUrl((body.url as string) || '')
+        if (!url) {
+          return jsonRes({ error: '链接地址不能为空' }, 400, corsHeaders)
+        }
+        if (!isSafeUrl(url)) {
+          return jsonRes({ error: '不支持的链接协议，仅允许 http/https/ftp/magnet/ed2k/thunder' }, 400, corsHeaders)
+        }
+        body.url = url
+      }
+      if (body.name !== undefined) {
+        const name = sanitizeString((body.name as string) || '')
+        if (!name || name.length > 200) {
+          return jsonRes({ error: '链接名称不能为空且不超过200个字符' }, 400, corsHeaders)
+        }
+        body.name = name
+      }
+      if ((body.description as string)?.length > 2000) {
+        return jsonRes({ error: '描述不能超过2000个字符' }, 400, corsHeaders)
+      }
       const nowISO = new Date().toISOString()
       const fields: Array<string> = []
       const values: Array<unknown> = []
@@ -563,8 +618,15 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     if (path === '/api/subcategories' && method === 'POST') {
       const body = await request.json<Record<string, unknown>>()
-      const id = (body.id as string) || generateId()
+      const name = sanitizeString((body.name as string) || '')
       const categoryId = (body.category_id as string) || ''
+      if (!name || name.length > 100) {
+        return jsonRes({ error: '子分类名称不能为空且不超过100个字符' }, 400, corsHeaders)
+      }
+      if (!categoryId) {
+        return jsonRes({ error: '所属分类不能为空' }, 400, corsHeaders)
+      }
+      const id = (body.id as string) || generateId()
       const nowISO = new Date().toISOString()
       let sortOrder = (body.sort_order as number) ?? 0
       if (sortOrder === 0) {
@@ -586,6 +648,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     if (matchPath(path, '/api/subcategories/:id') && method === 'PUT') {
       const subId = extractParam(path, '/api/subcategories/:id')
       const body = await request.json<Record<string, unknown>>()
+      if (body.name !== undefined) {
+        const name = sanitizeString((body.name as string) || '')
+        if (!name || name.length > 100) {
+          return jsonRes({ error: '子分类名称不能为空且不超过100个字符' }, 400, corsHeaders)
+        }
+        body.name = name
+      }
       const nowISO = new Date().toISOString()
       const fields: Array<string> = []
       const values: Array<unknown> = []
@@ -608,6 +677,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     if (matchPath(path, '/api/subcategories/:id') && method === 'DELETE') {
       const subId = extractParam(path, '/api/subcategories/:id')
       try {
+        // 清空相关链接的子分类引用
+        await env.DB.prepare(
+          "UPDATE links SET subcategory_id = NULL, updated_at = ? WHERE subcategory_id = ?"
+        ).bind(new Date().toISOString(), subId).run()
         await env.DB.prepare('DELETE FROM subcategories WHERE id = ?').bind(subId).run()
       } catch { /* 表不存在时忽略 */ }
       return jsonRes({ success: true }, 200, corsHeaders)
@@ -622,18 +695,35 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     if (path === '/api/tags' && method === 'POST') {
       const body = await request.json<Record<string, unknown>>()
+      const name = sanitizeString((body.name as string) || '')
+      const color = (body.color as string) || '#6B7280'
+      if (!name || name.length > 50) {
+        return jsonRes({ error: '标签名称不能为空且不超过50个字符' }, 400, corsHeaders)
+      }
+      if (!/^#[0-9A-Fa-f]{3,8}$/.test(color)) {
+        return jsonRes({ error: '颜色格式无效，需为十六进制格式如 #FF0000' }, 400, corsHeaders)
+      }
       const id = (body.id as string) || generateId()
       const nowISO = new Date().toISOString()
       await env.DB.prepare(
         'INSERT INTO tags (id, user_id, name, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
-      ).bind(id, (body.user_id as string) || '', (body.name as string) || '',
-        (body.color as string) || '#6B7280', nowISO, nowISO).run()
+      ).bind(id, (body.user_id as string) || '', name, color, nowISO, nowISO).run()
       return jsonRes({ success: true, id }, 201, corsHeaders)
     }
 
     if (matchPath(path, '/api/tags/:id') && method === 'PUT') {
       const tagId = extractParam(path, '/api/tags/:id')
       const body = await request.json<Record<string, unknown>>()
+      if (body.name !== undefined) {
+        const name = sanitizeString((body.name as string) || '')
+        if (!name || name.length > 50) {
+          return jsonRes({ error: '标签名称不能为空且不超过50个字符' }, 400, corsHeaders)
+        }
+        body.name = name
+      }
+      if (body.color !== undefined && !/^#[0-9A-Fa-f]{3,8}$/.test(body.color as string)) {
+        return jsonRes({ error: '颜色格式无效，需为十六进制格式如 #FF0000' }, 400, corsHeaders)
+      }
       const nowISO = new Date().toISOString()
       const fields: Array<string> = []
       const values: Array<unknown> = []
@@ -674,9 +764,17 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     if (path === '/api/site-settings' && method === 'PUT') {
       const body = await request.json<Record<string, unknown>>()
+      const allowedKeys = new Set(['site_name', 'site_description', 'site_logo', 'site_favicon',
+        'site_keywords', 'enable_notifications', 'enable_auto_approval', 'banner_image',
+        'footer_text', 'show_banner', 'home_categories', 'default_link_icon', 'maintenance_mode'])
       const nowISO = new Date().toISOString()
       for (const [key, value] of Object.entries(body)) {
+        if (!allowedKeys.has(key) && !key.startsWith('custom_') && !key.startsWith('logo_')) {
+          continue // 忽略不允许的 key
+        }
+        if (key === 'custom_css') continue // 禁止注入自定义 CSS
         const jsonValue = typeof value === 'string' ? value : JSON.stringify(value)
+        if (jsonValue.length > 65535) continue // 拒绝超大数据
         await env.DB.prepare(
           `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
@@ -806,4 +904,34 @@ function jsonRes(data: unknown, status: number, extraHeaders?: Record<string, st
     status,
     headers: { 'Content-Type': 'application/json', ...securityHeaders, ...extraHeaders, ...cacheHeaders },
   })
+
+/** 安全协议白名单 */
+const ALLOWED_PROTOCOLS = new Set([
+  'http:', 'https:', 'ftp:', 'ftps:', 'magnet:', 'ed2k:', 'thunder:',
+])
+
+/** 验证 URL 是否安全（仅允许白名单协议） */
+function isSafeUrl(rawUrl: string): boolean {
+  try {
+    const u = new URL(rawUrl)
+    return ALLOWED_PROTOCOLS.has(u.protocol)
+  } catch {
+    return false
+  }
+}
+
+/** 去除 HTML 标签和首尾空白 */
+function sanitizeString(str: string): string {
+  return str.replace(/<[^>]*>/g, '').trim()
+}
+
+/** 净化链接 URL：去除空白和多余字符 */
+function sanitizeLinkUrl(rawUrl: string): string {
+  let url = rawUrl.trim()
+  // 去除可能被注入的 javascript: 协议
+  if (/^\s*javascript\s*:/i.test(url)) return ''
+  if (/^\s*data\s*:/i.test(url)) return ''
+  if (/^\s*file\s*:/i.test(url)) return ''
+  return url
+}
 }
