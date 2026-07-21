@@ -76,10 +76,10 @@ async function verifyToken(token: string, env: Env): Promise<boolean> {
   }
 }
 
-async function requireAuth(request: Request, env: Env): Promise<boolean> {
-  if (!env.ADMIN_USER || !env.JWT_SECRET) {return false} // 未配置则拒绝所有写操作
+function requireAuth(request: Request, env: Env): Promise<boolean> {
+  if (!env.ADMIN_USER || !env.JWT_SECRET) {return Promise.resolve(false)} // 未配置则拒绝所有写操作
   const auth = request.headers.get('Authorization') || ''
-  if (!auth.startsWith('Bearer ')) {return false}
+  if (!auth.startsWith('Bearer ')) {return Promise.resolve(false)}
   return verifyToken(auth.slice(7), env)
 }
 

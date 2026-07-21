@@ -164,7 +164,7 @@ export default function AccountSettingsPage() {
   }
 
   // 保存个人资料
-  const handleSaveProfile = async () => {
+  const handleSaveProfile = () => {
     const trimmedUser = editUsername.trim()
     const trimmedEmail = editEmail.trim()
     if (!trimmedUser) {

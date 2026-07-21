@@ -1449,9 +1449,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   },
 
   // 自动重试待同步数据到云端
-  syncPendingItems: async () => {
-    return syncPendingToCloud(set, get)
-  },
+  syncPendingItems: () => syncPendingToCloud(set, get),
 
   // ===== Tags =====
   addTag: async (name, color) => {
