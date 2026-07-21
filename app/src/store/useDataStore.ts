@@ -532,12 +532,18 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
     const mergedLinks = mergeLists(links, localLinks, [])
     const mergedSubCategories = mergeLists(subCategories, localSubs)
 
+    // 判断是否需要标记云端同步异常（云端全空但本地有待同步数据）
+    const cloudEmpty = categories.length === 0 && links.length === 0
+    const hasPendingLocal = localLinks.some(l => (l as Record<string, unknown>)._pendingSync)
+    const cloudNotReachable = cloudEmpty && hasPendingLocal
+
     set({
       categories: mergedCategories,
       links: mergedLinks,
       subCategories: mergedSubCategories,
       initialized: true,
       error: null,
+      cloudSyncError: cloudNotReachable,
     })
 
     saveLocalItem('categories', mergedCategories)
@@ -830,15 +836,12 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       devLog('[DataStore] 先显示本地缓存:', localCats.length, '分类,', localLinks.length, '链接,', localSubs.length, '子分类')
     }
 
-    // 后台静默刷新云端数据
-    reloadAll(set, get)
-
-    // 云端加载完成后自动重试同步待处理数据
-    setTimeout(() => {
-      if (ds.isCloudApiConfigured() && get().initialized) {
+    // 后台静默刷新云端数据，完成后自动重试待同步数据
+    reloadAll(set, get).then(() => {
+      if (ds.isCloudApiConfigured()) {
         syncPendingToCloud(set, get)
       }
-    }, 3000)
+    })
 
     // 监听网络恢复：从离线回到在线时自动重试
     const handleOnline = () => {
@@ -879,12 +882,13 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   },
 
   updateCategory: async (id, updates) => {
+    let cloudFailed = false
     try {
       await ds.updateCategoryApi(id, updates)
-    } catch { /* 回退 */ }
+    } catch { cloudFailed = true }
     const updated = get().categories.map(c => c.id === id ? { ...c, ...updates } : c)
     saveLocalItem('categories', updated)
-    set({ categories: updated })
+    set({ categories: updated, cloudSyncError: cloudFailed })
   },
 
   deleteCategory: async (id) => {
@@ -895,10 +899,12 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     saveLocalItem('categories', updatedCategories)
     const updatedLinks = get().links.map(l => l.category_id === id ? { ...l, category_id: '', subcategory_id: '' } : l)
     saveLocalLinks(updatedLinks)
+    const filteredSubs = get().subCategories.filter(sc => sc.category_id !== id)
+    saveLocalItem('subcategories', filteredSubs)
     set({
       categories: updatedCategories,
       links: updatedLinks,
-      subCategories: get().subCategories.filter(sc => sc.category_id !== id),
+      subCategories: filteredSubs,
     })
   },
 
