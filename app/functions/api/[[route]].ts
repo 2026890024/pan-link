@@ -182,7 +182,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         env.DB.prepare(
           `SELECT l.*, c.name as category_name, c.logo_url as category_logo
            FROM links l LEFT JOIN categories c ON l.category_id = c.id
-           WHERE l.status = 'active' ORDER BY l.sort_order ASC, l.created_at DESC`
+           WHERE l.status = 'active' ORDER BY l.is_pinned DESC, l.sort_order ASC, l.created_at DESC`
         ).all(),
         env.DB.prepare('SELECT * FROM subcategories ORDER BY sort_order ASC').all().catch(() => ({ results: [] })),
         env.DB.prepare('SELECT * FROM tags ORDER BY name ASC').all(),
@@ -281,7 +281,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         WHERE l.status = 'active'`
       const params: unknown[] = []
       if (categoryId) { query += ' AND l.category_id = ?'; params.push(categoryId) }
-      query += ' ORDER BY l.is_pinned DESC, l.created_at DESC'
+      query += ' ORDER BY l.is_pinned DESC, l.sort_order ASC, l.created_at DESC'
       const stmt = env.DB.prepare(query)
       for (const p of params) stmt.bind(p as string)
       const result = await stmt.all()
@@ -299,7 +299,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         `SELECT l.*, c.name as category_name, c.logo_url as category_logo
          FROM links l LEFT JOIN categories c ON l.category_id = c.id
          WHERE l.status = 'active' AND (l.name LIKE ? OR l.description LIKE ? OR l.keywords LIKE ?)
-         ORDER BY l.is_pinned DESC, l.created_at DESC LIMIT 50`
+         ORDER BY l.is_pinned DESC, l.sort_order ASC, l.created_at DESC LIMIT 50`
       ).bind(like, like, like).all()
       const searchList = (result.results || []) as Record<string, unknown>[]
       await batchAttachTags(env, searchList)
@@ -314,7 +314,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         WHERE l.status = 'active'`
       const params: unknown[] = []
       if (slug) { query += ' AND l.slug = ?'; params.push(slug) }
-      query += ' ORDER BY l.is_pinned DESC, l.created_at DESC'
+      query += ' ORDER BY l.is_pinned DESC, l.sort_order ASC, l.created_at DESC'
       const stmt = env.DB.prepare(query)
       for (const p of params) stmt.bind(p as string)
       const result = await stmt.all()

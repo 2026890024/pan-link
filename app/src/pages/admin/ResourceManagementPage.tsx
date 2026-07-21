@@ -145,7 +145,7 @@ export default function ResourceManagementPage() {
     return map
   }, [links])
 
-  // 获取过滤后的链接（按 sort_order 排序）
+  // 获取过滤后的链接（按 置顶 > sort_order 排序，与首页保持一致）
   const filteredLinks = useMemo(() => {
     return links
       .filter((link) => {
@@ -157,7 +157,7 @@ export default function ResourceManagementPage() {
           link.keywords?.some(kw => kw.toLowerCase().includes(searchQuery.toLowerCase()))
         return matchesCategory && matchesSubCategory && matchesSearch
       })
-      .sort((a, b) => a.sort_order - b.sort_order)
+      .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || a.sort_order - b.sort_order)
   }, [links, selectedCategoryId, selectedSubCategoryId, searchQuery])
 
   // 获取分类的子分类（预计算）
