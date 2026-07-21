@@ -35,7 +35,7 @@ export default function ConfirmDialog({
       const focusable = modalRef.current.querySelectorAll<HTMLElement>(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       )
-      if (focusable.length === 0) return
+      if (focusable.length === 0) {return}
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
       if (e.shiftKey) {
@@ -47,7 +47,7 @@ export default function ConfirmDialog({
   }, [onCancel])
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {return}
 
     previousFocusRef.current = document.activeElement as HTMLElement
     document.addEventListener('keydown', handleKeyDown)
@@ -80,7 +80,7 @@ export default function ConfirmDialog({
     }
   }, [open, handleKeyDown])
 
-  if (!open) return null
+  if (!open) {return null}
 
   const variantStyles = {
     danger: { bg: 'bg-red-600 hover:bg-red-700', ring: 'ring-red-300', icon: 'text-red-500' },

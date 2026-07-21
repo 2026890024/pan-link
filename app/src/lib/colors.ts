@@ -17,7 +17,7 @@ function hexToHSL(hex: string): { h: number; s: number; l: number } {
     b = parseInt(hex.substring(4, 6), 16) / 255
   }
   const max = Math.max(r, g, b), min = Math.min(r, g, b)
-  let h = 0, s = 0, l = (max + min) / 2
+  let h = 0, s = 0; const l = (max + min) / 2
 
   if (max !== min) {
     const d = max - min

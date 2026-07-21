@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
   Palette, Image, Type, Upload, Trash2, Save, Plus, Check,
-  Globe, RefreshCw, X, Sparkles, ChevronDown, History,
+  Globe, X, Sparkles, ChevronDown, History,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useSiteSettingsStore, type ColorScheme } from '@/store/useSiteSettingsStore'
@@ -70,7 +70,7 @@ function LogoTab() {
   // 上传图片转为 base64
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file) {return}
     if (!file.type.startsWith('image/')) {
       toast.error('请上传图片格式文件')
       return
@@ -88,7 +88,7 @@ function LogoTab() {
     }
     reader.readAsDataURL(file)
     // 重置 input
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    if (fileInputRef.current) {fileInputRef.current.value = ''}
   }
 
   const handleAddUrlLogo = async () => {
@@ -355,7 +355,7 @@ function ColorsTab() {
     applyBrandColors(colors.primary)
   }, [colors.primary])
 
-  const colorFields: { key: keyof typeof colors; label: string; desc: string }[] = [
+  const colorFields: Array<{ key: keyof typeof colors; label: string; desc: string }> = [
     { key: 'primary', label: '品牌主色', desc: '按钮、链接、强调元素' },
     { key: 'secondary', label: '品牌辅色', desc: '次要元素、hover 状态' },
     { key: 'accent', label: '强调色', desc: '最浅的强调色' },

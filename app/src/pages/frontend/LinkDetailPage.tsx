@@ -19,10 +19,10 @@ import { getDaysRemaining, copyToClipboard, checkLinkStatus, buildShareText, hex
 import toast from 'react-hot-toast'
 
 // 从 localStorage 读取分享链接（与 DataManagementPage 保持一致）
-function loadShareLinks(): { id: string; name: string; slug: string; linkIds: string[]; visits: number; createdAt: string }[] {
+function loadShareLinks(): Array<{ id: string; name: string; slug: string; linkIds: Array<string>; visits: number; createdAt: string }> {
   try {
     const raw = localStorage.getItem('admin_share_links')
-    if (raw) return JSON.parse(raw)
+    if (raw) {return JSON.parse(raw)}
   } catch { /* ignore */ }
   return []
 }
@@ -100,7 +100,7 @@ export default function LinkDetailPage() {
   }
 
   const handleShare = async () => {
-    if (!link) return
+    if (!link) {return}
     const shareUrl = window.location.href
     const shareText = buildShareText(link.name, shareUrl, link.extract_code || undefined)
     if (navigator.share) {
@@ -110,7 +110,7 @@ export default function LinkDetailPage() {
           text: shareText,
         })
       } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') return
+        if (err instanceof DOMException && err.name === 'AbortError') {return}
         await copyToClipboard(shareText)
         toast.success('分享内容已复制')
       }

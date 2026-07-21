@@ -50,7 +50,7 @@ export default function HomePage() {
 
   // 当 D1 分类表为空时，从链接数据中自动推导分类（兼容新设备首次访问）
   const effectiveCategories = useMemo(() => {
-    if (categories.length > 0) return categories
+    if (categories.length > 0) {return categories}
     const map = new Map<string, Category>()
     links.forEach(l => {
       if (l.category_id && !map.has(l.category_id)) {
@@ -64,7 +64,7 @@ export default function HomePage() {
     })
     const derived = [...map.values()].sort((a, b) => a.sort_order - b.sort_order)
     if (derived.length > 0) {
-      if (import.meta.env.DEV) console.log(`[HomePage] 从 ${links.length} 条链接中自动推导出 ${derived.length} 个分类`)
+      if (import.meta.env.DEV) {console.log(`[HomePage] 从 ${links.length} 条链接中自动推导出 ${derived.length} 个分类`)}
     }
     return derived
   }, [categories, links])
@@ -72,7 +72,7 @@ export default function HomePage() {
   // 辅助函数：优先读云配置，fallback 到 localStorage
   const getVisibilityJson = (key: string): Record<string, boolean> => {
     // 优先从云 site_settings 读取
-    const cloudVal = siteSettings.settings[key]
+    const cloudVal = (siteSettings.settings as Record<string, string>)[key]
     if (cloudVal) {
       try { return JSON.parse(cloudVal) } catch { /* fall through */ }
     }
@@ -94,7 +94,7 @@ export default function HomePage() {
     return subCategories
       .filter(sc => {
         const parentVisible = visibleCategories.some(c => c.id === sc.category_id)
-        if (!parentVisible) return false
+        if (!parentVisible) {return false}
         return subVis[sc.id] !== false
       })
       .sort((a, b) => a.sort_order - b.sort_order)
@@ -139,13 +139,13 @@ export default function HomePage() {
       setSelectedCategory(urlCategory)
       setExpandedCategory(urlCategory)
     }
-    if (urlSubCategory) setSelectedSubCategory(urlSubCategory)
+    if (urlSubCategory) {setSelectedSubCategory(urlSubCategory)}
   }, [urlCategory, urlSubCategory])
 
   // 精选推荐开关（优先云配置，fallback localStorage，默认开启）
   const showFeaturedSection = (() => {
-    const cloudVal = siteSettings.settings['homepage_show_featured']
-    if (cloudVal !== undefined) return cloudVal !== 'false'
+    const cloudVal = (siteSettings.settings as Record<string, string>)['homepage_show_featured']
+    if (cloudVal !== undefined) {return cloudVal !== 'false'}
     return localStorage.getItem('homepage_show_featured') !== 'false'
   })()
 
@@ -164,7 +164,7 @@ export default function HomePage() {
 
   // 搜索建议（实时过滤，最多 10 条，匹配范围更宽）
   const searchSuggestions = useMemo(() => {
-    if (!searchQuery.trim()) return []
+    if (!searchQuery.trim()) {return []}
     const q = searchQuery.toLowerCase()
     return links
       .filter(link => link.visible !== false && !isExpired(link))
@@ -190,8 +190,8 @@ export default function HomePage() {
   const filteredLinks = useMemo(() => {
     return links
       .filter(link => {
-        if (link.visible === false) return false
-        if (isExpired(link)) return false
+        if (link.visible === false) {return false}
+        if (isExpired(link)) {return false}
         // 搜索模式：按搜索词过滤，忽略分类
         if (isSearchMode && searchQuery.trim()) {
           const q = searchQuery.toLowerCase()
@@ -234,8 +234,8 @@ export default function HomePage() {
 
   const updateUrlParams = useCallback((categoryId: string | null, subCategoryId: string | null) => {
     const params = new URLSearchParams()
-    if (categoryId) params.set('category', categoryId)
-    if (subCategoryId) params.set('subcategory', subCategoryId)
+    if (categoryId) {params.set('category', categoryId)}
+    if (subCategoryId) {params.set('subcategory', subCategoryId)}
     setSearchParams(params, { replace: true })
   }, [setSearchParams])
 
@@ -516,11 +516,11 @@ export default function HomePage() {
                                     )}
                                     {link.expires_at && (() => {
                                       const days = Math.ceil((new Date(link.expires_at).getTime() - Date.now()) / 86400000)
-                                      if (days <= 30 && days > 0) return (
+                                      if (days <= 30 && days > 0) {return (
                                         <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded-md bg-amber-50 text-amber-700 border border-amber-200 inline-flex items-center gap-1">
                                           <Clock className="w-2.5 h-2.5 flex-shrink-0" />{days <= 7 ? `${days}天后过期` : `${days}天`}
                                         </span>
-                                      )
+                                      )}
                                       return null
                                     })()}
                                   </div>
@@ -566,7 +566,7 @@ export default function HomePage() {
                           transition={{ duration: 0.15 }}
                           className="grid grid-cols-2 lg:grid-cols-3 gap-4"
                         >
-                          {filteredLinks.map((link, idx) => (
+                          {filteredLinks.map((link) => (
                             <div
                               key={link.id}
                               onClick={() => setSelectedLink(link)}

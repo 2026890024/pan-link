@@ -27,7 +27,7 @@ import {
   CopyX,
   Tag as TagIcon,
 } from 'lucide-react'
-import { useDataStore, type LinkItem, type Tag } from '@/store/useDataStore'
+import { useDataStore, type LinkItem } from '@/store/useDataStore'
 
 const EXPIRES_PERMANENT = 'permanent' as const
 import { LinkIcon } from '@/components/LinkIcon'
@@ -65,7 +65,7 @@ export default function ResourceManagementPage() {
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState<string | null>(null)
-  const [expandedCategories, setExpandedCategories] = useState<string[]>([])
+  const [expandedCategories, setExpandedCategories] = useState<Array<string>>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -98,7 +98,7 @@ export default function ResourceManagementPage() {
     keywords: '', is_pinned: false, is_featured: false,
   })
   const [formLinkIcon, setFormLinkIcon] = useState('')
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [selectedTags, setSelectedTags] = useState<Array<string>>([])
   const [showIconPicker, setShowIconPicker] = useState(false)
   const [iconPickerSearch, setIconPickerSearch] = useState('')
   const formFileInputRef = useRef<HTMLInputElement>(null)
@@ -181,7 +181,7 @@ export default function ResourceManagementPage() {
   // 图标上传（弹窗用）
   const handleFormIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file) {return}
     if (!file.type.startsWith('image/')) { toast.error('请上传图片文件'); return }
     if (file.size > 2 * 1024 * 1024) { toast.error('图片大小不能超过 2MB'); return }
     const reader = new FileReader()
@@ -191,7 +191,7 @@ export default function ResourceManagementPage() {
 
   const removeFormIcon = () => {
     setFormLinkIcon('')
-    if (formFileInputRef.current) formFileInputRef.current.value = ''
+    if (formFileInputRef.current) {formFileInputRef.current.value = ''}
   }
 
   // 复制
@@ -236,7 +236,7 @@ export default function ResourceManagementPage() {
 
   // ===== 子分类操作 =====
   const handleAddSubCategory = async () => {
-    if (!newSubCategoryName.trim() || !newSubCategoryParentId) return
+    if (!newSubCategoryName.trim() || !newSubCategoryParentId) {return}
     try {
       await addSubCategory(newSubCategoryParentId, newSubCategoryName.trim())
       setNewSubCategoryName('')
@@ -250,7 +250,7 @@ export default function ResourceManagementPage() {
   }
 
   const handleSaveSubCategory = async () => {
-    if (!editingSubCategoryId || !editSubCategoryName.trim()) return
+    if (!editingSubCategoryId || !editSubCategoryName.trim()) {return}
     try {
       await updateSubCategory(editingSubCategoryId, { name: editSubCategoryName.trim() })
       setEditingSubCategoryId(null)
@@ -269,7 +269,7 @@ export default function ResourceManagementPage() {
       onConfirm: async () => {
         try {
           await deleteSubCategory(id)
-          if (selectedSubCategoryId === id) setSelectedSubCategoryId(null)
+          if (selectedSubCategoryId === id) {setSelectedSubCategoryId(null)}
           toast.success('子分类已删除')
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
@@ -762,14 +762,14 @@ export default function ResourceManagementPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">过期时间</label>
                   <select value={formLink.expires_at ? (() => {
-                    if (formLink.expires_at === EXPIRES_PERMANENT) return EXPIRES_PERMANENT
+                    if (formLink.expires_at === EXPIRES_PERMANENT) {return EXPIRES_PERMANENT}
                     const now = new Date(); const exp = new Date(formLink.expires_at)
                     const months = (exp.getFullYear() - now.getFullYear()) * 12 + (exp.getMonth() - now.getMonth())
-                    if (months <= 1) return '1m'; if (months <= 3) return '3m'; if (months <= 6) return '6m'; return ''
+                    if (months <= 1) {return '1m';} if (months <= 3) {return '3m';} if (months <= 6) {return '6m';} return ''
                   })() : ''}
                     onChange={(e) => {
                       const val = e.target.value; let expiresAt = ''
-                      if (val === EXPIRES_PERMANENT) expiresAt = EXPIRES_PERMANENT
+                      if (val === EXPIRES_PERMANENT) {expiresAt = EXPIRES_PERMANENT}
                       else if (val) { const d = new Date(); d.setMonth(d.getMonth() + parseInt(val.replace('m', ''), 10)); expiresAt = d.toISOString().split('T')[0] }
                       setFormLink({ ...formLink, expires_at: expiresAt })
                     }}

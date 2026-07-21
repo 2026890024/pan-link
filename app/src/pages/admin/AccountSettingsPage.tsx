@@ -32,7 +32,7 @@ interface AuthCredentials {
 function loadProfile(): AdminProfile {
   try {
     const raw = localStorage.getItem(PROFILE_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) {return JSON.parse(raw)}
   } catch { /* ignore */ }
   return { username: 'Admin', email: 'admin@example.com', avatar: null }
 }
@@ -44,7 +44,7 @@ function saveProfile(profile: AdminProfile) {
 function loadAuth(): AuthCredentials {
   try {
     const raw = localStorage.getItem(AUTH_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) {return JSON.parse(raw)}
   } catch { /* ignore */ }
   return { username: '', passwordHash: '' }
 }
@@ -132,7 +132,7 @@ export default function AccountSettingsPage() {
   // 头像上传
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file) {return}
     if (!file.type.startsWith('image/')) {
       toast.error('请上传图片格式文件')
       return

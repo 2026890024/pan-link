@@ -60,7 +60,7 @@ export default function AdminLayout() {
   useEffect(() => {
     const handleFocus = () => setProfile(getProfile())
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'admin_profile') setProfile(getProfile())
+      if (e.key === 'admin_profile') {setProfile(getProfile())}
     }
     const handleProfileUpdate = () => setProfile(getProfile())
     window.addEventListener('focus', handleFocus)

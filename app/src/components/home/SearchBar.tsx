@@ -8,7 +8,7 @@ import { useDataStore } from '@/store/useDataStore'
 interface SearchBarProps {
   searchQuery: string
   onSearchQueryChange: (query: string) => void
-  searchSuggestions: LinkItem[]
+  searchSuggestions: Array<LinkItem>
   showSuggestions: boolean
   onShowSuggestionsChange: (show: boolean) => void
   onSearch: (e: React.FormEvent) => void
@@ -30,7 +30,7 @@ export default function SearchBar({
   onShowSuggestionsChange,
   onSearch,
   onSuggestionClick,
-  onClearSearch,
+  onClearSearch: _onClearSearch,
 }: SearchBarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
@@ -47,10 +47,10 @@ export default function SearchBar({
     return sub?.name || ''
   }
   const highlightText = (text: string, query: string) => {
-    if (!query.trim()) return text
+    if (!query.trim()) {return text}
     const q = query.toLowerCase()
     const idx = text.toLowerCase().indexOf(q)
-    if (idx === -1) return text
+    if (idx === -1) {return text}
     return (
       <>
         {text.slice(0, idx)}
@@ -97,7 +97,7 @@ export default function SearchBar({
 
   // 使用 Portal 渲染下拉框，确保悬浮在所有页面内容之上
   useEffect(() => {
-    if (!showSuggestions || searchSuggestions.length === 0) return
+    if (!showSuggestions || searchSuggestions.length === 0) {return}
 
     const updatePosition = () => {
       if (searchInputRef.current) {

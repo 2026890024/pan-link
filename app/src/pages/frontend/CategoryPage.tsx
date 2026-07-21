@@ -65,17 +65,6 @@ export default function CategoryPage() {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  if (!id || !category) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-500 text-lg">分类不存在或已被删除</p>
-          <Link to="/" className="text-brand-600 hover:underline mt-4 inline-block">返回首页</Link>
-        </div>
-      </div>
-    )
-  }
-
   const filteredLinks = useMemo(() => {
     let result = links.filter((l) => l.category_id === id && l.visible !== false && !isExpiredLink(l))
 
@@ -106,6 +95,17 @@ export default function CategoryPage() {
     const startIndex = (currentPage - 1) * itemsPerPage
     return filteredLinks.slice(startIndex, startIndex + itemsPerPage)
   }, [filteredLinks, currentPage])
+
+  if (!id || !category) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-500 text-lg">分类不存在或已被删除</p>
+          <Link to="/" className="text-brand-600 hover:underline mt-4 inline-block">返回首页</Link>
+        </div>
+      </div>
+    )
+  }
 
   const getLinkIcon = (link: LinkItem) => <LinkIcon link={link} size={link.icon_size || 'md'} />
 

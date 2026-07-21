@@ -40,7 +40,7 @@ function syncVisibilityToCloud(key: string, map: VisibilityMap) {
 
 function getShowFeaturedInitial(): boolean {
   const storeVal = (useSiteSettingsStore.getState().settings as Record<string, unknown>)[FEATURED_KEY]
-  if (storeVal !== undefined) return storeVal !== 'false'
+  if (storeVal !== undefined) {return storeVal !== 'false'}
   return localStorage.getItem(FEATURED_KEY) !== 'false'
 }
 
@@ -105,10 +105,10 @@ export default function HomepageSettingsPage() {
   const updateSortOrder = async (id: string, direction: 'up' | 'down') => {
     const sorted = [...displayCategories]
     const index = sorted.findIndex(c => c.id === id)
-    if (index === -1) return
+    if (index === -1) {return}
 
     const newIndex = direction === 'up' ? index - 1 : index + 1
-    if (newIndex < 0 || newIndex >= sorted.length) return
+    if (newIndex < 0 || newIndex >= sorted.length) {return}
 
     const currentSort = sorted[index].sort_order
     const targetSort = sorted[newIndex].sort_order
@@ -130,7 +130,6 @@ export default function HomepageSettingsPage() {
   }
 
   const visibleCatCount = displayCategories.filter(c => c.is_visible).length
-  const visibleSubCount = subCategories.filter(sc => subVisibility[sc.id] !== false).length + subCategories.filter(sc => !subVisibility[sc.id]).length
   // 计算实际可见数
   let actualVisibleSubs = 0
   displayCategories.forEach(c => {
@@ -269,8 +268,8 @@ export default function HomepageSettingsPage() {
                   <button
                     onClick={() => {
                       const updated = new Set(expandedCategories)
-                      if (isExpanded) updated.delete(cat.id)
-                      else updated.add(cat.id)
+                      if (isExpanded) {updated.delete(cat.id)}
+                      else {updated.add(cat.id)}
                       setExpandedCategories(updated)
                     }}
                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"

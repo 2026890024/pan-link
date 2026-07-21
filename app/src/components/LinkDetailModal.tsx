@@ -28,12 +28,12 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
 
   // Esc 关闭 + 焦点陷阱
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onClose()
+    if (e.key === 'Escape') {onClose()}
     if (e.key === 'Tab' && modalRef.current) {
       const focusable = modalRef.current.querySelectorAll<HTMLElement>(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       )
-      if (focusable.length === 0) return
+      if (focusable.length === 0) {return}
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
       if (e.shiftKey) {
@@ -72,7 +72,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
     }
   }, [handleKeyDown])
 
-  if (!link) return null
+  if (!link) {return null}
 
   const category = categories.find((c) => c.id === link.category_id)
   const subcategory = link.subcategory_id
@@ -109,7 +109,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
         })
       } catch (err) {
         // 用户取消 (AbortError) 静默，其他错误降级到复制
-        if (err instanceof DOMException && err.name === 'AbortError') return
+        if (err instanceof DOMException && err.name === 'AbortError') {return}
         await copyToClipboard(shareText)
         toast.success('分享内容已复制')
       }

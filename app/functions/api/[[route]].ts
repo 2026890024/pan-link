@@ -25,13 +25,13 @@ function base64url(buffer: ArrayBuffer): string {
 
 function base64urlDecode(str: string): string {
   str = str.replace(/-/g, '+').replace(/_/g, '/')
-  while (str.length % 4) str += '='
+  while (str.length % 4) {str += '='}
   return atob(str)
 }
 
 async function createToken(env: Env): Promise<string> {
   const secret = env.JWT_SECRET
-  if (!secret) throw new Error('JWT_SECRET 未配置')
+  if (!secret) {throw new Error('JWT_SECRET 未配置')}
   const encoder = new TextEncoder()
   const header = base64url(encoder.encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' })))
   const payload = base64url(encoder.encode(JSON.stringify({
@@ -51,9 +51,9 @@ async function createToken(env: Env): Promise<string> {
 async function verifyToken(token: string, env: Env): Promise<boolean> {
   try {
     const secret = env.JWT_SECRET
-    if (!secret) return false
+    if (!secret) {return false}
     const parts = token.split('.')
-    if (parts.length !== 3) return false
+    if (parts.length !== 3) {return false}
     const [header, payload, sig] = parts
     const encoder = new TextEncoder()
     const data = encoder.encode(`${header}.${payload}`)
@@ -66,7 +66,7 @@ async function verifyToken(token: string, env: Env): Promise<boolean> {
         .split('').map(c => c.charCodeAt(0))
     )
     const valid = await crypto.subtle.verify('HMAC', key, sigBytes, data)
-    if (!valid) return false
+    if (!valid) {return false}
 
     // Check expiry
     const payloadJson = JSON.parse(base64urlDecode(payload))
@@ -77,9 +77,9 @@ async function verifyToken(token: string, env: Env): Promise<boolean> {
 }
 
 async function requireAuth(request: Request, env: Env): Promise<boolean> {
-  if (!env.ADMIN_USER || !env.JWT_SECRET) return false // 未配置则拒绝所有写操作
+  if (!env.ADMIN_USER || !env.JWT_SECRET) {return false} // 未配置则拒绝所有写操作
   const auth = request.headers.get('Authorization') || ''
-  if (!auth.startsWith('Bearer ')) return false
+  if (!auth.startsWith('Bearer ')) {return false}
   return verifyToken(auth.slice(7), env)
 }
 
@@ -92,7 +92,7 @@ let lastCleanup = 0
 function cleanRateMap(now: number) {
   if (now - lastCleanup > 300_000) {
     for (const [k, v] of rateMap) {
-      if (now > v.resetAt) rateMap.delete(k)
+      if (now > v.resetAt) {rateMap.delete(k)}
     }
     lastCleanup = now
   }
@@ -187,7 +187,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         env.DB.prepare('SELECT * FROM subcategories ORDER BY sort_order ASC').all().catch(() => ({ results: [] })),
         env.DB.prepare('SELECT * FROM tags ORDER BY name ASC').all(),
       ])
-      const linksList = (links.results || []) as Record<string, unknown>[]
+      const linksList = (links.results || []) as Array<Record<string, unknown>>
       await batchAttachTags(env, linksList)
       const cacheHeaders = {
         'Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
@@ -222,7 +222,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       if (linkId) {
         try {
           await env.DB.prepare('UPDATE links SET click_count = click_count + 1 WHERE id = ?').bind(linkId).run()
-        } catch (_e) { /* ignore - best-effort click tracking */ }
+        } catch { /* ignore - best-effort click tracking */ }
       }
       return jsonRes({ success: true }, 200, corsHeaders)
     }
@@ -284,13 +284,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       let query = `SELECT l.*, c.name as category_name, c.logo_url as category_logo
         FROM links l LEFT JOIN categories c ON l.category_id = c.id
         WHERE l.status = 'active'`
-      const params: unknown[] = []
+      const params: Array<unknown> = []
       if (categoryId) { query += ' AND l.category_id = ?'; params.push(categoryId) }
       query += ' ORDER BY l.is_pinned DESC, l.sort_order ASC, l.created_at DESC'
       const stmt = env.DB.prepare(query)
-      for (const p of params) stmt.bind(p as string)
+      for (const p of params) {stmt.bind(p as string)}
       const result = await stmt.all()
-      const list = (result.results || []) as Record<string, unknown>[]
+      const list = (result.results || []) as Array<Record<string, unknown>>
       await batchAttachTags(env, list)
       return jsonRes(list, 200, corsHeaders)
     }
@@ -298,7 +298,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // GET /api/links/search?q=
     if (path === '/api/links/search' && method === 'GET') {
       const q = url.searchParams.get('q') || ''
-      if (!q.trim()) return jsonRes([], 200, corsHeaders)
+      if (!q.trim()) {return jsonRes([], 200, corsHeaders)}
       const like = `%${q}%`
       const result = await env.DB.prepare(
         `SELECT l.*, c.name as category_name, c.logo_url as category_logo
@@ -306,7 +306,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
          WHERE l.status = 'active' AND (l.name LIKE ? OR l.description LIKE ? OR l.keywords LIKE ?)
          ORDER BY l.is_pinned DESC, l.sort_order ASC, l.created_at DESC LIMIT 50`
       ).bind(like, like, like).all()
-      const searchList = (result.results || []) as Record<string, unknown>[]
+      const searchList = (result.results || []) as Array<Record<string, unknown>>
       await batchAttachTags(env, searchList)
       return jsonRes(searchList, 200, corsHeaders)
     }
@@ -317,11 +317,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       let query = `SELECT l.*, c.name as category_name, c.logo_url as category_logo
         FROM links l LEFT JOIN categories c ON l.category_id = c.id
         WHERE l.status = 'active'`
-      const params: unknown[] = []
+      const params: Array<unknown> = []
       if (slug) { query += ' AND l.slug = ?'; params.push(slug) }
       query += ' ORDER BY l.is_pinned DESC, l.sort_order ASC, l.created_at DESC'
       const stmt = env.DB.prepare(query)
-      for (const p of params) stmt.bind(p as string)
+      for (const p of params) {stmt.bind(p as string)}
       const result = await stmt.all()
 
       if (slug) {
@@ -339,12 +339,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
               'UPDATE links SET click_count = click_count + 1 WHERE id = ?'
             ).bind((result.results[0] as Record<string, unknown>).id as string).run()
           }
-        } catch (_e) { /* ignore */ }
+        } catch { /* ignore */ }
         const single = (result.results?.[0] || null) as Record<string, unknown> | null
         if (single) { const arr = [single]; await batchAttachTags(env, arr); Object.assign(single, arr[0]) }
         return jsonRes(single, 200, corsHeaders)
       }
-      const pubList = (result.results || []) as Record<string, unknown>[]
+      const pubList = (result.results || []) as Array<Record<string, unknown>>
       await batchAttachTags(env, pubList)
       return jsonRes(pubList, 200, corsHeaders)
     }
@@ -456,7 +456,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
       // 保存标签关联
       if (Array.isArray(body.tags)) {
-        try { await setLinkTags(env, String(id), body.tags as string[]) } catch (e) {
+        try { await setLinkTags(env, String(id), body.tags as Array<string>) } catch (e) {
           console.error(`[POST /api/links] 标签关联失败 link_id=${id} tags=${JSON.stringify(body.tags)}:`, e)
         }
       }
@@ -470,8 +470,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const linkId = extractParam(path, '/api/links/:id')
       const body = await request.json<Record<string, unknown>>()
       const nowISO = new Date().toISOString()
-      const fields: string[] = []
-      const values: unknown[] = []
+      const fields: Array<string> = []
+      const values: Array<unknown> = []
       // title 映射为 name（D1 列名是 name）
       if (body.title !== undefined && body.name === undefined) {
         body.name = body.title
@@ -522,7 +522,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       }
       // 更新标签关联（如果传了 tags 字段）
       if (body.tags !== undefined) {
-        const tagIds = Array.isArray(body.tags) ? (body.tags as string[]) : []
+        const tagIds = Array.isArray(body.tags) ? (body.tags as Array<string>) : []
         try { await setLinkTags(env, linkId, tagIds) } catch (e) {
           console.error(`[PUT /api/links/${linkId}] 标签关联失败 tags=${JSON.stringify(tagIds)}:`, e)
         }
@@ -578,8 +578,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const subId = extractParam(path, '/api/subcategories/:id')
       const body = await request.json<Record<string, unknown>>()
       const nowISO = new Date().toISOString()
-      const fields: string[] = []
-      const values: unknown[] = []
+      const fields: Array<string> = []
+      const values: Array<unknown> = []
       const allowedFields = ['category_id', 'name', 'sort_order']
       for (const field of allowedFields) {
         if (body[field] !== undefined) {
@@ -626,8 +626,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const tagId = extractParam(path, '/api/tags/:id')
       const body = await request.json<Record<string, unknown>>()
       const nowISO = new Date().toISOString()
-      const fields: string[] = []
-      const values: unknown[] = []
+      const fields: Array<string> = []
+      const values: Array<unknown> = []
       const allowedFields = ['name', 'color']
       for (const field of allowedFields) {
         if (body[field] !== undefined) {
@@ -702,7 +702,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         library = library.filter((l) => l.url !== urlToDelete)
       } else if (indexToDelete !== null) {
         const idx = parseInt(indexToDelete, 10)
-        if (!isNaN(idx) && idx >= 0 && idx < library.length) library.splice(idx, 1)
+        if (!isNaN(idx) && idx >= 0 && idx < library.length) {library.splice(idx, 1)}
       }
       const nowISO = new Date().toISOString()
       await env.DB.prepare(
@@ -731,21 +731,21 @@ function generateId(): string {
 }
 
 /** 批量查询链接的标签并附加到 link 对象上 */
-async function batchAttachTags(env: Env, links: Record<string, unknown>[]) {
-  if (links.length === 0) return
+async function batchAttachTags(env: Env, links: Array<Record<string, unknown>>) {
+  if (links.length === 0) {return}
   const ids = links.map(l => l.id as string).filter(Boolean)
-  if (ids.length === 0) return
+  if (ids.length === 0) {return}
   const ph = ids.map(() => '?').join(',')
   const tagRows = await env.DB.prepare(
     `SELECT lt.link_id, t.id as tag_id, t.name as tag_name, t.color as tag_color
      FROM link_tags lt JOIN tags t ON lt.tag_id = t.id
      WHERE lt.link_id IN (${ph})`
   ).bind(...ids).all()
-  const byLink = new Map<string, { id: string; name: string; color: string }[]>()
+  const byLink = new Map<string, Array<{ id: string; name: string; color: string }>>()
   const rows = tagRows.results as Array<Record<string, unknown>>
   for (let i = 0; i < (rows?.length || 0); i++) {
     const lid = String(rows[i].link_id)
-    if (!byLink.has(lid)) byLink.set(lid, [])
+    if (!byLink.has(lid)) {byLink.set(lid, [])}
     byLink.get(lid)!.push({
       id: String(rows[i].tag_id),
       name: String(rows[i].tag_name),
@@ -758,12 +758,12 @@ async function batchAttachTags(env: Env, links: Record<string, unknown>[]) {
 }
 
 /** 写入链接的标签关联 */
-async function setLinkTags(env: Env, linkId: string, tagIds: string[]) {
+async function setLinkTags(env: Env, linkId: string, tagIds: Array<string>) {
   await env.DB.prepare('DELETE FROM link_tags WHERE link_id = ?').bind(linkId).run()
-  if (tagIds.length === 0) return
+  if (tagIds.length === 0) {return}
   // 批量插入
   const phs = tagIds.map(() => '(?, ?)').join(', ')
-  const vals: string[] = []
+  const vals: Array<string> = []
   for (const tid of tagIds) { vals.push(linkId, tid) }
   await env.DB.prepare(`INSERT INTO link_tags (link_id, tag_id) VALUES ${phs}`).bind(...vals).run()
 }
@@ -776,7 +776,7 @@ function extractParam(path: string, pattern: string): string | null {
   const parts = pattern.split('/')
   const pathParts = path.split('/')
   for (let i = 0; i < parts.length; i++) {
-    if (parts[i].startsWith(':')) return pathParts[i]
+    if (parts[i].startsWith(':')) {return pathParts[i]}
   }
   return null
 }

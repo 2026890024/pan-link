@@ -38,7 +38,7 @@ export function useAuth() {
           }
         }
         // 401 = 凭证错误，返回 false 让用户看到错误提示
-        if (resp.status === 401) return false
+        if (resp.status === 401) {return false}
         // 其他错误（如 API 未配置环境变量）回退到本地
       } catch {
         // 网络错误，回退到本地
@@ -55,7 +55,7 @@ export function useAuth() {
         const stored = localStorage.getItem('admin_auth_config')
         if (stored) {
           const parsed = JSON.parse(stored)
-          if (parsed.username) authUsername = parsed.username
+          if (parsed.username) {authUsername = parsed.username}
           if (parsed.passwordHash) {
             authPasswordHash = parsed.passwordHash
           } else if (parsed.password) {

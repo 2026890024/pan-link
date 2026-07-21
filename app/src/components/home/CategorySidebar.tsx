@@ -1,10 +1,9 @@
-import React from 'react'
 import { FolderOpen, X, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Category, SubCategory } from '@/store/useDataStore'
 
 interface CategorySidebarProps {
-  visibleCategories: Category[]
-  visibleSubCategories: SubCategory[]
+  visibleCategories: Array<Category>
+  visibleSubCategories: Array<SubCategory>
   selectedCategory: string | null
   selectedSubCategory: string | null
   expandedCategory: string | null

@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search as SearchIcon,
   X,
-  Check,
   Download,
   Share2,
   ArrowLeft,
@@ -25,17 +24,16 @@ export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { links, categories, subCategories } = useDataStore()
   const [query, setQuery] = useState(searchParams.get('q') || '')
-  const [results, setResults] = useState<LinkItem[]>([])
+  const [results, setResults] = useState<Array<LinkItem>>([])
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
 
   useEffect(() => {
     document.title = query ? `搜索: ${query} - 资源云` : '搜索 - 资源云'
   }, [query])
-  const [copiedId, setCopiedId] = useState<string | null>(null)
   const { isExpired, shareLink, handleLinkClick } = useLinkActions({
-    onCopied: setCopiedId,
-    onCopyClear: () => setCopiedId(null),
+    onCopied: () => {},
+    onCopyClear: () => {},
   })
   const [sortBy, setSortBy] = useState<'relevance' | 'recent' | 'popular'>('relevance')
   const [filterCategory, setFilterCategory] = useState<string>('all')
@@ -76,7 +74,7 @@ export default function SearchPage() {
   }, [searchParams])
 
   const getSubCategoryName = (subcategoryId: string) => {
-    if (!subcategoryId) return ''
+    if (!subcategoryId) {return ''}
     const sub = subCategories.find(sc => sc.id === subcategoryId)
     return sub ? sub.name : ''
   }
@@ -160,7 +158,7 @@ export default function SearchPage() {
 
   // window 级拖拽移动 —— 持续追踪，不依赖按钮级事件
   const handleWindowMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDraggingRef.current) return
+    if (!isDraggingRef.current) {return}
     const dx = e.clientX - dragRef.current.startX
     const dy = e.clientY - dragRef.current.startY
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
@@ -193,7 +191,7 @@ export default function SearchPage() {
     isDraggingRef.current = false
     const now = Date.now()
     // 防抖：触摸事件后会模拟触发 mouseup，400ms 内重复调用跳过
-    if (now - dragEndTimeRef.current < 400) return
+    if (now - dragEndTimeRef.current < 400) {return}
     dragEndTimeRef.current = now
     // 如果没有移动，视为点击事件，打开分类面板
     if (!dragRef.current.moved) {

@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
-export function cn(...inputs: ClassValue[]) {
+export function cn(...inputs: Array<ClassValue>) {
   return twMerge(clsx(inputs))
 }
 
@@ -17,7 +17,7 @@ export function formatDate(date: string | Date): string {
 
 // 计算剩余天数
 export function getDaysRemaining(expiresAt: string | Date | null): number | null {
-  if (!expiresAt) return null
+  if (!expiresAt) {return null}
   const now = new Date()
   const expiry = new Date(expiresAt)
   const diff = expiry.getTime() - now.getTime()
@@ -54,14 +54,14 @@ export function generateExtractCode(length = 4): string {
 
 // 链接状态检查
 export function checkLinkStatus(expiresAt: string | Date | null): 'active' | 'expired' | 'expiring_soon' {
-  if (!expiresAt) return 'active'
+  if (!expiresAt) {return 'active'}
   
   const now = new Date()
   const expiry = new Date(expiresAt)
   const daysRemaining = (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
   
-  if (daysRemaining < 0) return 'expired'
-  if (daysRemaining <= 7) return 'expiring_soon'
+  if (daysRemaining < 0) {return 'expired'}
+  if (daysRemaining <= 7) {return 'expiring_soon'}
   return 'active'
 }
 
@@ -80,7 +80,7 @@ export function hexToRgba(hex: string, alpha: number): string {
     const r = parseInt(hex.slice(1, 3), 16)
     const g = parseInt(hex.slice(3, 5), 16)
     const b = parseInt(hex.slice(5, 7), 16)
-    if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(99,102,241,${alpha})` // fallback to brand
+    if (isNaN(r) || isNaN(g) || isNaN(b)) {return `rgba(99,102,241,${alpha})`} // fallback to brand
     return `rgba(${r}, ${g}, ${b}, ${alpha})`
   } catch {
     return `rgba(99,102,241,${alpha})`

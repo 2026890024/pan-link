@@ -10,8 +10,6 @@
 // 开发环境：通过 Vite proxy 转发 /api 到 Worker
 // 也可以通过 VITE_API_BASE_URL 手动指定完整地址
 export const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-let _healthChecked = false
-let _cloudAvailable = false
 
 // 获取认证 token
 function getAuthToken(): string | null {
@@ -20,9 +18,9 @@ function getAuthToken(): string | null {
 
 export function isCloudApiConfigured(): boolean {
   // 显式设置了完整的 Worker URL 且不是占位符 = 已配置
-  if (API_BASE && !API_BASE.includes('你的用户名')) return true
+  if (API_BASE && !API_BASE.includes('你的用户名')) {return true}
   // 生产环境 + 空 API_BASE = Pages Functions 同域部署 = 已配置
-  if (!API_BASE && import.meta.env.PROD) return true
+  if (!API_BASE && import.meta.env.PROD) {return true}
   // 开发环境且未配置 = 回退到 localStorage
   return false
 }
@@ -80,8 +78,8 @@ export interface LinkItem {
   registration_count: number
   extract_code: string
   expires_at: string | null
-  tags: { id: string; name: string; color: string }[]
-  keywords: string[]
+  tags: Array<{ id: string; name: string; color: string }>
+  keywords: Array<string>
   created_at: string
   slug: string
   sort_order: number
@@ -128,7 +126,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
       const isRateLimit = lastErr.message.includes('请求过于频繁') || lastErr.message.includes('429')
       if (isWrite && isRateLimit && attempt < maxRetries) {
         const delay = 1000 * Math.pow(2, attempt) // 1s, 2s, 4s
-        if (import.meta.env.DEV) console.log(`[DataService] apiFetch 429 重试 ${attempt + 1}/${maxRetries}，等待 ${delay}ms`)
+        if (import.meta.env.DEV) {console.log(`[DataService] apiFetch 429 重试 ${attempt + 1}/${maxRetries}，等待 ${delay}ms`)}
         await new Promise(r => setTimeout(r, delay))
         continue
       }
@@ -139,7 +137,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   throw lastErr || new Error('API request failed')
 }
 
-const log = (action: string, ...args: unknown[]) => {
+const log = (action: string, ...args: Array<unknown>) => {
   if (import.meta.env.DEV) {
     console.log(`[DataService] ${isCloudApiConfigured() ? '☁️ D1-Worker' : '💾 localStorage'} - ${action}`, ...args)
   }
@@ -147,12 +145,12 @@ const log = (action: string, ...args: unknown[]) => {
 
 // ============ 数据转换 ============
 
-function parseKeywords(raw: unknown): string[] {
-  if (Array.isArray(raw)) return raw.map(k => String(k).trim()).filter(Boolean)
+function parseKeywords(raw: unknown): Array<string> {
+  if (Array.isArray(raw)) {return raw.map(k => String(k).trim()).filter(Boolean)}
   if (typeof raw === 'string' && raw.trim()) {
     try {
       const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) return parsed.map((k: unknown) => String(k).trim()).filter(Boolean)
+      if (Array.isArray(parsed)) {return parsed.map((k: unknown) => String(k).trim()).filter(Boolean)}
     } catch { /* not JSON */ }
     return raw.split(',').map(k => k.trim()).filter(Boolean)
   }
@@ -179,7 +177,7 @@ function workerLinkToLinkItem(data: Record<string, unknown>): LinkItem {
     extract_code: String(data.extract_code || ''),
     expires_at: data.expires_at ? String(data.expires_at) : null,
     tags: Array.isArray(data.tags)
-      ? (data.tags as Record<string, unknown>[]).map((t: Record<string, unknown>) => ({
+      ? (data.tags as Array<Record<string, unknown>>).map((t: Record<string, unknown>) => ({
           id: String(t.id || ''),
           name: String(t.name || ''),
           color: String(t.color || '#6366F1'),
@@ -196,11 +194,11 @@ function workerLinkToLinkItem(data: Record<string, unknown>): LinkItem {
 
 // ============ Categories API ============
 
-export async function fetchCategories(): Promise<Category[]> {
-  if (!isCloudApiConfigured()) return getLocalCategories()
+export async function fetchCategories(): Promise<Array<Category>> {
+  if (!isCloudApiConfigured()) {return getLocalCategories()}
 
   try {
-    const data = await apiFetch<Category[]>('/api/categories')
+    const data = await apiFetch<Array<Category>>('/api/categories')
     log('fetchCategories', data?.length)
     return (data || []).map(c => ({
       id: String(c.id),
@@ -217,7 +215,7 @@ export async function fetchCategories(): Promise<Category[]> {
 }
 
 export async function createCategory(name: string, userId?: string): Promise<Category> {
-  if (!isCloudApiConfigured()) return addLocalCategory(name)
+  if (!isCloudApiConfigured()) {return addLocalCategory(name)}
 
   try {
     const result = await apiFetch<{ success: boolean; id: string }>('/api/categories', {
@@ -254,11 +252,11 @@ export async function deleteCategoryApi(id: string): Promise<void> {
 
 // ============ Links API ============
 
-export async function fetchLinks(): Promise<LinkItem[]> {
-  if (!isCloudApiConfigured()) return getLocalLinks()
+export async function fetchLinks(): Promise<Array<LinkItem>> {
+  if (!isCloudApiConfigured()) {return getLocalLinks()}
 
   try {
-    const data = await apiFetch<Record<string, unknown>[]>('/api/links')
+    const data = await apiFetch<Array<Record<string, unknown>>>('/api/links')
     log('fetchLinks', data?.length)
     return (data || []).map(workerLinkToLinkItem)
   } catch (err) {
@@ -267,11 +265,11 @@ export async function fetchLinks(): Promise<LinkItem[]> {
   }
 }
 
-export async function fetchPublicLinks(): Promise<LinkItem[]> {
-  if (!isCloudApiConfigured()) return getLocalLinks()
+export async function fetchPublicLinks(): Promise<Array<LinkItem>> {
+  if (!isCloudApiConfigured()) {return getLocalLinks()}
 
   try {
-    const data = await apiFetch<Record<string, unknown>[]>('/api/links/public')
+    const data = await apiFetch<Array<Record<string, unknown>>>('/api/links/public')
     return (data || []).map(workerLinkToLinkItem)
   } catch (err) {
     console.error('[DataService] fetchPublicLinks error:', err)
@@ -283,10 +281,10 @@ export async function createLinkApi(linkData: {
   name: string; slug: string; url: string; category_id?: string;
   extract_code?: string; expires_at?: string | null; is_pinned?: boolean;
   is_featured?: boolean; drive_type?: string; subcategory_id?: string;
-  icon?: string; description?: string; tags?: string[]; sort_order?: number;
-  visible?: boolean; keywords?: string[];
+  icon?: string; description?: string; tags?: Array<string>; sort_order?: number;
+  visible?: boolean; keywords?: Array<string>;
 }, userId?: string): Promise<LinkItem> {
-  if (!isCloudApiConfigured()) return addLocalLink(linkData)
+  if (!isCloudApiConfigured()) {return addLocalLink(linkData)}
 
   try {
     const data = await apiFetch<Record<string, unknown>>('/api/links', {
@@ -308,9 +306,9 @@ export async function updateLinkApi(id: string, updates: Record<string, unknown>
   try {
     // Convert field names for the worker
     const workerUpdates: Record<string, unknown> = {}
-    if (updates.is_featured !== undefined) workerUpdates.is_favorited = updates.is_featured
+    if (updates.is_featured !== undefined) {workerUpdates.is_favorited = updates.is_featured}
     for (const [key, val] of Object.entries(updates)) {
-      if (key !== 'is_featured') workerUpdates[key] = val
+      if (key !== 'is_featured') {workerUpdates[key] = val}
     }
     
     await apiFetch(`/api/links/${id}`, {
@@ -341,11 +339,11 @@ export async function incrementLinkClicks(id: string): Promise<void> {
 
 // ============ Tags API ============
 
-export async function fetchTags(userId?: string): Promise<Tag[]> {
-  if (!isCloudApiConfigured()) return getLocalTags()
+export async function fetchTags(_userId?: string): Promise<Array<Tag>> {
+  if (!isCloudApiConfigured()) {return getLocalTags()}
 
   try {
-    const data = await apiFetch<Tag[]>('/api/tags')
+    const data = await apiFetch<Array<Tag>>('/api/tags')
     return (data || []).map(t => ({
       id: String(t.id), user_id: t.user_id, name: t.name, color: t.color,
       created_at: t.created_at, updated_at: t.updated_at,
@@ -357,7 +355,7 @@ export async function fetchTags(userId?: string): Promise<Tag[]> {
 }
 
 export async function createTagApi(name: string, color: string, userId?: string): Promise<Tag> {
-  if (!isCloudApiConfigured()) return addLocalTag(name, color)
+  if (!isCloudApiConfigured()) {return addLocalTag(name, color)}
 
   try {
     const result = await apiFetch<{ success: boolean; id: string }>('/api/tags', {
@@ -432,11 +430,11 @@ export async function fetchDashboardStats(_userId?: string): Promise<{
 
 // ============ SubCategories API ============
 
-export async function fetchSubCategories(): Promise<SubCategory[]> {
-  if (!isCloudApiConfigured()) return getLocalSubCategories()
+export async function fetchSubCategories(): Promise<Array<SubCategory>> {
+  if (!isCloudApiConfigured()) {return getLocalSubCategories()}
 
   try {
-    const data = await apiFetch<SubCategory[]>('/api/subcategories')
+    const data = await apiFetch<Array<SubCategory>>('/api/subcategories')
     log('fetchSubCategories', data?.length)
     return (data || []).map(sc => ({
       id: String(sc.id),
@@ -452,13 +450,13 @@ export async function fetchSubCategories(): Promise<SubCategory[]> {
 
 // ===== 合并查询：一次请求获取所有核心数据，减少 Workers 冷启动 =====
 export interface AllData {
-  categories: Category[]
-  links: LinkItem[]
-  subcategories: SubCategory[]
-  tags: Tag[]
+  categories: Array<Category>
+  links: Array<LinkItem>
+  subcategories: Array<SubCategory>
+  tags: Array<Tag>
 }
 export async function fetchAll(): Promise<AllData | null> {
-  if (!isCloudApiConfigured()) return null
+  if (!isCloudApiConfigured()) {return null}
 
   try {
     const data = await apiFetch<{
@@ -504,7 +502,7 @@ export async function fetchAll(): Promise<AllData | null> {
 }
 
 export async function addSubCategoryApi(categoryId: string, name: string): Promise<SubCategory> {
-  if (!isCloudApiConfigured()) return addLocalSubCategory(categoryId, name)
+  if (!isCloudApiConfigured()) {return addLocalSubCategory(categoryId, name)}
 
   try {
     const result = await apiFetch<{ success: boolean; id: string }>('/api/subcategories', {
@@ -538,7 +536,7 @@ export async function deleteSubCategoryApi(id: string): Promise<void> {
 
 // ============ DriveTypes (cloud + local) ============
 
-export async function fetchDriveTypes(): Promise<DriveType[]> {
+export async function fetchDriveTypes(): Promise<Array<DriveType>> {
   const base = [...FALLBACK_DRIVE_TYPES]
   
   if (!isCloudApiConfigured()) {
@@ -549,7 +547,7 @@ export async function fetchDriveTypes(): Promise<DriveType[]> {
   
   try {
     const settings = await fetchSiteSettings()
-    const cloudCustom: DriveType[] = (settings as Record<string, unknown>).drive_types as DriveType[] || []
+    const cloudCustom: Array<DriveType> = (settings as Record<string, unknown>).drive_types as Array<DriveType> || []
     if (cloudCustom.length > 0) {
       const customMap = new Map(cloudCustom.map(dt => [dt.id, dt]))
       // Deduplicate: cloud types override local with same id
@@ -573,7 +571,7 @@ export async function addDriveTypeApi(name: string, icon: string, color: string)
   if (isCloudApiConfigured()) {
     try {
       const settings = await fetchSiteSettings()
-      const driveTypes: DriveType[] = (settings as Record<string, unknown>).drive_types as DriveType[] || []
+      const driveTypes: Array<DriveType> = (settings as Record<string, unknown>).drive_types as Array<DriveType> || []
       driveTypes.push(dt)
       await updateSiteSettings({ drive_types: driveTypes } as unknown as SiteSettings)
     } catch (err) {
@@ -588,7 +586,7 @@ export async function deleteDriveTypeApi(id: string): Promise<void> {
   if (isCloudApiConfigured()) {
     try {
       const settings = await fetchSiteSettings()
-      const driveTypes: DriveType[] = (settings as Record<string, unknown>).drive_types as DriveType[] || []
+      const driveTypes: Array<DriveType> = (settings as Record<string, unknown>).drive_types as Array<DriveType> || []
       const updated = driveTypes.filter(dt => dt.id !== id)
       await updateSiteSettings({ drive_types: updated } as unknown as SiteSettings)
     } catch (err) {
@@ -601,7 +599,7 @@ export async function deleteDriveTypeApi(id: string): Promise<void> {
 // ============ 公共接口（给前端页面直接调用）============
 
 export async function getLinkBySlug(slug: string): Promise<LinkItem | null> {
-  if (!isCloudApiConfigured()) return null
+  if (!isCloudApiConfigured()) {return null}
   
   try {
     const data = await apiFetch<Record<string, unknown>>(`/api/links/public?slug=${encodeURIComponent(slug)}`)
@@ -609,11 +607,11 @@ export async function getLinkBySlug(slug: string): Promise<LinkItem | null> {
   } catch { return null }
 }
 
-export async function getLinksByCategory(categoryId: string): Promise<LinkItem[]> {
-  if (!isCloudApiConfigured()) return getLocalLinks().filter(l => l.category_id === categoryId)
+export async function getLinksByCategory(categoryId: string): Promise<Array<LinkItem>> {
+  if (!isCloudApiConfigured()) {return getLocalLinks().filter(l => l.category_id === categoryId)}
   
   try {
-    const data = await apiFetch<Record<string, unknown>[]>(`/api/links?category_id=${categoryId}`)
+    const data = await apiFetch<Array<Record<string, unknown>>>(`/api/links?category_id=${categoryId}`)
     return (data || []).map(workerLinkToLinkItem)
   } catch { return [] }
 }
@@ -622,7 +620,7 @@ export async function recordLinkVisit(_linkId: string, _visitType?: string): Pro
   // Worker 自动记录，无需额外调用
 }
 
-export async function searchLinks(query: string): Promise<LinkItem[]> {
+export async function searchLinks(query: string): Promise<Array<LinkItem>> {
   if (!isCloudApiConfigured()) {
     // 本地搜索：在 localStorage 中模糊匹配
     const links = getLocalLinks()
@@ -633,7 +631,7 @@ export async function searchLinks(query: string): Promise<LinkItem[]> {
     )
   }
   try {
-    const data = await apiFetch<Record<string, unknown>[]>(`/api/links/search?q=${encodeURIComponent(query)}`)
+    const data = await apiFetch<Array<Record<string, unknown>>>(`/api/links/search?q=${encodeURIComponent(query)}`)
     return (data || []).map(workerLinkToLinkItem)
   } catch (err) {
     console.error('[DataService] searchLinks error:', err)
@@ -646,7 +644,7 @@ export async function searchLinks(query: string): Promise<LinkItem[]> {
 
 const STORAGE_KEY = 'resource-cloud-storage'
 
-export const FALLBACK_DRIVE_TYPES: DriveType[] = [
+export const FALLBACK_DRIVE_TYPES: Array<DriveType> = [
   { id: 'baidu', name: '百度网盘', icon: 'hard-drive', color: '#3B82F6' },
   { id: 'quark', name: '夸克网盘', icon: 'hard-drive', color: '#F59E0B' },
   { id: 'ali', name: '阿里云盘', icon: 'hard-drive', color: '#06B6D4' },
@@ -656,11 +654,11 @@ export const FALLBACK_DRIVE_TYPES: DriveType[] = [
 ]
 
 interface LocalStorage {
-  categories: Category[]
-  links: LinkItem[]
-  subCategories: SubCategory[]
-  tags: Tag[]
-  driveTypes: DriveType[]
+  categories: Array<Category>
+  links: Array<LinkItem>
+  subCategories: Array<SubCategory>
+  tags: Array<Tag>
+  driveTypes: Array<DriveType>
   customDriveTypes: Record<string, { name: string; icon: string; color: string }>
 }
 
@@ -672,7 +670,7 @@ function loadStorage(): LocalStorage {
       if (parsed.state) {
         return {
           categories: parsed.state.categories || [],
-          links: (parsed.state.links || []).map((l: Partial<LinkItem & { tags?: { id: string; name: string; color: string }[] }>) => ({
+          links: (parsed.state.links || []).map((l: Partial<LinkItem & { tags?: Array<{ id: string; name: string; color: string }> }>) => ({
             ...l,
             sort_order: l.sort_order ?? 999,
             visible: l.visible !== undefined ? l.visible : true,
@@ -693,7 +691,7 @@ function loadStorage(): LocalStorage {
     links: [],
     subCategories: [],
     tags: [],
-    driveTypes: [...FALLBACK_DRIVE_TYPES] as DriveType[],
+    driveTypes: [...FALLBACK_DRIVE_TYPES] as Array<DriveType>,
     customDriveTypes: {},
   }
 }
@@ -705,7 +703,7 @@ function saveStorage(data: LocalStorage): void {
 }
 
 // Categories - local
-function getLocalCategories(): Category[] { return loadStorage().categories }
+function getLocalCategories(): Array<Category> { return loadStorage().categories }
 function addLocalCategory(name: string): Category {
   const storage = loadStorage()
   const cat: Category = { id: Date.now().toString(), name, icon: 'folder', sort_order: storage.categories.length + 1 }
@@ -727,7 +725,7 @@ function deleteLocalCategory(id: string): void {
 }
 
 // Links - local
-function getLocalLinks(): LinkItem[] { return loadStorage().links }
+function getLocalLinks(): Array<LinkItem> { return loadStorage().links }
 function addLocalLink(linkData: Record<string, unknown>): LinkItem {
   const storage = loadStorage()
   const maxSort = Math.max(0, ...storage.links.map(l => l.sort_order || 0))
@@ -750,7 +748,7 @@ function addLocalLink(linkData: Record<string, unknown>): LinkItem {
     extract_code: String(linkData.extract_code || ''),
     expires_at: linkData.expires_at ? String(linkData.expires_at) : null,
     tags: [],
-    keywords: Array.isArray(linkData.keywords) ? (linkData.keywords as string[]).filter(k => typeof k === 'string') : [],
+    keywords: Array.isArray(linkData.keywords) ? (linkData.keywords as Array<string>).filter(k => typeof k === 'string') : [],
     created_at: new Date().toISOString(),
     slug: String(linkData.slug || `${Date.now()}`),
     sort_order: Number(linkData.sort_order) || (maxSort + 1),
@@ -777,7 +775,7 @@ function incrementLocalClicks(id: string): void {
 }
 
 // Tags - local
-function getLocalTags(): Tag[] { return loadStorage().tags }
+function getLocalTags(): Array<Tag> { return loadStorage().tags }
 function addLocalTag(name: string, color: string): Tag {
   const storage = loadStorage()
   const now = new Date().toISOString()
@@ -800,7 +798,7 @@ function deleteLocalTag(id: string): void {
 }
 
 // SubCategories - local
-function getLocalSubCategories(): SubCategory[] { return loadStorage().subCategories }
+function getLocalSubCategories(): Array<SubCategory> { return loadStorage().subCategories }
 function addLocalSubCategory(categoryId: string, name: string): SubCategory {
   const storage = loadStorage()
   const existing = storage.subCategories.filter(sc => sc.category_id === categoryId)
@@ -825,7 +823,7 @@ function updateLocalSubCategory(id: string, updates: Partial<SubCategory>): void
 }
 
 // DriveTypes - local
-function getLocalDriveTypes(): DriveType[] {
+function getLocalDriveTypes(): Array<DriveType> {
   const storage = loadStorage()
   return storage.driveTypes || FALLBACK_DRIVE_TYPES
 }
@@ -872,13 +870,13 @@ export interface SiteSettings {
   current_logo_type?: 'text' | 'image'
   current_logo_text?: string
   current_logo_url?: string
-  logo_library?: LogoItem[]
-  icon_library?: IconLibraryItem[]
+  logo_library?: Array<LogoItem>
+  icon_library?: Array<IconLibraryItem>
   current_colors?: Omit<ColorScheme, 'name' | 'saved_at'>
-  color_history?: ColorScheme[]
+  color_history?: Array<ColorScheme>
   site_name?: string
   site_description?: string
-  drive_types?: DriveType[]
+  drive_types?: Array<DriveType>
 }
 
 // 本地 site settings 回退
@@ -887,7 +885,7 @@ const SS_KEY = 'panlink_site_settings'
 function getLocalSiteSettings(): SiteSettings {
   try {
     const raw = localStorage.getItem(SS_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) {return JSON.parse(raw)}
   } catch { /* ignore */ }
   return {
     current_logo_type: 'text',
@@ -915,7 +913,7 @@ function saveLocalSiteSettings(settings: SiteSettings): void {
 }
 
 export async function fetchSiteSettings(): Promise<SiteSettings> {
-  if (!isCloudApiConfigured()) return getLocalSiteSettings()
+  if (!isCloudApiConfigured()) {return getLocalSiteSettings()}
   try {
     const data = await apiFetch<SiteSettings>('/api/site-settings')
     return { ...getLocalSiteSettings(), ...data }
@@ -930,7 +928,7 @@ export async function updateSiteSettings(updates: Partial<SiteSettings>): Promis
   const merged = { ...local, ...updates }
   saveLocalSiteSettings(merged)
 
-  if (!isCloudApiConfigured()) return
+  if (!isCloudApiConfigured()) {return}
   try {
     // 转换为 key-value 格式发送给 API
     const payload: Record<string, string> = {}
@@ -946,16 +944,16 @@ export async function updateSiteSettings(updates: Partial<SiteSettings>): Promis
   }
 }
 
-export async function addLogoToLibrary(url: string, name: string): Promise<LogoItem[]> {
+export async function addLogoToLibrary(url: string, name: string): Promise<Array<LogoItem>> {
   const local = getLocalSiteSettings()
   const library = local.logo_library || []
   const newLogo: LogoItem = { url, name, added_at: new Date().toISOString() }
   local.logo_library = [...library, newLogo]
   saveLocalSiteSettings(local)
 
-  if (!isCloudApiConfigured()) return local.logo_library
+  if (!isCloudApiConfigured()) {return local.logo_library}
   try {
-    const data = await apiFetch<{ success: boolean; library: LogoItem[] }>('/api/site-settings/logo', {
+    const data = await apiFetch<{ success: boolean; library: Array<LogoItem> }>('/api/site-settings/logo', {
       method: 'POST',
       body: JSON.stringify({ url, name }),
     })
@@ -966,7 +964,7 @@ export async function addLogoToLibrary(url: string, name: string): Promise<LogoI
   }
 }
 
-export async function deleteLogoFromLibrary(urlOrIndex: string | number): Promise<LogoItem[]> {
+export async function deleteLogoFromLibrary(urlOrIndex: string | number): Promise<Array<LogoItem>> {
   const local = getLocalSiteSettings()
   let library = local.logo_library || []
   if (typeof urlOrIndex === 'number') {
@@ -977,12 +975,12 @@ export async function deleteLogoFromLibrary(urlOrIndex: string | number): Promis
   local.logo_library = library
   saveLocalSiteSettings(local)
 
-  if (!isCloudApiConfigured()) return library
+  if (!isCloudApiConfigured()) {return library}
   try {
     const params = typeof urlOrIndex === 'number'
       ? `?index=${urlOrIndex}`
       : `?url=${encodeURIComponent(urlOrIndex)}`
-    const data = await apiFetch<{ success: boolean; library: LogoItem[] }>(`/api/site-settings/logo${params}`, {
+    const data = await apiFetch<{ success: boolean; library: Array<LogoItem> }>(`/api/site-settings/logo${params}`, {
       method: 'DELETE',
     })
     return data.library

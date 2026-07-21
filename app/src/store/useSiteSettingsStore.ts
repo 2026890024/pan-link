@@ -19,7 +19,7 @@ const SETTINGS_KEY = 'panlink_site_settings'
 function loadCachedSettings(): SiteSettings | null {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) {return JSON.parse(raw)}
   } catch { /* ignore */ }
   return null
 }

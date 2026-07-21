@@ -1,5 +1,3 @@
-import React from 'react'
-
 interface PaginationProps {
   currentPage: number
   totalPages: number
@@ -9,7 +7,7 @@ interface PaginationProps {
 const PAGINATION_BTN = 'px-4 py-2 rounded-xl text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 font-medium text-gray-600 cursor-pointer'
 
 export default function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) {
-  if (totalPages <= 1) return null
+  if (totalPages <= 1) {return null}
 
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
     .filter(page =>

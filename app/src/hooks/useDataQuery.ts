@@ -79,7 +79,7 @@ export function usePublicLinks() {
 export function useCreateLink() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ds.createLinkApi,
+    mutationFn: (data: Parameters<typeof ds.createLinkApi>[0]) => ds.createLinkApi(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.links })
       qc.invalidateQueries({ queryKey: queryKeys.publicLinks })

@@ -3,7 +3,7 @@ import * as ds from '@/services/dataService'
 import { FALLBACK_DRIVE_TYPES } from '@/services/dataService'
 import type { Category, LinkItem, SubCategory, Tag, DriveType, IconLibraryItem } from '@/services/dataService'
 
-const devLog = (...args: unknown[]) => { if (import.meta.env.DEV) console.log(...args) }
+const devLog = (...args: Array<unknown>) => { if (import.meta.env.DEV) {console.log(...args)} }
 const DEFAULT_CUSTOM_DRIVE_TYPES: Record<string, { name: string; icon: string; color: string }> = {}
 
 
@@ -13,13 +13,13 @@ export type { Category, LinkItem, SubCategory, Tag, DriveType, IconLibraryItem }
 
 interface DataStore {
   // 数据
-  categories: Category[]
-  links: LinkItem[]
-  subCategories: SubCategory[]
-  tags: Tag[]
-  driveTypes: DriveType[]
+  categories: Array<Category>
+  links: Array<LinkItem>
+  subCategories: Array<SubCategory>
+  tags: Array<Tag>
+  driveTypes: Array<DriveType>
   customDriveTypes: Record<string, { name: string; icon: string; color: string }>
-  iconLibrary: IconLibraryItem[]
+  iconLibrary: Array<IconLibraryItem>
 
   // 加载状态 - initialized 表示后台数据加载完成
   initialized: boolean
@@ -54,7 +54,7 @@ interface DataStore {
   updateSubCategory: (id: string, updates: Partial<SubCategory>) => Promise<void>
   deleteSubCategory: (id: string) => Promise<void>
   moveSubCategorySortOrder: (id: string, direction: 'up' | 'down', categoryId: string) => Promise<void>
-  getSubCategoriesByCategory: (categoryId: string) => SubCategory[]
+  getSubCategoriesByCategory: (categoryId: string) => Array<SubCategory>
   syncSubCategoriesToCloud: () => Promise<string> // 手动同步，返回结果消息
   deduplicateSubCategories: () => Promise<string> // 清理重复子分类，返回结果消息
 
@@ -74,7 +74,7 @@ interface DataStore {
 }
 
 // Helper: generate unique slug from name
-function generateSlug(name: string, existingSlugs?: string[]): string {
+function generateSlug(name: string, existingSlugs?: Array<string>): string {
   const base = name.toLowerCase()
     .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
     .replace(/(^-|-$)/g, '')
@@ -100,16 +100,16 @@ const LS_PREFIX = 'panlink_'
 function loadLocal<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(LS_PREFIX + key)
-    if (raw) return JSON.parse(raw)
+    if (raw) {return JSON.parse(raw)}
   } catch { /* ignore */ }
   return fallback
 }
 
 // 兼容旧版 localStorage 键名 (resource-cloud-storage)
 // 当新键无数据时，尝试从旧键读取子分类
-function loadLocalSubCategoriesCompat(): SubCategory[] {
-  const fromNew = loadLocal<SubCategory[]>('subcategories', [])
-  if (fromNew.length > 0) return fromNew
+function loadLocalSubCategoriesCompat(): Array<SubCategory> {
+  const fromNew = loadLocal<Array<SubCategory>>('subcategories', [])
+  if (fromNew.length > 0) {return fromNew}
 
   try {
     const raw = localStorage.getItem('resource-cloud-storage')
@@ -141,12 +141,12 @@ function loadLocalSubCategoriesCompat(): SubCategory[] {
 function removeLegacySubCategory(id: string): void {
   try {
     const raw = localStorage.getItem('resource-cloud-storage')
-    if (!raw) return
+    if (!raw) {return}
     const parsed = JSON.parse(raw)
     const legacy = parsed?.state?.subCategories || parsed?.subCategories
-    if (!Array.isArray(legacy)) return
+    if (!Array.isArray(legacy)) {return}
     const filtered = legacy.filter((sc: Record<string, unknown>) => String(sc.id) !== id)
-    if (filtered.length === legacy.length) return
+    if (filtered.length === legacy.length) {return}
     const next = { ...parsed, state: { ...parsed?.state, subCategories: filtered } }
     localStorage.setItem('resource-cloud-storage', JSON.stringify(next))
   } catch { /* ignore */ }
@@ -159,11 +159,11 @@ function saveLocal<T>(key: string, data: T): void {
   } catch { /* quota exceeded */ }
 }
 
-function loadLocalLinks(): LinkItem[] {
-  return loadLocal<LinkItem[]>('links', [])
+function loadLocalLinks(): Array<LinkItem> {
+  return loadLocal<Array<LinkItem>>('links', [])
 }
 
-function saveLocalLinks(links: LinkItem[]): void {
+function saveLocalLinks(links: Array<LinkItem>): void {
   saveLocal('links', links)
 }
 
@@ -175,21 +175,21 @@ function saveLocalItem(key: string, data: unknown): void {
 
 // 初始为空数组，统一由 initialize() → reloadAll() 从云端加载真实数据
 // 不使用 mock 兜底，确保始终显示真实数据
-const initCategories: Category[] = []
-const initLinks: LinkItem[] = []
-const initSubCategories: SubCategory[] = []
+const initCategories: Array<Category> = []
+const initLinks: Array<LinkItem> = []
+const initSubCategories: Array<SubCategory> = []
 
 // Helper: 智能合并 - 云端数据是唯一数据源
 // 云端有数据时：以云端为准，但保留本地标记为 _pendingSync 的数据（云写入失败时创建的）
 // 云端为空时：使用本地数据（离线/首次使用）
 // 云端和本地都为空时：使用 fallback（mock 数据兜底，保证首次访问有演示数据）
-function mergeLists<T extends { id: string }>(remote: T[], local: T[], fallback: T[] = []): T[] {
+function mergeLists<T extends { id: string }>(remote: Array<T>, local: Array<T>, fallback: Array<T> = []): Array<T> {
   if (remote.length > 0) {
     // 云端有数据 → 云端是唯一数据源
     // 只保留本地被标记为 "pendingSync" 的数据（这些是之前云写入失败的新增数据）
     const pendingItems = local.filter(
-      (l: Record<string, unknown>) => (l as Record<string, unknown>)._pendingSync === true
-    ) as T[]
+      (l: Record<string, unknown>) => (l as unknown as Record<string, unknown>)._pendingSync === true
+    ) as Array<T>
     if (pendingItems.length > 0) {
       const remoteIds = new Set(remote.map(r => r.id))
       const trulyPending = pendingItems.filter(p => !remoteIds.has(p.id))
@@ -220,16 +220,16 @@ function mergeLists<T extends { id: string }>(remote: T[], local: T[], fallback:
 // 4. 如果云端已存在同名同分类的子分类，则跳过不再重复创建
 // 5. 同步后把本地链接里引用的旧子分类 ID 映射到云端子分类 ID
 async function doSyncSubCategories(
-  localSubs: SubCategory[],
-  cloudCategories: Category[],
-  cloudSubs: SubCategory[],
+  localSubs: Array<SubCategory>,
+  cloudCategories: Array<Category>,
+  cloudSubs: Array<SubCategory>,
   set: (partial: Partial<DataStore>) => void,
   get: () => DataStore
-): Promise<{ success: number; failed: number; errors: string[] }> {
-  const result = { success: 0, failed: 0, errors: [] as string[] }
+): Promise<{ success: number; failed: number; errors: Array<string> }> {
+  const result = { success: 0, failed: 0, errors: [] as Array<string> }
 
   // 加载本地分类（包括新版和旧版 storage）
-  const localCats = loadLocal<Category[]>('categories', [])
+  const localCats = loadLocal<Array<Category>>('categories', [])
   const legacyCats = (() => {
     try {
       const raw = localStorage.getItem('resource-cloud-storage')
@@ -239,7 +239,7 @@ async function doSyncSubCategories(
         return Array.isArray(list) ? list : []
       }
     } catch { /* 本地存储解析失败，回退到空数组 */ }
-    return [] as Category[]
+    return [] as Array<Category>
   })()
 
   const nameToCloudId = new Map<string, string>()
@@ -335,7 +335,7 @@ async function doSyncSubCategories(
   // 如果子分类 ID 有映射，更新链接中的旧 ID 为云端 ID
   if (idMap.size > 0) {
     const currentLinks = get().links
-    const linkUpdates: { id: string; subcategory_id: string }[] = []
+    const linkUpdates: Array<{ id: string; subcategory_id: string }> = []
     const links = currentLinks.map(l => {
       if (l.subcategory_id && idMap.has(l.subcategory_id)) {
         const newId = idMap.get(l.subcategory_id)!
@@ -375,11 +375,11 @@ async function doSyncSubCategories(
     const existing = (() => {
       try {
         const raw = localStorage.getItem('panlink_synced_sub_ids')
-        if (raw) return new Set(JSON.parse(raw))
+        if (raw) {return new Set(JSON.parse(raw))}
       } catch { /* localStorage 读取失败 */ }
       return new Set<string>()
     })()
-    for (const id of syncedIds) existing.add(id)
+    for (const id of syncedIds) {existing.add(id)}
     localStorage.setItem('panlink_synced_sub_ids', JSON.stringify([...existing]))
   } catch { /* localStorage 写入失败 */ }
 
@@ -391,31 +391,31 @@ async function doSyncSubCategories(
 // 当云端子分类为空但本地有数据时，自动 POST 到 D1
 async function autoSyncSubCategories(
   cloudSubsLength: number,
-  cloudCategories: Category[],
-  localSubs: SubCategory[],
+  cloudCategories: Array<Category>,
+  localSubs: Array<SubCategory>,
   set: (partial: Partial<DataStore>) => void,
   get: () => DataStore
 ) {
-  if (cloudSubsLength > 0 || localSubs.length === 0) return
-  if (!ds.isCloudApiConfigured()) return
+  if (cloudSubsLength > 0 || localSubs.length === 0) {return}
+  if (!ds.isCloudApiConfigured()) {return}
 
   const token = (() => { try { return sessionStorage.getItem('admin_token') } catch { return null } })()
-  if (!token) return
+  if (!token) {return}
 
   const syncFlagKey = 'panlink_subcategories_synced'
   const alreadySynced = (() => { try { return localStorage.getItem(syncFlagKey) === '1' } catch { return false } })()
-  if (alreadySynced) return
+  if (alreadySynced) {return}
 
   const syncedIds = (() => {
     try {
       const raw = localStorage.getItem('panlink_synced_sub_ids')
-      if (raw) return new Set(JSON.parse(raw))
+      if (raw) {return new Set(JSON.parse(raw))}
     } catch { /* localStorage 读取失败 */ }
     return new Set<string>()
   })()
 
   const unsynced = localSubs.filter(sc => !syncedIds.has(sc.id))
-  if (unsynced.length === 0) return
+  if (unsynced.length === 0) {return}
 
   devLog(`[DataStore] 发现 ${unsynced.length} 个本地子分类未同步到云端，开始自动同步...`)
 
@@ -443,7 +443,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
 
     if (allData) {
       // 获取本地数据用于合并
-      const localCats = loadLocal<Category[]>('categories', [])
+      const localCats = loadLocal<Array<Category>>('categories', [])
       const localLinks = loadLocalLinks()
       const localSubs = loadLocalSubCategoriesCompat()
 
@@ -466,14 +466,14 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
       saveLocalItem('subcategories', mergedSubCategories)
 
       // 加载次要数据（tags + driveTypes）
-      const localTags = loadLocal<Tag[]>('tags', [])
+      const localTags = loadLocal<Array<Tag>>('tags', [])
       const [tags, driveTypes] = await Promise.all([
-        ds.fetchTags().catch(() => [] as Tag[]),
+        ds.fetchTags().catch(() => [] as Array<Tag>),
         Promise.resolve(ds.fetchDriveTypes()),
       ])
 
       // 云端标签规范化 + 过滤待删除
-      const pendingDeletes = loadLocal<string[]>('tag_delete_pending', [])
+      const pendingDeletes = loadLocal<Array<string>>('tag_delete_pending', [])
       const cloudTags = tags
         .filter(t => !pendingDeletes.includes(t.id))
         .map(t => ({
@@ -486,7 +486,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
 
       set({
         tags: mergedTags,
-        driveTypes: [...driveTypes] as DriveType[],
+        driveTypes: [...driveTypes] as Array<DriveType>,
       })
 
       // 从云端加载图标库
@@ -504,7 +504,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
       // 判断云同步状态
       const hasCloudData = allData.categories.length > 0 || allData.links.length > 0
       const hasLocalOnly = localLinks.some(
-        (l: Record<string, unknown>) => (l as Record<string, unknown>)._pendingSync === true
+        (l) => (l as LinkItem & { _pendingSync?: boolean })._pendingSync === true
       )
       set({ cloudSyncError: !hasCloudData && hasLocalOnly })
 
@@ -522,10 +522,10 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
     const [categories, links, subCategories] = await Promise.all([
       ds.fetchCategories(),
       ds.fetchLinks(),
-      ds.fetchSubCategories().catch(() => [] as SubCategory[]),
+      ds.fetchSubCategories().catch(() => [] as Array<SubCategory>),
     ])
 
-    const localCats = loadLocal<Category[]>('categories', [])
+    const localCats = loadLocal<Array<Category>>('categories', [])
     const localLinks = loadLocalLinks()
     const localSubs = loadLocalSubCategoriesCompat()
 
@@ -535,7 +535,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
 
     // 判断是否需要标记云端同步异常（云端全空但本地有待同步数据）
     const cloudEmpty = categories.length === 0 && links.length === 0
-    const hasPendingLocal = localLinks.some(l => (l as Record<string, unknown>)._pendingSync)
+    const hasPendingLocal = localLinks.some(l => (l as unknown as Record<string, unknown>)._pendingSync)
     const cloudNotReachable = cloudEmpty && hasPendingLocal
 
     set({
@@ -551,14 +551,14 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
     saveLocalLinks(mergedLinks)
     saveLocalItem('subcategories', mergedSubCategories)
 
-    const localTags = loadLocal<Tag[]>('tags', [])
+    const localTags = loadLocal<Array<Tag>>('tags', [])
     const [tags, driveTypes] = await Promise.all([
-      ds.fetchTags().catch(() => [] as Tag[]),
+      ds.fetchTags().catch(() => [] as Array<Tag>),
       Promise.resolve(ds.fetchDriveTypes()),
     ])
 
     // 云端标签规范化 + 过滤待删除
-    const pendingDeletes = loadLocal<string[]>('tag_delete_pending', [])
+    const pendingDeletes = loadLocal<Array<string>>('tag_delete_pending', [])
     const cloudTags = tags
       .filter(t => !pendingDeletes.includes(t.id))
       .map(t => ({
@@ -571,7 +571,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
 
     set({
       tags: mergedTags,
-      driveTypes: [...driveTypes] as DriveType[],
+      driveTypes: [...driveTypes] as Array<DriveType>,
     })
 
     // 从云端加载图标库（回退路径也需要）
@@ -588,7 +588,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
 
     const hasCloudData = categories.length > 0 || links.length > 0
     const hasLocalOnly = localLinks.some(
-      (l: Record<string, unknown>) => (l as Record<string, unknown>)._pendingSync === true
+      (l) => (l as LinkItem & { _pendingSync?: boolean })._pendingSync === true
     )
     set({ cloudSyncError: !hasCloudData && hasLocalOnly })
 
@@ -599,7 +599,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
   } catch (err) {
     console.error('[DataStore] reloadAll error:', err)
     const fallbackLinks = loadLocalLinks()
-    const fallbackCats = loadLocal<Category[]>('categories', [])
+    const fallbackCats = loadLocal<Array<Category>>('categories', [])
     const fallbackSubs = loadLocalSubCategoriesCompat()
     set({
       initialized: true,
@@ -619,13 +619,13 @@ async function syncPendingToCloud(
   set: (partial: Partial<DataStore>) => void,
   get: () => DataStore,
 ): Promise<number> {
-  if (!ds.isCloudApiConfigured()) return 0
+  if (!ds.isCloudApiConfigured()) {return 0}
 
   let synced = 0
   const state = get()
 
   // 1. 同步 pending categories（先同步，因为 links/subcategories 依赖它们）
-  const pendingCats = state.categories.filter(c => (c as Record<string, unknown>)._pendingSync === true)
+  const pendingCats = state.categories.filter(c => (c as unknown as Record<string, unknown>)._pendingSync === true)
   if (pendingCats.length > 0) {
     const idMap = new Map<string, string>() // 旧 ID → 新云端 ID
     for (const cat of pendingCats) {
@@ -643,7 +643,7 @@ async function syncPendingToCloud(
       const fresh = get()
       const updatedCats = fresh.categories.map(c => {
         if (idMap.has(c.id)) {
-          const { _pendingSync, ...rest } = c as Record<string, unknown>
+          const { _pendingSync, ...rest } = c as unknown as Record<string, unknown>
           return { ...rest, id: idMap.get(c.id)! } as Category
         }
         return c
@@ -663,7 +663,7 @@ async function syncPendingToCloud(
 
   // 2. 同步 pending subcategories
   const fresh1 = get()
-  const pendingSubs = fresh1.subCategories.filter(sc => (sc as Record<string, unknown>)._pendingSync === true)
+  const pendingSubs = fresh1.subCategories.filter(sc => (sc as unknown as Record<string, unknown>)._pendingSync === true)
   if (pendingSubs.length > 0) {
     const idMap = new Map<string, string>()
     for (const sc of pendingSubs) {
@@ -680,7 +680,7 @@ async function syncPendingToCloud(
       const fresh = get()
       const updatedSubs = fresh.subCategories.map(sc => {
         if (idMap.has(sc.id)) {
-          const { _pendingSync, ...rest } = sc as Record<string, unknown>
+          const { _pendingSync, ...rest } = sc as unknown as Record<string, unknown>
           return { ...rest, id: idMap.get(sc.id)! } as SubCategory
         }
         return sc
@@ -696,7 +696,7 @@ async function syncPendingToCloud(
 
   // 3. 同步 pending links
   const fresh2 = get()
-  const pendingLinks = fresh2.links.filter(l => (l as Record<string, unknown>)._pendingSync === true)
+  const pendingLinks = fresh2.links.filter(l => (l as unknown as Record<string, unknown>)._pendingSync === true)
   if (pendingLinks.length > 0) {
     for (const link of pendingLinks) {
       try {
@@ -737,7 +737,7 @@ async function syncPendingToCloud(
 
   // 4. 同步 pending tags
   const fresh3 = get()
-  const pendingTags = fresh3.tags.filter(t => (t as Record<string, unknown>)._pendingSync === true)
+  const pendingTags = fresh3.tags.filter(t => (t as unknown as Record<string, unknown>)._pendingSync === true)
   if (pendingTags.length > 0) {
     for (const tag of pendingTags) {
       try {
@@ -751,8 +751,8 @@ async function syncPendingToCloud(
     }
     try {
       const cloudTags = await ds.fetchTags()
-      const localTags = loadLocal<Tag[]>('tags', [])
-      const pendingDeletes = loadLocal<string[]>('tag_delete_pending', [])
+      const localTags = loadLocal<Array<Tag>>('tags', [])
+      const pendingDeletes = loadLocal<Array<string>>('tag_delete_pending', [])
       const filteredCloud = cloudTags
         .filter(t => !pendingDeletes.includes(t.id))
         .map(t => ({ ...t, user_id: t.user_id || '1', created_at: t.created_at || new Date().toISOString(), updated_at: t.updated_at || new Date().toISOString() }))
@@ -763,9 +763,9 @@ async function syncPendingToCloud(
   }
 
   // 5. 重试 pending tag deletes
-  const pendingDeletes = loadLocal<string[]>('tag_delete_pending', [])
+  const pendingDeletes = loadLocal<Array<string>>('tag_delete_pending', [])
   if (pendingDeletes.length > 0) {
-    const remaining: string[] = []
+    const remaining: Array<string> = []
     for (const id of pendingDeletes) {
       try {
         await ds.deleteTagApi(id)
@@ -781,11 +781,11 @@ async function syncPendingToCloud(
   // 更新 cloudSyncError 状态
   const check = get()
   const stillPending =
-    check.links.some(l => (l as Record<string, unknown>)._pendingSync) ||
-    check.categories.some(c => (c as Record<string, unknown>)._pendingSync) ||
-    check.subCategories.some(sc => (sc as Record<string, unknown>)._pendingSync) ||
-    check.tags.some(t => (t as Record<string, unknown>)._pendingSync) ||
-    loadLocal<string[]>('tag_delete_pending', []).length > 0
+    check.links.some(l => (l as unknown as Record<string, unknown>)._pendingSync) ||
+    check.categories.some(c => (c as unknown as Record<string, unknown>)._pendingSync) ||
+    check.subCategories.some(sc => (sc as unknown as Record<string, unknown>)._pendingSync) ||
+    check.tags.some(t => (t as unknown as Record<string, unknown>)._pendingSync) ||
+    loadLocal<Array<string>>('tag_delete_pending', []).length > 0
 
   if (!stillPending) {
     set({ cloudSyncError: false, lastSyncErrorDetail: '' })
@@ -810,7 +810,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   iconLibrary: (() => {
     try {
       const raw = localStorage.getItem('panlink_icon_library')
-      if (raw) return JSON.parse(raw) as IconLibraryItem[]
+      if (raw) {return JSON.parse(raw) as Array<IconLibraryItem>}
     } catch { /* ignore */ }
     return []
   })(),
@@ -822,7 +822,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
 
   // 初始化 - 先加载本地缓存让页面不空白，再后台刷新云端
   initialize: () => {
-    const localCats = loadLocal<Category[]>('categories', [])
+    const localCats = loadLocal<Array<Category>>('categories', [])
     const localLinks = loadLocalLinks()
     const localSubs = loadLocalSubCategoriesCompat()
 
@@ -864,7 +864,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       const category = await ds.createCategory(name)
       const updated = [...get().categories, category]
       saveLocalItem('categories', updated)
-      set(state => ({ categories: updated, cloudSyncError: false }))
+      set({ categories: updated, cloudSyncError: false })
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
       const errDetail = JSON.stringify(err, null, 2)
@@ -996,7 +996,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     let cloudFailed = false
     try {
       if (ds.isCloudApiConfigured()) {
-        const cloudUpdates = { ...updates } as Record<string, unknown>
+        const cloudUpdates = { ...updates } as unknown as Record<string, unknown>
         // 标签需要转换为云端的 ID 数组格式
         if (Array.isArray(cloudUpdates.tags)) {
           cloudUpdates.tags = (cloudUpdates.tags as Array<{ id: string }>).map(t => t.id)
@@ -1039,7 +1039,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
 
   togglePin: async (id) => {
     const link = get().links.find(l => l.id === id)
-    if (!link) return
+    if (!link) {return}
     try {
       if (ds.isCloudApiConfigured()) {
         await ds.updateLinkApi(id, { is_pinned: !link.is_pinned })
@@ -1056,7 +1056,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
 
   toggleFeatured: async (id) => {
     const link = get().links.find(l => l.id === id)
-    if (!link) return
+    if (!link) {return}
     try {
       if (ds.isCloudApiConfigured()) {
         await ds.updateLinkApi(id, { is_featured: !link.is_featured })
@@ -1073,7 +1073,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
 
   toggleLinkVisibility: async (id) => {
     const link = get().links.find(l => l.id === id)
-    if (!link) return
+    if (!link) {return}
     const newVisible = !link.visible
     try {
       if (ds.isCloudApiConfigured()) {
@@ -1091,17 +1091,17 @@ export const useDataStore = create<DataStore>()((set, get) => ({
 
   moveLinkSortOrder: async (id, direction, categoryId) => {
     const targetLink = get().links.find(l => l.id === id)
-    if (!targetLink) return
+    if (!targetLink) {return}
 
     const siblings = get().links
       .filter(l => categoryId ? l.category_id === categoryId : l.category_id === targetLink.category_id)
       .sort((a, b) => a.sort_order - b.sort_order)
 
     const currentIndex = siblings.findIndex(l => l.id === id)
-    if (currentIndex === -1) return
+    if (currentIndex === -1) {return}
 
     const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
-    if (swapIndex < 0 || swapIndex >= siblings.length) return
+    if (swapIndex < 0 || swapIndex >= siblings.length) {return}
 
     // 如果相邻项 sort_order 相同或存在重复，先规范化整个兄弟列表
     const hasDuplicate = new Set(siblings.map(s => s.sort_order)).size !== siblings.length
@@ -1135,8 +1135,8 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     const currentAfterNorm = normalized[currentIndex]
     const swapAfterNorm = normalized[swapIndex]
     const updatedLinks = get().links.map(l => {
-      if (l.id === id) return { ...l, sort_order: swapAfterNorm.sort_order }
-      if (l.id === swapAfterNorm.id) return { ...l, sort_order: currentAfterNorm.sort_order }
+      if (l.id === id) {return { ...l, sort_order: swapAfterNorm.sort_order }}
+      if (l.id === swapAfterNorm.id) {return { ...l, sort_order: currentAfterNorm.sort_order }}
       return l
     })
     saveLocalLinks(updatedLinks)
@@ -1219,10 +1219,10 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       .filter(sc => sc.category_id === categoryId)
       .sort((a, b) => a.sort_order - b.sort_order)
     const currentIndex = siblings.findIndex(sc => sc.id === id)
-    if (currentIndex === -1) return
+    if (currentIndex === -1) {return}
 
     const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
-    if (swapIndex < 0 || swapIndex >= siblings.length) return
+    if (swapIndex < 0 || swapIndex >= siblings.length) {return}
 
     // 如果相邻项 sort_order 相同或存在重复，先规范化整个兄弟列表
     const hasDuplicate = new Set(siblings.map(s => s.sort_order)).size !== siblings.length
@@ -1257,8 +1257,8 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     const currentAfterNorm = normalized[currentIndex]
     const swapAfterNorm = normalized[swapIndex]
     const updated = get().subCategories.map(sc => {
-      if (sc.id === id) return { ...sc, sort_order: swapAfterNorm.sort_order }
-      if (sc.id === swapAfterNorm.id) return { ...sc, sort_order: currentAfterNorm.sort_order }
+      if (sc.id === id) {return { ...sc, sort_order: swapAfterNorm.sort_order }}
+      if (sc.id === swapAfterNorm.id) {return { ...sc, sort_order: currentAfterNorm.sort_order }}
       return sc
     })
     saveLocalItem('subcategories', updated)
@@ -1271,13 +1271,13 @@ export const useDataStore = create<DataStore>()((set, get) => ({
 
   // 手动同步本地子分类到云端
   syncSubCategoriesToCloud: async () => {
-    if (!ds.isCloudApiConfigured()) return '云端未配置，无法同步'
+    if (!ds.isCloudApiConfigured()) {return '云端未配置，无法同步'}
     const localSubs = loadLocalSubCategoriesCompat()
-    if (localSubs.length === 0) return '没有本地子分类需要同步'
+    if (localSubs.length === 0) {return '没有本地子分类需要同步'}
 
     // 获取云端已有子分类和分类，用于 ID 映射
-    let cloudSubs: SubCategory[] = []
-    let cloudCats: Category[] = []
+    let cloudSubs: Array<SubCategory> = []
+    let cloudCats: Array<Category> = []
     try {
       [cloudSubs, cloudCats] = await Promise.all([
         ds.fetchSubCategories(),
@@ -1287,14 +1287,14 @@ export const useDataStore = create<DataStore>()((set, get) => ({
 
     const cloudIds = new Set(cloudSubs.map(s => s.id))
     const unsynced = localSubs.filter(sc => !cloudIds.has(sc.id))
-    if (unsynced.length === 0) return '所有子分类已在云端，无需同步'
+    if (unsynced.length === 0) {return '所有子分类已在云端，无需同步'}
 
     const result = await doSyncSubCategories(unsynced, cloudCats, cloudSubs, set, get)
 
 
     if (result.failed > 0) {
       const token = (() => { try { return sessionStorage.getItem('admin_token') } catch { return null } })()
-      if (!token) return `同步失败：${result.failed} 个未成功。请先登录管理后台\n${result.errors.join('\n')}`
+      if (!token) {return `同步失败：${result.failed} 个未成功。请先登录管理后台\n${result.errors.join('\n')}`}
       return `已同步 ${result.success} 个，${result.failed} 个失败\n${result.errors.join('\n')}`
     }
     return `已成功同步 ${result.success} 个子分类到云端`
@@ -1306,10 +1306,10 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     const all = get().subCategories.slice()
     const links = get().links.slice()
 
-    if (all.length === 0) return '没有子分类'
+    if (all.length === 0) {return '没有子分类'}
 
     // 按 category_id + name 分组（忽略首尾空格，不区分大小写）
-    const groups = new Map<string, SubCategory[]>()
+    const groups = new Map<string, Array<SubCategory>>()
     for (const sc of all) {
       const key = `${sc.category_id}::${sc.name.trim().toLowerCase()}`
       const list = groups.get(key) || []
@@ -1317,11 +1317,11 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       groups.set(key, list)
     }
 
-    const toDelete: SubCategory[] = []
+    const toDelete: Array<SubCategory> = []
     const idMap = new Map<string, string>() // 被删除子分类 ID -> 保留子分类 ID
 
     for (const [, list] of groups) {
-      if (list.length <= 1) continue
+      if (list.length <= 1) {continue}
       // 保留 sort_order 最小、id 最小的那一条
       list.sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id))
       const kept = list[0]
@@ -1331,11 +1331,11 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       }
     }
 
-    if (toDelete.length === 0) return '未发现重复子分类'
+    if (toDelete.length === 0) {return '未发现重复子分类'}
 
     // 先更新链接中的子分类 ID 引用
-    const linkUpdates: { id: string; subcategory_id: string }[] = []
-    let updatedLinks = links.map(l => {
+    const linkUpdates: Array<{ id: string; subcategory_id: string }> = []
+    const updatedLinks = links.map(l => {
       if (l.subcategory_id && idMap.has(l.subcategory_id)) {
         const newId = idMap.get(l.subcategory_id)!
         linkUpdates.push({ id: l.id, subcategory_id: newId })
@@ -1354,7 +1354,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         for (let i = 0; i < toDelete.length; i++) {
           const dup = toDelete[i]
           await ds.deleteSubCategoryApi(dup.id)
-          if (i < toDelete.length - 1) await new Promise(r => setTimeout(r, 200))
+          if (i < toDelete.length - 1) {await new Promise(r => setTimeout(r, 200))}
         }
         // 以云端数据为准刷新
         const [subCategories, refreshedLinks] = await Promise.all([
@@ -1365,7 +1365,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         saveLocalItem('subcategories', subCategories)
         saveLocalLinks(refreshedLinks)
         // 清理旧版缓存
-        for (const dup of toDelete) removeLegacySubCategory(dup.id)
+        for (const dup of toDelete) {removeLegacySubCategory(dup.id)}
         return `已清理 ${toDelete.length} 个重复子分类`
       }
     } catch (err) {
@@ -1378,7 +1378,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     set({ subCategories: updatedSubs, links: updatedLinks })
     saveLocalItem('subcategories', updatedSubs)
     saveLocalLinks(updatedLinks)
-    for (const dup of toDelete) removeLegacySubCategory(dup.id)
+    for (const dup of toDelete) {removeLegacySubCategory(dup.id)}
     return `已清理 ${toDelete.length} 个重复子分类（本地）`
 
   },
@@ -1408,7 +1408,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     if (ds.isCloudApiConfigured()) {
       try {
         const settings = await ds.fetchSiteSettings()
-        const driveTypes: DriveType[] = (settings as Record<string, unknown>).drive_types as DriveType[] || []
+        const driveTypes: Array<DriveType> = (settings as unknown as Record<string, unknown>).drive_types as Array<DriveType> || []
         const idx = driveTypes.findIndex(dt => dt.id === id)
         if (idx >= 0) {
           driveTypes[idx] = { ...driveTypes[idx], ...updates }
@@ -1483,7 +1483,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     } catch {
       // 云端删除失败 → 标记该 ID 为待删除，下次 reloadAll 时跳过云端中该标签
       try {
-        const pendingDeletes = loadLocal<string[]>('tag_delete_pending', [])
+        const pendingDeletes = loadLocal<Array<string>>('tag_delete_pending', [])
         if (!pendingDeletes.includes(id)) {
           pendingDeletes.push(id)
           saveLocalItem('tag_delete_pending', pendingDeletes)

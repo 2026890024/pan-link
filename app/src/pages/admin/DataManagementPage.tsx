@@ -36,8 +36,8 @@ interface ImportPreviewItem {
   url: string
   extract_code?: string
   description?: string
-  keywords?: string | string[]
-  tags?: string[]
+  keywords?: string | Array<string>
+  tags?: Array<string>
   category_name?: string
   category_id?: string
   drive_type?: string
@@ -52,19 +52,18 @@ interface ImportPreviewItem {
 }
 
 export default function DataManagementPage() {
-  const { links, categories, addCategory, addLink, iconLibrary, addIconToLibrary, deleteIconFromLibrary, cloudSyncError, initialize, tags, addTag, deleteTag, driveTypes, addDriveType, deleteDriveType } = useDataStore()
+  const { links, categories, iconLibrary, addIconToLibrary, deleteIconFromLibrary, cloudSyncError, initialize, tags, addTag, deleteTag, driveTypes, addDriveType, deleteDriveType } = useDataStore()
   const [activeTab, setActiveTab] = useState<Tab>('export')
   const [exportFormat, setExportFormat] = useState<ExportFormat>('csv')
   const [exportMode, setExportMode] = useState<'all' | 'selected'>('all')
-  const [selectedForExport, setSelectedForExport] = useState<string[]>([])
+  const [selectedForExport, setSelectedForExport] = useState<Array<string>>([])
   const [isExporting, setIsExporting] = useState(false)
   // Export list filters
   const [exportSearch, setExportSearch] = useState('')
   const [exportCategoryFilter, setExportCategoryFilter] = useState('')
-  const [exportListExpanded, setExportListExpanded] = useState(true)
 
-  const [importPreview, setImportPreview] = useState<ImportPreviewItem[] | null>(null)
-  const [importStats, setImportStats] = useState<{ createdCategories: string[]; matchedCategories: string[]; duplicatesSkipped: number; duplicatesOverwritten: number; errors: string[] } | null>(null)
+  const [importPreview, setImportPreview] = useState<Array<ImportPreviewItem> | null>(null)
+  const [importStats, setImportStats] = useState<{ createdCategories: Array<string>; matchedCategories: Array<string>; duplicatesSkipped: number; duplicatesOverwritten: number; errors: Array<string> } | null>(null)
   const [isParsing, setIsParsing] = useState(false)
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 })
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -95,7 +94,7 @@ export default function DataManagementPage() {
     links.forEach(link => {
       if (link.icon) {
         const found = iconLibrary.find(i => i.dataUrl === link.icon)
-        if (found) map[found.id] = (map[found.id] || 0) + 1
+        if (found) {map[found.id] = (map[found.id] || 0) + 1}
       }
     })
     return map
@@ -108,10 +107,10 @@ export default function DataManagementPage() {
         const q = exportSearch.toLowerCase()
         const matchName = (l.name || l.title || '').toLowerCase().includes(q)
         const matchUrl = (l.url || '').toLowerCase().includes(q)
-        if (!matchName && !matchUrl) return false
+        if (!matchName && !matchUrl) {return false}
       }
       if (exportCategoryFilter) {
-        if (l.category_id !== exportCategoryFilter) return false
+        if (l.category_id !== exportCategoryFilter) {return false}
       }
       return true
     })
@@ -208,9 +207,9 @@ export default function DataManagementPage() {
     fileInputRef.current?.click()
   }
 
-  const parseCSV = (text: string): ImportPreviewItem[] => {
+  const parseCSV = (text: string): Array<ImportPreviewItem> => {
     const lines = text.split(/\r?\n/).filter(line => line.trim())
-    if (lines.length < 2) return []
+    if (lines.length < 2) {return []}
     
     // 移除 BOM 字符
     const firstLine = lines[0].replace(/^\uFEFF/, '')
@@ -219,7 +218,7 @@ export default function DataManagementPage() {
     
     return rows.map(line => {
       // 正确处理引号内的逗号
-      const values: string[] = []
+      const values: Array<string> = []
       let current = ''
       let inQuotes = false
       for (const char of line) {
@@ -248,28 +247,28 @@ export default function DataManagementPage() {
     }).filter((item) => item.name || item.url)
   }
 
-  const parseJSON = (text: string): ImportPreviewItem[] => {
+  const parseJSON = (text: string): Array<ImportPreviewItem> => {
     const data = JSON.parse(text)
-    const items: Record<string, unknown>[] = Array.isArray(data) ? data : [data]
-    return items.map((item) => ({
-      name: item.name || item.title || '',
-      url: item.url || item.link || '',
-      extract_code: item.extract_code || item.code || '',
-      description: item.description || '',
-      keywords: item.keywords || [],
-      tags: Array.isArray(item.tags) ? (item.tags as Array<{ name?: string; id?: string }>).map(t => t.name || t.id || '').filter(Boolean) as string[] : (typeof item.tags === 'string' ? (item.tags as string).split(/[;,]/).map((s: string) => s.trim()).filter(Boolean) : []),
-      category_name: item.category_name || '',
-      category_id: item.category_id || '',
-      drive_type: item.drive_type || 'baidu',
+    const items: Array<Record<string, unknown>> = Array.isArray(data) ? data : [data]
+    return items.map((item: Record<string, unknown>) => ({
+      name: (item.name as string) || (item.title as string) || '',
+      url: (item.url as string) || (item.link as string) || '',
+      extract_code: (item.extract_code as string) || (item.code as string) || '',
+      description: (item.description as string) || '',
+      keywords: (item.keywords as string) || [],
+      tags: Array.isArray(item.tags) ? (item.tags as Array<{ name?: string; id?: string }>).map(t => t.name || t.id || '').filter(Boolean) as Array<string> : (typeof item.tags === 'string' ? (item.tags as string).split(/[;,]/).map((s: string) => s.trim()).filter(Boolean) : []),
+      category_name: (item.category_name as string) || '',
+      category_id: (item.category_id as string) || '',
+      drive_type: (item.drive_type as string) || 'baidu',
       is_featured: !!item.is_featured,
       is_pinned: !!item.is_pinned,
-      expires_at: item.expires_at || '',
+      expires_at: (item.expires_at as string) || '',
     }))
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file) {return}
 
     setIsParsing(true)
     setImportPreview(null)
@@ -278,7 +277,7 @@ export default function DataManagementPage() {
       const text = await file.text()
       const ext = file.name.split('.').pop()?.toLowerCase()
 
-      let parsed: ImportPreviewItem[] = []
+      let parsed: Array<ImportPreviewItem> = []
       if (ext === 'csv') {
         parsed = parseCSV(text)
       } else if (ext === 'json') {
@@ -303,12 +302,12 @@ export default function DataManagementPage() {
         store.links.forEach(l => {
           const url = (l.url || '').toLowerCase().trim()
           const name = (l.name || l.title || '').toLowerCase().trim()
-          if (url) existingUrls.set(url, { id: l.id, name: l.name || l.title || '' })
-          if (name) existingNames.set(name, { id: l.id, url: l.url || '' })
+          if (url) {existingUrls.set(url, { id: l.id, name: l.name || l.title || '' })}
+          if (name) {existingNames.set(name, { id: l.id, url: l.url || '' })}
         })
 
         let dupCount = 0
-        const previewWithDup: ImportPreviewItem[] = parsed.map((item) => {
+        const previewWithDup: Array<ImportPreviewItem> = parsed.map((item) => {
           const itemUrl = (item.url || '').toLowerCase().trim()
           const itemName = (item.name || '').toLowerCase().trim()
           const result: ImportPreviewItem = { ...item }
@@ -344,14 +343,14 @@ export default function DataManagementPage() {
   }
 
   const handleConfirmImport = async () => {
-    if (!importPreview) return
+    if (!importPreview) {return}
     const store = useDataStore.getState()
     let importedCount = 0
     let duplicatesSkipped = 0
     let duplicatesOverwritten = 0
-    const createdCategories: string[] = []
-    const matchedCategories: string[] = []
-    const errors: string[] = []
+    const createdCategories: Array<string> = []
+    const matchedCategories: Array<string> = []
+    const errors: Array<string> = []
     const categoryMap = new Map<string, string>()
     const total = importPreview.length
     setImportProgress({ current: 0, total })
@@ -362,9 +361,9 @@ export default function DataManagementPage() {
 
     // 先处理分类
     for (const item of importPreview) {
-      if (!item.category_name) continue
+      if (!item.category_name) {continue}
       const catName = item.category_name.trim()
-      if (!catName || categoryMap.has(catName)) continue
+      if (!catName || categoryMap.has(catName)) {continue}
       const existing = store.categories.find(
         c => c.name.toLowerCase() === catName.toLowerCase()
       )
@@ -373,8 +372,8 @@ export default function DataManagementPage() {
         matchedCategories.push(catName)
       } else {
         try {
-          const newCat = await store.addCategory(catName)
-          categoryMap.set(catName, newCat.id)
+          const newCat = await store.addCategory(catName) as unknown as { id: string } | undefined
+          if (newCat?.id) { categoryMap.set(catName, newCat.id) }
           createdCategories.push(catName)
         } catch {
           const fallbackId = `cat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
@@ -388,7 +387,7 @@ export default function DataManagementPage() {
     setImportStats({ createdCategories, matchedCategories, duplicatesSkipped, duplicatesOverwritten, errors })
 
     const buildLinkData = (item: ImportPreviewItem, categoryId: string) => {
-      let keywords: string[] = []
+      let keywords: Array<string> = []
       if (Array.isArray(item.keywords)) {
         keywords = item.keywords
       } else if (typeof item.keywords === 'string' && item.keywords.trim()) {
@@ -399,7 +398,7 @@ export default function DataManagementPage() {
         visible = false
       }
       // 将导入的标签名匹配到已有标签（按名称匹配，取标签 ID）
-      const importTagNames: string[] = Array.isArray(item.tags)
+      const importTagNames: Array<string> = Array.isArray(item.tags)
         ? item.tags.filter((t): t is string => typeof t === 'string')
         : []
       const matchedTags = (tags || []).filter(t => importTagNames.includes(t.name))
@@ -449,8 +448,8 @@ export default function DataManagementPage() {
           }
           // 不重复 → 正常导入
           await store.addLink(buildLinkData(item, categoryId))
-          if (itemUrl) existingUrls.add(itemUrl)
-          if (itemName) existingNames.add(itemName)
+          if (itemUrl) {existingUrls.add(itemUrl)}
+          if (itemName) {existingNames.add(itemName)}
           importedCount++
         } else if (action === 'overwrite') {
           // 覆盖：更新已有链接
@@ -470,7 +469,7 @@ export default function DataManagementPage() {
                 is_featured: item.is_featured ?? existing.is_featured,
                 is_pinned: item.is_pinned ?? existing.is_pinned,
                 expires_at: item.expires_at && item.expires_at !== '永久' ? item.expires_at : existing.expires_at,
-                tags: item.tags?.length ? (tags || []).filter(t => (item.tags as string[]).includes(t.name)) : undefined,
+                tags: item.tags?.length ? (tags || []).filter(t => (item.tags as Array<string>).includes(t.name)) : undefined,
               })
               duplicatesOverwritten++
               setImportStats(prev => prev ? { ...prev, duplicatesOverwritten } : null)
@@ -479,8 +478,8 @@ export default function DataManagementPage() {
         } else if (action === 'keep_both') {
           // 保留两份：无视去重，直接新增
           await store.addLink(buildLinkData(item, categoryId))
-          if (itemUrl) existingUrls.add(itemUrl)
-          if (itemName) existingNames.add(itemName)
+          if (itemUrl) {existingUrls.add(itemUrl)}
+          if (itemName) {existingNames.add(itemName)}
           importedCount++
         }
       } catch (err) {
@@ -491,10 +490,10 @@ export default function DataManagementPage() {
     }
 
     let msg = `已成功导入 ${importedCount} 条数据`
-    if (duplicatesSkipped > 0) msg += `，跳过 ${duplicatesSkipped} 条重复`
-    if (duplicatesOverwritten > 0) msg += `，覆盖 ${duplicatesOverwritten} 条`
-    if (createdCategories.length > 0) msg += `，新建 ${createdCategories.length} 个分类`
-    if (errors.length > 0) msg += `，${errors.length} 条失败`
+    if (duplicatesSkipped > 0) {msg += `，跳过 ${duplicatesSkipped} 条重复`}
+    if (duplicatesOverwritten > 0) {msg += `，覆盖 ${duplicatesOverwritten} 条`}
+    if (createdCategories.length > 0) {msg += `，新建 ${createdCategories.length} 个分类`}
+    if (errors.length > 0) {msg += `，${errors.length} 条失败`}
     toast.success(msg)
     setImportPreview(null)
     setImportStats(null)
@@ -515,7 +514,7 @@ export default function DataManagementPage() {
 
   // 批量设置所有重复项的处理方式
   const handleBatchDuplicateAction = (action: DuplicateAction) => {
-    if (!importPreview) return
+    if (!importPreview) {return}
     setImportPreview(prev =>
       prev!.map(item =>
         item._duplicateType ? { ...item, _duplicateAction: action } : item
@@ -525,11 +524,11 @@ export default function DataManagementPage() {
 
   // 计算重复统计
   const dupStats = useMemo(() => {
-    if (!importPreview) return { total: 0, urlDup: 0, nameDup: 0 }
+    if (!importPreview) {return { total: 0, urlDup: 0, nameDup: 0 }}
     let urlDup = 0, nameDup = 0
     importPreview.forEach(item => {
-      if (item._duplicateType === 'url') urlDup++
-      else if (item._duplicateType === 'name') nameDup++
+      if (item._duplicateType === 'url') {urlDup++}
+      else if (item._duplicateType === 'name') {nameDup++}
     })
     return { total: urlDup + nameDup, urlDup, nameDup }
   }, [importPreview])
@@ -772,7 +771,7 @@ export default function DataManagementPage() {
                             onChange={(e) => {
                               if (e.target.checked) {
                                 setSelectedForExport(prev => [...prev, link.id])
-                                if (exportMode === 'all') setExportMode('selected')
+                                if (exportMode === 'all') {setExportMode('selected')}
                               } else {
                                 setSelectedForExport(prev => prev.filter(id => id !== link.id))
                               }
@@ -1076,7 +1075,7 @@ export default function DataManagementPage() {
                   className="hidden"
                   onChange={(e) => {
                     const files = e.target.files
-                    if (!files) return
+                    if (!files) {return}
                     let count = 0
                     for (const file of Array.from(files)) {
                       if (!file.type.startsWith('image/')) {

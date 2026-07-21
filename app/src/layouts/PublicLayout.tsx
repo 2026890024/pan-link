@@ -10,7 +10,6 @@ export default function PublicLayout() {
 
   // 动态 Logo/颜色
   const siteSettings = useSiteSettingsStore()
-  const settingsLoaded = siteSettings.loaded
   const logoType = siteSettings.settings.current_logo_type || 'text'
   const logoText = siteSettings.settings.current_logo_text || 'Pan Link'
 
