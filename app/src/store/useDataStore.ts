@@ -458,6 +458,7 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
         subCategories: mergedSubCategories,
         initialized: true,
         error: null,
+        cloudSyncError: false,
       })
 
       saveLocalItem('categories', mergedCategories)
