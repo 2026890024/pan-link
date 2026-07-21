@@ -28,6 +28,8 @@ import {
   Tag as TagIcon,
 } from 'lucide-react'
 import { useDataStore, type LinkItem, type Tag } from '@/store/useDataStore'
+
+const EXPIRES_PERMANENT = 'permanent' as const
 import { LinkIcon } from '@/components/LinkIcon'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import toast from 'react-hot-toast'
@@ -760,15 +762,15 @@ export default function ResourceManagementPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">过期时间</label>
                   <select value={formLink.expires_at ? (() => {
-                    if (formLink.expires_at === 'permanent') return 'permanent'
+                    if (formLink.expires_at === EXPIRES_PERMANENT) return EXPIRES_PERMANENT
                     const now = new Date(); const exp = new Date(formLink.expires_at)
                     const months = (exp.getFullYear() - now.getFullYear()) * 12 + (exp.getMonth() - now.getMonth())
                     if (months <= 1) return '1m'; if (months <= 3) return '3m'; if (months <= 6) return '6m'; return ''
                   })() : ''}
                     onChange={(e) => {
                       const val = e.target.value; let expiresAt = ''
-                      if (val === 'permanent') expiresAt = 'permanent'
-                      else if (val) { const d = new Date(); d.setMonth(d.getMonth() + parseInt(val.replace('m', ''))); expiresAt = d.toISOString().split('T')[0] }
+                      if (val === EXPIRES_PERMANENT) expiresAt = EXPIRES_PERMANENT
+                      else if (val) { const d = new Date(); d.setMonth(d.getMonth() + parseInt(val.replace('m', ''), 10)); expiresAt = d.toISOString().split('T')[0] }
                       setFormLink({ ...formLink, expires_at: expiresAt })
                     }}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm select-arrow">

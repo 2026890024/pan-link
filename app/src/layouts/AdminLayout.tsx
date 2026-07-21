@@ -24,6 +24,23 @@ const navItems = [
   { path: '/admin/account', label: '账户设置', icon: User },
 ]
 
+interface Profile {
+  username: string
+  email: string
+  avatar: string | null
+}
+
+function getProfile(): Profile {
+  try {
+    const stored = localStorage.getItem('admin_profile')
+    if (stored) {
+      const p = JSON.parse(stored)
+      return { username: p.username || 'Admin', email: p.email || '', avatar: p.avatar || null }
+    }
+  } catch { /* ignore */ }
+  return { username: 'Admin', email: 'admin@example.com', avatar: null }
+}
+
 export default function AdminLayout() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -37,18 +54,7 @@ export default function AdminLayout() {
   const siteName = siteSettings.settings.site_name || '资源云'
   const logoType = siteSettings.settings.current_logo_type || 'text'
 
-  // 读取动态头像和用户名（每次渲染时从 localStorage 读取最新值）
-  const getProfile = () => {
-    try {
-      const stored = localStorage.getItem('admin_profile')
-      if (stored) {
-        const p = JSON.parse(stored)
-        return { username: p.username || 'Admin', email: p.email || '', avatar: p.avatar || null }
-      }
-    } catch { /* ignore */ }
-    return { username: 'Admin', email: 'admin@example.com', avatar: null }
-  }
-  const [profile, setProfile] = useState(getProfile)
+  const [profile, setProfile] = useState<Profile>(getProfile)
 
   // 监听 localStorage 变化、窗口聚焦、以及自定义事件更新头像
   useEffect(() => {

@@ -202,7 +202,7 @@ export async function fetchCategories(): Promise<Category[]> {
   try {
     const data = await apiFetch<Category[]>('/api/categories')
     log('fetchCategories', data?.length)
-    return data.map(c => ({
+    return (data || []).map(c => ({
       id: String(c.id),
       name: c.name,
       icon: 'folder',
@@ -260,7 +260,7 @@ export async function fetchLinks(): Promise<LinkItem[]> {
   try {
     const data = await apiFetch<Record<string, unknown>[]>('/api/links')
     log('fetchLinks', data?.length)
-    return data.map(workerLinkToLinkItem)
+    return (data || []).map(workerLinkToLinkItem)
   } catch (err) {
     console.error('[DataService] fetchLinks error:', err)
     return getLocalLinks()
@@ -272,7 +272,7 @@ export async function fetchPublicLinks(): Promise<LinkItem[]> {
 
   try {
     const data = await apiFetch<Record<string, unknown>[]>('/api/links/public')
-    return data.map(workerLinkToLinkItem)
+    return (data || []).map(workerLinkToLinkItem)
   } catch (err) {
     console.error('[DataService] fetchPublicLinks error:', err)
     return getLocalLinks()
@@ -614,7 +614,7 @@ export async function getLinksByCategory(categoryId: string): Promise<LinkItem[]
   
   try {
     const data = await apiFetch<Record<string, unknown>[]>(`/api/links?category_id=${categoryId}`)
-    return data.map(workerLinkToLinkItem)
+    return (data || []).map(workerLinkToLinkItem)
   } catch { return [] }
 }
 

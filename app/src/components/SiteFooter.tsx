@@ -6,6 +6,8 @@ interface SiteFooterProps {
   variant?: 'full' | 'compact'
 }
 
+const currentYear = new Date().getFullYear()
+
 export default function SiteFooter({ variant = 'full' }: SiteFooterProps) {
   const siteSettings = useSiteSettingsStore()
   const siteName = siteSettings.settings.site_name || '资源云'
@@ -44,7 +46,7 @@ export default function SiteFooter({ variant = 'full' }: SiteFooterProps) {
           </Link>
           <span className="font-medium text-gray-500">{siteName}</span>
           <span className="text-gray-300">·</span>
-          <span>© 2026</span>
+          <span>© {currentYear}</span>
         </div>
       </div>
     </footer>
