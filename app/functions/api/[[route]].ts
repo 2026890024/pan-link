@@ -246,11 +246,16 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const body = await request.json<Record<string, unknown>>()
       const id = (body.id as string) || generateId()
       const nowISO = new Date().toISOString()
+      let sortOrder = (body.sort_order as number) ?? 0
+      if (sortOrder === 0) {
+        const maxResult = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as max_sort FROM categories').first()
+        sortOrder = ((maxResult as Record<string, number>)?.max_sort || 0) + 1
+      }
       await env.DB.prepare(
         `INSERT INTO categories (id, user_id, name, logo_url, sort_order, is_system, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(id, (body.user_id as string) || '', (body.name as string) || '',
-        (body.logo_url as string) || null, (body.sort_order as number) || 0,
+        (body.logo_url as string) || null, sortOrder,
         body.is_system ? 1 : 0, nowISO, nowISO).run()
       return jsonRes({ success: true, id }, 201, corsHeaders)
     }
@@ -550,14 +555,20 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     if (path === '/api/subcategories' && method === 'POST') {
       const body = await request.json<Record<string, unknown>>()
       const id = (body.id as string) || generateId()
+      const categoryId = (body.category_id as string) || ''
       const nowISO = new Date().toISOString()
+      let sortOrder = (body.sort_order as number) ?? 0
+      if (sortOrder === 0) {
+        const maxResult = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), 0) as max_sort FROM subcategories WHERE category_id = ?').bind(categoryId).first()
+        sortOrder = ((maxResult as Record<string, number>)?.max_sort || 0) + 1
+      }
       await env.DB.prepare(
         'INSERT INTO subcategories (id, category_id, name, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
       ).bind(
         id,
-        (body.category_id as string) || '',
+        categoryId,
         (body.name as string) || '',
-        (body.sort_order as number) || 0,
+        sortOrder,
         nowISO, nowISO
       ).run()
       return jsonRes({ success: true, id }, 201, corsHeaders)

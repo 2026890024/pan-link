@@ -222,10 +222,10 @@ export async function createCategory(name: string, userId?: string): Promise<Cat
   try {
     const result = await apiFetch<{ success: boolean; id: string }>('/api/categories', {
       method: 'POST',
-      body: JSON.stringify({ name, user_id: userId || '', sort_order: 999 }),
+      body: JSON.stringify({ name, user_id: userId || '' }),
     })
     log('createCategory', name)
-    return { id: result.id, name, icon: 'folder', logo_url: null, sort_order: 999 }
+    return { id: result.id, name, icon: 'folder', logo_url: null, sort_order: 0 }
   } catch (err) {
     throw err
   }
@@ -509,9 +509,9 @@ export async function addSubCategoryApi(categoryId: string, name: string): Promi
   try {
     const result = await apiFetch<{ success: boolean; id: string }>('/api/subcategories', {
       method: 'POST',
-      body: JSON.stringify({ category_id: categoryId, name, sort_order: 999 }),
+      body: JSON.stringify({ category_id: categoryId, name }),
     })
-    return { id: result.id, category_id: categoryId, name, sort_order: 999 }
+    return { id: result.id, category_id: categoryId, name, sort_order: 0 }
   } catch (err) { throw err }
 }
 

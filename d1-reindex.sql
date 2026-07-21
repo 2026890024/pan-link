@@ -1,0 +1,3 @@
+UPDATE subcategories SET sort_order = (SELECT new_order FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY sort_order ASC, created_at ASC) as new_order FROM subcategories) t WHERE t.id = subcategories.id);
+UPDATE links SET sort_order = (SELECT new_order FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY is_pinned DESC, sort_order ASC, created_at ASC) as new_order FROM links) t WHERE t.id = links.id);
+UPDATE categories SET sort_order = (SELECT new_order FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY sort_order ASC, created_at ASC) as new_order FROM categories) t WHERE t.id = categories.id);

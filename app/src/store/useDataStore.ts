@@ -1090,12 +1090,10 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   },
 
   moveLinkSortOrder: async (id, direction, categoryId) => {
-    const links = get().links
-    const targetLink = links.find(l => l.id === id)
+    const targetLink = get().links.find(l => l.id === id)
     if (!targetLink) return
 
-    // 获取同分类下的链接，按 sort_order 排序
-    const siblings = links
+    const siblings = get().links
       .filter(l => categoryId ? l.category_id === categoryId : l.category_id === targetLink.category_id)
       .sort((a, b) => a.sort_order - b.sort_order)
 
@@ -1105,15 +1103,25 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
     if (swapIndex < 0 || swapIndex >= siblings.length) return
 
-    const swapLink = siblings[swapIndex]
-    const newSortOrder = swapLink.sort_order
-    const swapNewSortOrder = targetLink.sort_order
+    // 如果相邻项 sort_order 相同或存在重复，先规范化整个兄弟列表
+    const hasDuplicate = new Set(siblings.map(s => s.sort_order)).size !== siblings.length
+    const needNormalize = hasDuplicate || siblings[currentIndex].sort_order === siblings[swapIndex].sort_order
 
     try {
       if (ds.isCloudApiConfigured()) {
+        if (needNormalize) {
+          const normalized = siblings.map((s, idx) => ({ ...s, sort_order: (idx + 1) * 10 }))
+          await Promise.all(normalized.map(s => ds.updateLinkApi(s.id, { sort_order: s.sort_order })))
+          const refreshedLinks = await ds.fetchLinks()
+          saveLocalLinks(refreshedLinks)
+          set({ links: refreshedLinks, cloudSyncError: false })
+          return
+        }
+
+        const swapLink = siblings[swapIndex]
         await Promise.all([
-          ds.updateLinkApi(id, { sort_order: newSortOrder }),
-          ds.updateLinkApi(swapLink.id, { sort_order: swapNewSortOrder }),
+          ds.updateLinkApi(id, { sort_order: swapLink.sort_order }),
+          ds.updateLinkApi(swapLink.id, { sort_order: targetLink.sort_order }),
         ])
         const refreshedLinks = await ds.fetchLinks()
         saveLocalLinks(refreshedLinks)
@@ -1122,11 +1130,15 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       }
     } catch (err) { console.error('[DataStore] moveLinkSortOrder 云API失败:', err) }
 
+    // 本地模式兜底：规范化后交换
+    const normalized = siblings.map((s, idx) => ({ ...s, sort_order: (idx + 1) * 10 }))
+    const currentAfterNorm = normalized[currentIndex]
+    const swapAfterNorm = normalized[swapIndex]
     const updatedLinks = get().links.map(l => {
-        if (l.id === id) return { ...l, sort_order: newSortOrder }
-        if (l.id === swapLink.id) return { ...l, sort_order: swapNewSortOrder }
-        return l
-      })
+      if (l.id === id) return { ...l, sort_order: swapAfterNorm.sort_order }
+      if (l.id === swapAfterNorm.id) return { ...l, sort_order: currentAfterNorm.sort_order }
+      return l
+    })
     saveLocalLinks(updatedLinks)
     set({ links: updatedLinks, cloudSyncError: true })
   },
@@ -1203,8 +1215,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   },
 
   moveSubCategorySortOrder: async (id, direction, categoryId) => {
-    const scs = get().subCategories
-    const siblings = scs
+    const siblings = get().subCategories
       .filter(sc => sc.category_id === categoryId)
       .sort((a, b) => a.sort_order - b.sort_order)
     const currentIndex = siblings.findIndex(sc => sc.id === id)
@@ -1213,14 +1224,25 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
     if (swapIndex < 0 || swapIndex >= siblings.length) return
 
-    const swapSc = siblings[swapIndex]
-    const currentSort = siblings[currentIndex].sort_order
-    const swapSort = swapSc.sort_order
+    // 如果相邻项 sort_order 相同或存在重复，先规范化整个兄弟列表
+    const hasDuplicate = new Set(siblings.map(s => s.sort_order)).size !== siblings.length
+    const needNormalize = hasDuplicate || siblings[currentIndex].sort_order === siblings[swapIndex].sort_order
 
     try {
       if (ds.isCloudApiConfigured()) {
+        if (needNormalize) {
+          const normalized = siblings.map((s, idx) => ({ ...s, sort_order: (idx + 1) * 10 }))
+          await Promise.all(normalized.map(s => ds.updateSubCategoryApi(s.id, { sort_order: s.sort_order })))
+          const subCategories = await ds.fetchSubCategories()
+          set({ subCategories, cloudSyncError: false })
+          saveLocalItem('subcategories', subCategories)
+          return
+        }
+
+        const swapSc = siblings[swapIndex]
+        const currentSort = siblings[currentIndex].sort_order
         await Promise.all([
-          ds.updateSubCategoryApi(id, { sort_order: swapSort }),
+          ds.updateSubCategoryApi(id, { sort_order: swapSc.sort_order }),
           ds.updateSubCategoryApi(swapSc.id, { sort_order: currentSort }),
         ])
         const subCategories = await ds.fetchSubCategories()
@@ -1230,9 +1252,13 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       }
     } catch (err) { console.error('[DataStore] moveSubCategorySortOrder 云API失败:', err) }
 
+    // 本地模式兜底：规范化后交换
+    const normalized = siblings.map((s, idx) => ({ ...s, sort_order: (idx + 1) * 10 }))
+    const currentAfterNorm = normalized[currentIndex]
+    const swapAfterNorm = normalized[swapIndex]
     const updated = get().subCategories.map(sc => {
-      if (sc.id === id) return { ...sc, sort_order: swapSort }
-      if (sc.id === swapSc.id) return { ...sc, sort_order: currentSort }
+      if (sc.id === id) return { ...sc, sort_order: swapAfterNorm.sort_order }
+      if (sc.id === swapAfterNorm.id) return { ...sc, sort_order: currentAfterNorm.sort_order }
       return sc
     })
     saveLocalItem('subcategories', updated)
