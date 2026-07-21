@@ -137,28 +137,37 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       { 'Retry-After': String(Math.ceil((rl.resetAt - now) / 1000)) })
   }
 
-  // CORS - 生产环境同域 + 本地开发 + preview 域名
+  // CORS - 生产环境同域 + 本地开发 + 精确匹配的 preview 域名
   const origin = request.headers.get('Origin') || ''
   const requestHost = new URL(request.url).host
   const isSameOrigin = !origin || requestHost === new URL(origin).host
-  const isCloudflarePreview = requestHost.includes('.pages.dev')
+  // 只允许精确匹配的 .pages.dev 子域名（而非所有 .pages.dev）
+  const isAllowedPreview = requestHost.match(/^[a-f0-9]+\.pan110\.pages\.dev$/)
   const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
     'http://localhost:8788',
   ]
-  const allowOrigin = isSameOrigin || isCloudflarePreview || allowedOrigins.includes(origin)
-    ? (origin || '*')
-    : 'null'
+  const isAllowedOrigin = isSameOrigin || !!isAllowedPreview || allowedOrigins.includes(origin)
+  const allowOrigin = isAllowedOrigin ? (origin || '*') : 'null'
 
   const corsHeaders = {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400',
+  }
+
+  // Security headers
+  const securityHeaders = {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'X-XSS-Protection': '1; mode=block',
   }
 
   if (method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders })
+    return new Response(null, { status: 204, headers: { ...corsHeaders, ...securityHeaders } })
   }
 
   try {
@@ -795,6 +804,6 @@ function jsonRes(data: unknown, status: number, extraHeaders?: Record<string, st
   const cacheHeaders = isGet ? { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=600' } : {}
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', ...extraHeaders, ...cacheHeaders },
+    headers: { 'Content-Type': 'application/json', ...securityHeaders, ...extraHeaders, ...cacheHeaders },
   })
 }

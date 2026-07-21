@@ -568,24 +568,34 @@ export default function DataManagementPage() {
 
   const presetTypes = driveTypes.filter(d => ['baidu', 'aliyun', 'quark', 'xunlei', 'oneonefive', 'tianyi'].includes(d.id))
 
-  const handleAddTag = () => {
+  const handleAddTag = async () => {
     if (!newTagName.trim()) {
       toast.error('请输入标签名称')
       return
     }
-    addTag(newTagName, newTagColor)
-    setNewTagName('')
-    setNewTagColor('#6366F1')
-    setShowAddTag(false)
-    toast.success('标签已添加')
+    try {
+      await addTag(newTagName.trim(), newTagColor)
+      setNewTagName('')
+      setNewTagColor('#6366F1')
+      setShowAddTag(false)
+      toast.success('标签已添加')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(msg.includes('过于频繁') ? '添加失败：请求过于频繁，请稍后再试' : `添加失败：${msg}`)
+    }
   }
 
-  const handleAddDrive = () => {
+  const handleAddDrive = async () => {
     if (newDrive.name.trim()) {
-      addDriveType(newDrive.name.trim(), newDrive.icon, newDrive.color)
-      setNewDrive({ id: '', name: '', color: 'bg-gradient-to-br from-gray-500 to-gray-600', icon: '网', iconImage: '' })
-      setIsAddingDrive(false)
-      toast.success('网盘类型已添加')
+      try {
+        await addDriveType(newDrive.name.trim(), newDrive.icon, newDrive.color)
+        setNewDrive({ id: '', name: '', color: 'bg-gradient-to-br from-gray-500 to-gray-600', icon: '网', iconImage: '' })
+        setIsAddingDrive(false)
+        toast.success('网盘类型已添加')
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        toast.error(msg.includes('过于频繁') ? '添加失败：请求过于频繁，请稍后再试' : `添加失败：${msg}`)
+      }
     }
   }
 
@@ -727,6 +737,7 @@ export default function DataManagementPage() {
                       onChange={(e) => setExportSearch(e.target.value)}
                       placeholder="搜索链接名称或URL..."
                       className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      maxLength={200}
                     />
                   </div>
                   <select
@@ -1244,7 +1255,7 @@ export default function DataManagementPage() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">名称</label>
                       <input type="text" value={newDrive.name} onChange={(e) => setNewDrive({ ...newDrive, name: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="网盘名称" />
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="网盘名称" maxLength={50} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">颜色</label>
@@ -1291,6 +1302,7 @@ export default function DataManagementPage() {
                     onChange={(e) => setNewTagName(e.target.value)}
                     placeholder="标签名称"
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white"
+                    maxLength={50}
                     autoFocus
                     onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
                   />

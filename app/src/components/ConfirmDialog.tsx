@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useRef } from 'react'
-import { AlertTriangle, X } from 'lucide-react'
+import { Loader2, AlertTriangle, X } from 'lucide-react'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -8,6 +8,7 @@ interface ConfirmDialogProps {
   confirmLabel?: string
   cancelLabel?: string
   variant?: 'danger' | 'warning' | 'info'
+  loading?: boolean
   onConfirm: () => void
   onCancel: () => void
 }
@@ -19,6 +20,7 @@ export default function ConfirmDialog({
   confirmLabel = '确认',
   cancelLabel = '取消',
   variant = 'danger',
+  loading = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -122,14 +124,17 @@ export default function ConfirmDialog({
         <div className="flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 font-medium text-sm text-gray-600 transition-colors cursor-pointer touch-manipulation"
+            disabled={loading}
+            className="flex-1 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 font-medium text-sm text-gray-600 transition-colors cursor-pointer touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {cancelLabel}
           </button>
           <button
             onClick={onConfirm}
-            className={`flex-1 py-2.5 ${styles.bg} text-white rounded-xl font-medium text-sm transition-all hover:shadow-md focus:outline-none focus:ring-2 ${styles.ring} focus:ring-offset-1 cursor-pointer touch-manipulation`}
+            disabled={loading}
+            className={`flex-1 py-2.5 ${styles.bg} text-white rounded-xl font-medium text-sm transition-all hover:shadow-md focus:outline-none focus:ring-2 ${styles.ring} focus:ring-offset-1 cursor-pointer touch-manipulation disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
           >
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             {confirmLabel}
           </button>
         </div>

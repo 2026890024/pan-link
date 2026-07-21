@@ -41,6 +41,7 @@ export interface Category {
   logo_url?: string | null
   sort_order: number
   is_system?: boolean
+  _pendingSync?: boolean
 }
 
 export interface SubCategory {
@@ -48,6 +49,7 @@ export interface SubCategory {
   category_id: string
   name: string
   sort_order: number
+  _pendingSync?: boolean
 }
 
 export interface Tag {
@@ -102,6 +104,11 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     headers['Authorization'] = `Bearer ${token}`
   }
 
+  // AbortController 超时控制（15秒）
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 15000)
+  const signal = controller.signal
+
   // 对写请求自动重试（Cloudflare Workers 有 Rate Limit，429 时指数退避）
   const maxRetries = isWrite ? 3 : 0
   let lastErr: Error | undefined
@@ -111,18 +118,33 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
       const resp = await fetch(url, {
         ...options,
         headers,
+        signal,
         // 管理后台需要写后立即可读，禁用缓存
         cache: 'no-store',
       })
 
+      clearTimeout(timeoutId)
+
       if (!resp.ok) {
+        // 401/403 = 认证失效，清除 token 并重定向到登录页
+        if (resp.status === 401 || resp.status === 403) {
+          try { sessionStorage.removeItem('admin_token') } catch { /* ignore */ }
+          if (import.meta.env.DEV) { console.log('[DataService] Auth expired, redirecting to login'); }
+          window.location.href = '/admin-login'
+          throw new Error('认证已过期，请重新登录')
+        }
         const errBody = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }))
         throw new Error(errBody.error || `API error ${resp.status}`)
       }
 
       return resp.json() as Promise<T>
     } catch (err) {
-      lastErr = err instanceof Error ? err : new Error(String(err))
+      clearTimeout(timeoutId)
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        lastErr = new Error('请求超时，请检查网络连接后重试')
+      } else {
+        lastErr = err instanceof Error ? err : new Error(String(err))
+      }
       const isRateLimit = lastErr.message.includes('请求过于频繁') || lastErr.message.includes('429')
       if (isWrite && isRateLimit && attempt < maxRetries) {
         const delay = 1000 * Math.pow(2, attempt) // 1s, 2s, 4s

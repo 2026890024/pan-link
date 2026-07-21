@@ -16,6 +16,8 @@ import {
   ArrowUp,
   Key,
   Clock,
+  WifiOff,
+  RefreshCw,
 } from 'lucide-react'
 import { useDataStore, type LinkItem, type Category } from '@/store/useDataStore'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
@@ -130,6 +132,19 @@ export default function HomePage() {
       setIsReturning(true)
     } else {
       localStorage.setItem('panlink_visited', '1')
+    }
+  }, [])
+
+  // 离线状态检测
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true)
+    const goOffline = () => setIsOnline(false)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
     }
   }, [])
 
@@ -352,6 +367,23 @@ export default function HomePage() {
 
           {/* Right Content */}
           <div className="flex-1 min-w-0">
+            {/* 离线状态提示 */}
+            {!isOnline && (
+              <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 animate-fade-in">
+                <WifiOff className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-amber-800">网络连接已断开</p>
+                  <p className="text-xs text-amber-600">显示的是缓存数据，部分功能可能不可用</p>
+                </div>
+                <button
+                  onClick={() => { useDataStore.getState().initialize() }}
+                  className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  重试
+                </button>
+              </div>
+            )}
             {/* 数据加载骨架屏 */}
             {isLoading ? (
               <div className="animate-fade-in">

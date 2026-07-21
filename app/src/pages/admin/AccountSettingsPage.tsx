@@ -4,6 +4,7 @@ import {
   User,
   Upload,
   Save,
+  Loader2,
   Lock,
   Eye,
   EyeOff,
@@ -72,6 +73,8 @@ export default function AccountSettingsPage() {
 
   // 标签切换
   const [activeTab, setActiveTab] = useState<'profile' | 'credentials'>('profile')
+  const [saving, setSaving] = useState(false)
+  const [changingCred, setChangingCred] = useState(false)
   // 温馨提示关闭状态
   const [showTip, setShowTip] = useState(() => {
     try { return localStorage.getItem('account_tip_closed') !== 'true' } catch { return true }
@@ -161,61 +164,87 @@ export default function AccountSettingsPage() {
   }
 
   // 保存个人资料
-  const handleSaveProfile = () => {
-    if (!editUsername.trim()) {
+  const handleSaveProfile = async () => {
+    const trimmedUser = editUsername.trim()
+    const trimmedEmail = editEmail.trim()
+    if (!trimmedUser) {
       toast.error('用户名不能为空')
       return
     }
-    if (!editEmail.trim()) {
+    if (!trimmedEmail) {
       toast.error('邮箱不能为空')
       return
     }
-    const updated: AdminProfile = {
-      username: editUsername.trim(),
-      email: editEmail.trim(),
-      avatar,
+    if (saving) return
+    setSaving(true)
+    try {
+      const updated: AdminProfile = {
+        username: trimmedUser,
+        email: trimmedEmail,
+        avatar,
+      }
+      setProfile(updated)
+      saveProfile(updated)
+      window.dispatchEvent(new CustomEvent('admin-profile-updated'))
+      toast.success('个人资料已保存')
+    } catch {
+      toast.error('保存失败')
+    } finally {
+      setSaving(false)
     }
-    setProfile(updated)
-    saveProfile(updated)
-    window.dispatchEvent(new CustomEvent('admin-profile-updated'))
-    toast.success('个人资料已保存')
   }
 
   // 修改登录密码
   const handleChangeCredentials = async () => {
-    const storedAuth = loadAuth()
+    if (changingCred) return
+    setChangingCred(true)
+    try {
+      const storedAuth = loadAuth()
 
-    // 如果之前设置过密码哈希，需要验证当前密码
-    if (storedAuth.passwordHash) {
-      const valid = await verifyPassword(currentPassword, storedAuth.passwordHash)
-      if (!valid) {
-        toast.error('当前密码错误')
+      // 如果之前设置过密码哈希，需要验证当前密码
+      if (storedAuth.passwordHash) {
+        if (!currentPassword) {
+          toast.error('请输入当前密码')
+          setChangingCred(false)
+          return
+        }
+        const valid = await verifyPassword(currentPassword.trim(), storedAuth.passwordHash)
+        if (!valid) {
+          toast.error('当前密码错误')
+          setChangingCred(false)
+          return
+        }
+      }
+
+      if (!newPassword || newPassword.length < 6) {
+        toast.error('新密码至少需要 6 位字符')
+        setChangingCred(false)
         return
       }
-    }
 
-    if (!newPassword || newPassword.length < 6) {
-      toast.error('新密码至少需要 6 位字符')
-      return
-    }
+      if (newPassword !== confirmPassword) {
+        toast.error('两次输入的新密码不一致')
+        setChangingCred(false)
+        return
+      }
 
-    if (newPassword !== confirmPassword) {
-      toast.error('两次输入的新密码不一致')
-      return
-    }
+      // 存储密码哈希而非明文
+      const updated: AuthCredentials = {
+        username: newUsername.trim() || storedAuth.username || 'admin',
+        passwordHash: await hashPassword(newPassword),
+      }
+      setAuth(updated)
+      saveAuth(updated)
 
-    // 存储密码哈希而非明文
-    const updated: AuthCredentials = {
-      username: newUsername.trim() || storedAuth.username || 'admin',
-      passwordHash: await hashPassword(newPassword),
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      toast.success('登录凭证已更新，下次登录生效')
+    } catch {
+      toast.error('密码更新失败')
+    } finally {
+      setChangingCred(false)
     }
-    setAuth(updated)
-    saveAuth(updated)
-
-    setCurrentPassword('')
-    setNewPassword('')
-    setConfirmPassword('')
-    toast.success('登录凭证已更新，下次登录生效')
   }
 
   const getInitial = () => {
@@ -356,6 +385,7 @@ export default function AccountSettingsPage() {
                     value={editUsername}
                     onChange={(e) => setEditUsername(e.target.value)}
                     placeholder="请输入用户名"
+                    maxLength={50}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 transition-all text-sm"
                   />
                   <p className="text-xs text-gray-400 mt-1">这将显示在后台管理界面中</p>
@@ -371,6 +401,7 @@ export default function AccountSettingsPage() {
                     value={editEmail}
                     onChange={(e) => setEditEmail(e.target.value)}
                     placeholder="请输入邮箱地址"
+                    maxLength={100}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 transition-all text-sm"
                   />
                   <p className="text-xs text-gray-400 mt-1">用于接收系统通知和找回密码</p>
@@ -380,10 +411,11 @@ export default function AccountSettingsPage() {
                 <div className="pt-2">
                   <button
                     onClick={handleSaveProfile}
-                    className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium text-sm flex items-center gap-2 shadow-button transition-all cursor-pointer"
+                    disabled={saving}
+                    className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium text-sm flex items-center gap-2 shadow-button transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <Save className="w-4 h-4" />
-                    保存修改
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {saving ? '保存中...' : '保存修改'}
                   </button>
                 </div>
               </div>
@@ -415,6 +447,7 @@ export default function AccountSettingsPage() {
                     value={newUsername}
                     onChange={(e) => setNewUsername(e.target.value)}
                     placeholder={auth.username || '保持当前用户名'}
+                    maxLength={50}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 transition-all text-sm"
                   />
                 </div>
@@ -431,6 +464,7 @@ export default function AccountSettingsPage() {
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
                         placeholder="请输入当前密码"
+                        maxLength={100}
                         className="w-full px-4 py-2.5 pr-10 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 transition-all text-sm"
                       />
                       <button
@@ -455,6 +489,7 @@ export default function AccountSettingsPage() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="至少 6 位字符"
+                      maxLength={100}
                       className="w-full px-4 py-2.5 pr-10 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 transition-all text-sm"
                     />
                     <button
@@ -478,6 +513,7 @@ export default function AccountSettingsPage() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="再次输入新密码"
+                      maxLength={100}
                       className="w-full px-4 py-2.5 pr-10 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 transition-all text-sm"
                     />
                     <button
@@ -498,13 +534,14 @@ export default function AccountSettingsPage() {
                   <button
                     onClick={handleChangeCredentials}
                     disabled={
+                      changingCred ||
                       (!newUsername.trim() && !newPassword) ||
                       (!!newPassword && newPassword !== confirmPassword)
                     }
                     className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium text-sm flex items-center gap-2 shadow-button transition-all cursor-pointer"
                   >
-                    <Lock className="w-4 h-4" />
-                    更新登录凭证
+                    {changingCred ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                    {changingCred ? '更新中...' : '更新登录凭证'}
                   </button>
                 </div>
               </div>

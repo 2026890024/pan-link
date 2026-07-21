@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Palette, Image, Type, Upload, Trash2, Save, Plus, Check,
+  Palette, Image, Type, Upload, Trash2, Save, Plus, Check, Loader2,
   Globe, X, Sparkles, ChevronDown, History,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -566,6 +566,7 @@ function InfoTab() {
   const [name, setName] = useState(settings.site_name || '资源云')
   const [desc, setDesc] = useState(settings.site_description || '')
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setName(settings.site_name || '资源云')
@@ -573,13 +574,25 @@ function InfoTab() {
   }, [settings.site_name, settings.site_description])
 
   const handleSave = async () => {
-    await setSiteName(name)
-    await setSiteDescription(desc)
-    // 同时更新页面 title
-    document.title = `${name} - ${desc}`
-    toast.success('站点信息已保存')
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    const trimmedName = name.trim()
+    const trimmedDesc = desc.trim()
+    if (!trimmedName) { toast('站点名称不能为空'); return }
+    if (saving) return
+    setSaving(true)
+    try {
+      await setSiteName(trimmedName)
+      await setSiteDescription(trimmedDesc)
+      // 同时更新页面 title
+      document.title = `${trimmedName} - ${trimmedDesc}`
+      toast.success('站点信息已保存')
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(`保存失败：${msg}`)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -600,6 +613,7 @@ function InfoTab() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="输入站点名称"
+              maxLength={100}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 text-sm"
             />
             <p className="text-xs text-gray-400 mt-1">显示在浏览器标签页、导航栏 Logo 旁</p>
@@ -613,6 +627,7 @@ function InfoTab() {
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
               placeholder="输入站点描述"
+              maxLength={500}
               rows={3}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 text-sm resize-none"
             />
@@ -622,14 +637,15 @@ function InfoTab() {
           <div className="pt-2">
             <button
               onClick={handleSave}
-              className={`px-6 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 shadow-button transition-all cursor-pointer ${
+              disabled={saving}
+              className={`px-6 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 shadow-button transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
                 saved
                   ? 'bg-green-500 text-white'
                   : 'bg-brand-600 hover:bg-brand-700 text-white'
               }`}
             >
-              {saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-              {saved ? '已保存' : '保存站点信息'}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+              {saving ? '保存中...' : saved ? '已保存' : '保存站点信息'}
             </button>
           </div>
         </div>

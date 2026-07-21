@@ -8,6 +8,7 @@ import {
   Copy,
   Check,
   ExternalLink,
+  Loader2,
   Search,
   FolderOpen,
   Save,
@@ -101,6 +102,7 @@ export default function ResourceManagementPage() {
   const [selectedTags, setSelectedTags] = useState<Array<string>>([])
   const [showIconPicker, setShowIconPicker] = useState(false)
   const [iconPickerSearch, setIconPickerSearch] = useState('')
+  const [linkSaving, setLinkSaving] = useState(false)
   const formFileInputRef = useRef<HTMLInputElement>(null)
   const iconPickerRef = useRef<HTMLDivElement>(null)
 
@@ -286,19 +288,25 @@ export default function ResourceManagementPage() {
     setConfirmOpen(true)
   }
 
-  const handleAddLink = () => {
-    if (formLink.title.trim() && formLink.url.trim()) {
+  const handleAddLink = async () => {
+    const title = formLink.title.trim()
+    const url = formLink.url.trim()
+    if (!title || !url) { toast('标题和链接不能为空'); return }
+    if (!/^https?:\/\/.+/.test(url)) { toast('请输入有效的链接地址（以 http:// 或 https:// 开头）'); return }
+    if (linkSaving) return
+    setLinkSaving(true)
+    try {
       const targetCategoryId = formLink.category_id || categories[0]?.id || ''
-      addLink({
-        name: formLink.title.trim(),
-        title: formLink.title.trim(),
-        url: formLink.url.trim(),
+      await addLink({
+        name: title,
+        title,
+        url,
         drive_type: formLink.drive_type,
         category_id: targetCategoryId,
         category_name: categories.find(c => c.id === targetCategoryId)?.name,
         subcategory_id: formLink.subcategory_id || '',
         icon: formLinkIcon || '',
-        slug: formLink.slug || formLink.title.slice(0, 10).replace(/\s/g, '-').toLowerCase(),
+        slug: formLink.slug || title.slice(0, 10).replace(/\s/g, '-').toLowerCase(),
         extract_code: formLink.extract_code,
         expires_at: formLink.expires_at || null,
         is_pinned: formLink.is_pinned,
@@ -309,15 +317,26 @@ export default function ResourceManagementPage() {
       })
       setLinkModalOpen(false)
       toast.success('链接已添加')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(msg.includes('过于频繁') ? '添加失败：请求过于频繁，请稍后再试' : `添加失败：${msg}`)
+    } finally {
+      setLinkSaving(false)
     }
   }
 
-  const handleEdit = () => {
-    if (formLink.id && formLink.title.trim() && formLink.url.trim()) {
-      updateLink(formLink.id, {
-        name: formLink.title.trim(),
-        title: formLink.title.trim(),
-        url: formLink.url.trim(),
+  const handleEdit = async () => {
+    const title = formLink.title.trim()
+    const url = formLink.url.trim()
+    if (!formLink.id || !title || !url) { toast('标题和链接不能为空'); return }
+    if (!/^https?:\/\/.+/.test(url)) { toast('请输入有效的链接地址（以 http:// 或 https:// 开头）'); return }
+    if (linkSaving) return
+    setLinkSaving(true)
+    try {
+      await updateLink(formLink.id, {
+        name: title,
+        title,
+        url,
         category_id: formLink.category_id,
         category_name: categories.find(c => c.id === formLink.category_id)?.name,
         subcategory_id: formLink.subcategory_id,
@@ -333,6 +352,11 @@ export default function ResourceManagementPage() {
       })
       setLinkModalOpen(false)
       toast.success('链接已更新')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(msg.includes('过于频繁') ? '更新失败：请求过于频繁，请稍后再试' : `更新失败：${msg}`)
+    } finally {
+      setLinkSaving(false)
     }
   }
 
@@ -730,12 +754,12 @@ export default function ResourceManagementPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">标题 *</label>
                   <input type="text" value={formLink.title} onChange={(e) => setFormLink({ ...formLink, title: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm" placeholder="资源名称" autoFocus={linkModalMode === 'add'} />
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm" placeholder="资源名称" maxLength={200} autoFocus={linkModalMode === 'add'} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">链接 *</label>
                   <input type="url" value={formLink.url} onChange={(e) => setFormLink({ ...formLink, url: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm" placeholder="https://..." />
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm" placeholder="https://..." maxLength={2000} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">分类</label>
@@ -763,7 +787,7 @@ export default function ResourceManagementPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">提取码</label>
                   <input type="text" value={formLink.extract_code} onChange={(e) => setFormLink({ ...formLink, extract_code: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm" placeholder="选填" />
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm" placeholder="选填" maxLength={100} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">过期时间</label>
@@ -786,12 +810,12 @@ export default function ResourceManagementPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Slug <span className="text-xs text-gray-400 font-normal ml-1">（URL标识符）</span></label>
                   <input type="text" value={formLink.slug} onChange={(e) => setFormLink({ ...formLink, slug: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm" placeholder="自定义链接标识" />
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm" placeholder="自定义链接标识" maxLength={100} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">搜索关键词 <span className="text-xs text-gray-400 font-normal ml-1">（逗号分隔）</span></label>
                   <input type="text" value={formLink.keywords} onChange={(e) => setFormLink({ ...formLink, keywords: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm" placeholder="别名、缩写、常用搜索词" />
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm" placeholder="别名、缩写、常用搜索词" maxLength={500} />
                 </div>
               </div>
               {/* 标签选择 */}
@@ -973,11 +997,17 @@ export default function ResourceManagementPage() {
               </div>
             </div>
             <div className="sticky bottom-0 bg-gray-50/80 backdrop-blur-sm border-t border-gray-100 px-6 py-4 rounded-b-2xl flex justify-end gap-3">
-              <button onClick={() => setLinkModalOpen(false)} className="px-5 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-100 font-medium transition-colors">取消</button>
+              <button onClick={() => setLinkModalOpen(false)} disabled={linkSaving} className="px-5 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-100 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">取消</button>
               {linkModalMode === 'add' ? (
-                <button onClick={handleAddLink} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium transition-colors">添加</button>
+                <button onClick={handleAddLink} disabled={linkSaving} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
+                  {linkSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {linkSaving ? '添加中...' : '添加'}
+                </button>
               ) : (
-                <button onClick={handleEdit} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium transition-colors">保存修改</button>
+                <button onClick={handleEdit} disabled={linkSaving} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
+                  {linkSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {linkSaving ? '保存中...' : '保存修改'}
+                </button>
               )}
             </div>
           </div>

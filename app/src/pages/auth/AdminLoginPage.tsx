@@ -46,7 +46,14 @@ export default function AdminLoginPage() {
     setError(null)
     
     try {
-      const success = await login(username, password)
+      const trimmedUser = username.trim()
+      const trimmedPass = password.trim()
+      if (!trimmedUser || !trimmedPass) {
+        setError('用户名和密码不能为空')
+        setLoading(false)
+        return
+      }
+      const success = await login(trimmedUser, trimmedPass)
       if (success) {
         navigate('/admin', { replace: true })
       } else {
