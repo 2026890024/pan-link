@@ -38,11 +38,28 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-core': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-animation': ['framer-motion'],
-          'vendor-utils': ['@tanstack/react-query', 'zustand'],
-          'vendor-icons': ['lucide-react'],
+        manualChunks(id) {
+          // Vendor chunks
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
+            return 'vendor-core'
+          }
+          if (id.includes('node_modules/framer-motion')) {
+            return 'vendor-animation'
+          }
+          if (id.includes('node_modules/@tanstack/react-query') || id.includes('node_modules/zustand')) {
+            return 'vendor-utils'
+          }
+          if (id.includes('node_modules/lucide-react')) {
+            return 'vendor-icons'
+          }
+          // 数据服务层单独分包
+          if (id.includes('services/dataService')) {
+            return 'data-layer'
+          }
+          // 后台 store 分包（管理后台专用）
+          if (id.includes('store/useDataStore') || id.includes('store/useAuthStore') || id.includes('store/useAdmin')) {
+            return 'admin-store'
+          }
         },
         assetFileNames: 'assets/[name]-[hash][extname]',
         chunkFileNames: 'assets/[name]-[hash].js',

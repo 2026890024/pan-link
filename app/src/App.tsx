@@ -25,9 +25,10 @@ const AccountSettingsPage = lazy(() => import('@/pages/admin/AccountSettingsPage
 const DataManagementPage = lazy(() => import('@/pages/admin/DataManagementPage'))
 const HomepageSettingsPage = lazy(() => import('@/pages/admin/HomepageSettingsPage'))
 const SiteSettingsPage = lazy(() => import('@/pages/admin/SiteSettingsPage'))
-// 后台布局与守卫 - 静态导入（立即需要）
-import AdminLayout from '@/layouts/AdminLayout'
-import AdminAuthGuard from '@/components/AdminAuthGuard'
+// 后台布局与守卫 - 懒加载（仅在管理员访问时加载，减少首屏约 12 KB）
+const AdminLayout = lazy(() => import('@/layouts/AdminLayout'))
+const AdminAuthGuard = lazy(() => import('@/components/AdminAuthGuard'))
+// 前台布局 - 所有用户都需要
 import PublicLayout from '@/layouts/PublicLayout'
 import NotFoundPage from '@/pages/NotFoundPage'
 
