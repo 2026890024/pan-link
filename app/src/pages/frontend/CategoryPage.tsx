@@ -163,7 +163,7 @@ export default function CategoryPage() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as 'default' | 'recent' | 'popular')}
-            className="flex-1 sm:flex-none px-3 py-2.5 bg-white border border-gray-100 rounded-xl text-sm text-gray-600 font-medium focus:outline-none cursor-pointer"
+            className="flex-1 sm:flex-none px-3 py-2.5 bg-white border border-gray-100 rounded-xl text-sm text-gray-600 font-medium focus:outline-none cursor-pointer select-arrow"
           >
             <option value="default">默认排序</option>
             <option value="recent">最新优先</option>

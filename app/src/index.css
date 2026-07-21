@@ -63,6 +63,19 @@ input[type="password"]::-webkit-textfield-decoration-container {
   display: none;
 }
 
+/* 统一定制下拉箭头，避免浏览器原生箭头位置偏右/不居中 */
+@layer components {
+  .select-arrow {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    padding-right: 2.5rem;
+  }
+}
+
 /* ========== 全局光球动画 ========== */
 @keyframes orbFloat {
   0%, 100% {

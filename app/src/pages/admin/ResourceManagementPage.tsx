@@ -732,7 +732,7 @@ export default function ResourceManagementPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">分类</label>
                   <select value={formLink.category_id} onChange={(e) => setFormLink({ ...formLink, category_id: e.target.value, subcategory_id: '' })}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm">
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm select-arrow">
                     <option value="">请选择分类</option>
                     {categories.map((cat) => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}
                   </select>
@@ -740,7 +740,7 @@ export default function ResourceManagementPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">子分类</label>
                   <select value={formLink.subcategory_id} onChange={(e) => setFormLink({ ...formLink, subcategory_id: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm" disabled={!formLink.category_id}>
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm select-arrow" disabled={!formLink.category_id}>
                     <option value="">无</option>
                     {formLink.category_id && getCategorySubCategories(formLink.category_id).map((sc) => (<option key={sc.id} value={sc.id}>{sc.name}</option>))}
                   </select>
@@ -748,7 +748,7 @@ export default function ResourceManagementPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">网盘类型</label>
                   <select value={formLink.drive_type} onChange={(e) => setFormLink({ ...formLink, drive_type: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm">
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm select-arrow">
                     {driveTypes.map((dt) => (<option key={dt.id} value={dt.id}>{dt.name}</option>))}
                   </select>
                 </div>
@@ -771,7 +771,7 @@ export default function ResourceManagementPage() {
                       else if (val) { const d = new Date(); d.setMonth(d.getMonth() + parseInt(val.replace('m', ''))); expiresAt = d.toISOString().split('T')[0] }
                       setFormLink({ ...formLink, expires_at: expiresAt })
                     }}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm">
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm select-arrow">
                     <option value="">不设置</option><option value="1m">1个月</option><option value="3m">3个月</option><option value="6m">6个月</option><option value="permanent">永久</option>
                   </select>
                 </div>

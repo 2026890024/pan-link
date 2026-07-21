@@ -724,7 +724,7 @@ export default function DataManagementPage() {
                   <select
                     value={exportCategoryFilter}
                     onChange={(e) => setExportCategoryFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-pointer min-w-[120px]"
+                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-pointer min-w-[120px] select-arrow"
                   >
                     <option value="">全部分类</option>
                     {categories.map(c => (
@@ -1015,7 +1015,7 @@ export default function DataManagementPage() {
                                       prev!.map((p, i) => i === index ? { ...p, _duplicateAction: action } : p)
                                     )
                                   }}
-                                  className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-300"
+                                  className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-300 select-arrow"
                                 >
                                   <option value="skip">跳过</option>
                                   <option value="overwrite">覆盖</option>
