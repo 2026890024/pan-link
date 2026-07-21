@@ -577,7 +577,7 @@ function InfoTab() {
     const trimmedName = name.trim()
     const trimmedDesc = desc.trim()
     if (!trimmedName) { toast('站点名称不能为空'); return }
-    if (saving) return
+    if (saving) {return}
     setSaving(true)
     try {
       await setSiteName(trimmedName)

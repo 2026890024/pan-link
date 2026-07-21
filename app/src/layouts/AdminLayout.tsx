@@ -95,7 +95,7 @@ export default function AdminLayout() {
           aria-label="关闭导航菜单"
           className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
           onClick={() => setMobileSidebarOpen(false)}
-          onKeyDown={(e) => { if (e.key === 'Escape') setMobileSidebarOpen(false) }}
+          onKeyDown={(e) => { if (e.key === 'Escape') {setMobileSidebarOpen(false)} }}
         />
       )}
 

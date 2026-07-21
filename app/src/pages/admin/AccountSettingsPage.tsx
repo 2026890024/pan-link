@@ -175,7 +175,7 @@ export default function AccountSettingsPage() {
       toast.error('邮箱不能为空')
       return
     }
-    if (saving) return
+    if (saving) {return}
     setSaving(true)
     try {
       const updated: AdminProfile = {
@@ -196,7 +196,7 @@ export default function AccountSettingsPage() {
 
   // 修改登录密码
   const handleChangeCredentials = async () => {
-    if (changingCred) return
+    if (changingCred) {return}
     setChangingCred(true)
     try {
       const storedAuth = loadAuth()

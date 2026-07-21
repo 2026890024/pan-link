@@ -766,9 +766,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         if (!allowedKeys.has(key) && !key.startsWith('custom_') && !key.startsWith('logo_')) {
           continue // 忽略不允许的 key
         }
-        if (key === 'custom_css') continue // 禁止注入自定义 CSS
+        if (key === 'custom_css') {continue} // 禁止注入自定义 CSS
         const jsonValue = typeof value === 'string' ? value : JSON.stringify(value)
-        if (jsonValue.length > 65535) continue // 拒绝超大数据
+        if (jsonValue.length > 65535) {continue} // 拒绝超大数据
         await env.DB.prepare(
           `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
@@ -930,10 +930,10 @@ function sanitizeString(str: string): string {
 
 /** 净化链接 URL：去除空白和多余字符 */
 function sanitizeLinkUrl(rawUrl: string): string {
-  let url = rawUrl.trim()
+  const url = rawUrl.trim()
   // 去除可能被注入的 javascript: 协议
-  if (/^\s*javascript\s*:/i.test(url)) return ''
-  if (/^\s*data\s*:/i.test(url)) return ''
-  if (/^\s*file\s*:/i.test(url)) return ''
+  if (/^\s*javascript\s*:/i.test(url)) {return ''}
+  if (/^\s*data\s*:/i.test(url)) {return ''}
+  if (/^\s*file\s*:/i.test(url)) {return ''}
   return url
 }

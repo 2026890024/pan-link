@@ -293,7 +293,7 @@ export default function ResourceManagementPage() {
     const url = formLink.url.trim()
     if (!title || !url) { toast('标题和链接不能为空'); return }
     if (!/^https?:\/\/.+/.test(url)) { toast('请输入有效的链接地址（以 http:// 或 https:// 开头）'); return }
-    if (linkSaving) return
+    if (linkSaving) {return}
     setLinkSaving(true)
     try {
       const targetCategoryId = formLink.category_id || categories[0]?.id || ''
@@ -330,7 +330,7 @@ export default function ResourceManagementPage() {
     const url = formLink.url.trim()
     if (!formLink.id || !title || !url) { toast('标题和链接不能为空'); return }
     if (!/^https?:\/\/.+/.test(url)) { toast('请输入有效的链接地址（以 http:// 或 https:// 开头）'); return }
-    if (linkSaving) return
+    if (linkSaving) {return}
     setLinkSaving(true)
     try {
       await updateLink(formLink.id, {
@@ -764,7 +764,7 @@ export default function ResourceManagementPage() {
             aria-label="关闭弹窗"
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setLinkModalOpen(false)}
-            onKeyDown={(e) => { if (e.key === 'Escape') setLinkModalOpen(false) }}
+            onKeyDown={(e) => { if (e.key === 'Escape') {setLinkModalOpen(false)} }}
           />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 rounded-t-2xl flex items-center justify-between">

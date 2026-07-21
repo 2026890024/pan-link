@@ -51,7 +51,7 @@ export default function CategorySidebar({
           aria-label="关闭分类菜单"
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={onCloseMobile}
-          onKeyDown={(e) => { if (e.key === 'Escape') onCloseMobile() }}
+          onKeyDown={(e) => { if (e.key === 'Escape') {onCloseMobile()} }}
         />
       )}
 
