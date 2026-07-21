@@ -931,7 +931,7 @@ export default function DataManagementPage() {
                         <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
                           <p className="font-medium text-red-700 mb-1">导入失败 ({importStats.errors.length} 条):</p>
                           <ul className="text-red-600 space-y-0.5 max-h-32 overflow-y-auto">
-                            {importStats.errors.map((e, i) => <li key={i} className="text-xs">• {e}</li>)}
+                            {importStats.errors.map((e, i) => <li key={`err-${i}-${e.slice(0, 20)}`} className="text-xs">• {e}</li>)}
                           </ul>
                         </div>
                       )}
@@ -1003,7 +1003,7 @@ export default function DataManagementPage() {
                         {importPreview.map((item, index) => {
                           const isDup = !!item._duplicateType
                           return (
-                          <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} ${isDup ? 'bg-amber-50/60' : ''}`}>
+                          <tr key={`${item.name}-${item.url}-${index}`} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} ${isDup ? 'bg-amber-50/60' : ''}`}>
                             <td className="px-3 py-2 text-sm text-gray-400">{index + 1}</td>
                             <td className="px-3 py-2 text-sm text-gray-800 max-w-[140px] truncate">
                               {item.name}
@@ -1149,7 +1149,7 @@ export default function DataManagementPage() {
                       return (
                         <div key={icon.id} className="group relative bg-white border rounded-xl p-3 hover:shadow-md transition-all">
                           <div className="w-full aspect-square flex items-center justify-center mb-2">
-                            <img src={icon.dataUrl} alt={icon.name} className="w-12 h-12 object-contain" />
+                            <img src={icon.dataUrl} alt={icon.name} loading="lazy" decoding="async" className="w-12 h-12 object-contain" />
                           </div>
                           <p className="text-xs text-gray-600 text-center truncate">{icon.name}</p>
                           {usage > 0 && (
@@ -1246,7 +1246,7 @@ export default function DataManagementPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">图标预览</label>
                       <div className={`w-16 h-16 rounded-xl ${newDrive.color} flex items-center justify-center text-white font-bold text-xl`}>
                         {newDrive.iconImage ? (
-                          <img src={newDrive.iconImage} alt="preview" className="w-full h-full rounded-xl object-cover" />
+                          <img src={newDrive.iconImage} alt={`${newDrive.name} 图标预览`} loading="lazy" className="w-full h-full rounded-xl object-cover" />
                         ) : (
                           newDrive.icon || '网'
                         )}

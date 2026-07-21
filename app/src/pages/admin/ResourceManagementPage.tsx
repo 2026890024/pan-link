@@ -613,7 +613,14 @@ export default function ResourceManagementPage() {
               filteredLinks.map((link) => (
                 <div key={link.id} className={`grid grid-cols-12 gap-2 sm:gap-4 px-2 sm:px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors items-center ${!link.visible ? 'opacity-60 bg-gray-50/50' : ''}`}>
                   <div className="col-span-6 sm:col-span-5">
-                    <div className="flex items-center gap-3 cursor-pointer" onClick={() => openEditModal(link)}>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`编辑 "${link.title}"`}
+                      className="flex items-center gap-3 cursor-pointer"
+                      onClick={() => openEditModal(link)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEditModal(link) } }}
+                    >
                       {getLinkDisplayIcon(link)}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -676,7 +683,15 @@ export default function ResourceManagementPage() {
             ) : (
               <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredLinks.map((link) => (
-                  <div key={link.id} className={`border border-gray-200 rounded-xl p-4 hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer ${!link.visible ? 'opacity-60 bg-gray-50/50' : ''}`} onClick={() => openEditModal(link)}>
+                  <div
+                    key={link.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`编辑 "${link.title}"`}
+                    className={`border border-gray-200 rounded-xl p-4 hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer ${!link.visible ? 'opacity-60 bg-gray-50/50' : ''}`}
+                    onClick={() => openEditModal(link)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEditModal(link) } }}
+                  >
                     <div className="flex items-start gap-3 mb-3">
                       {getLinkDisplayIcon(link)}
                       <div className="flex-1 min-w-0">
@@ -743,7 +758,14 @@ export default function ResourceManagementPage() {
       {/* 链接添加/编辑弹窗 */}
       {linkModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setLinkModalOpen(false)} />
+          <div
+            role="button"
+            tabIndex={-1}
+            aria-label="关闭弹窗"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setLinkModalOpen(false)}
+            onKeyDown={(e) => { if (e.key === 'Escape') setLinkModalOpen(false) }}
+          />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 rounded-t-2xl flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">{linkModalMode === 'add' ? '添加链接' : '编辑链接'}</h2>
@@ -896,7 +918,8 @@ export default function ResourceManagementPage() {
                     {formLinkIcon ? (
                       <img
                         src={formLinkIcon}
-                        alt="预览"
+                        alt="图标预览"
+                        loading="lazy"
                         className="w-10 h-10 object-contain"
                       />
                     ) : (
@@ -984,7 +1007,7 @@ export default function ResourceManagementPage() {
                             }`}
                             title={icon.name}
                           >
-                            <img src={icon.dataUrl} alt={icon.name} className="w-6 h-6 object-contain mx-auto" />
+                            <img src={icon.dataUrl} alt={icon.name} loading="lazy" decoding="async" className="w-6 h-6 object-contain mx-auto" />
                             <p className="text-[10px] text-gray-500 text-center mt-1 truncate">{icon.name}</p>
                           </button>
                         ))}

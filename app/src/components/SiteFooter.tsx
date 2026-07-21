@@ -37,7 +37,7 @@ export default function SiteFooter({ variant = 'full' }: SiteFooterProps) {
             title="进入后台管理"
           >
             {logoType === 'image' && logoUrl ? (
-              <img src={logoUrl} alt={siteName} className="w-full h-full object-contain rounded-xl" />
+              <img src={logoUrl} alt={`${siteName} Logo`} loading="lazy" decoding="async" className="w-full h-full object-contain rounded-xl" />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-brand-600 via-brand-500 to-violet-500 rounded-xl flex items-center justify-center">
                 <LayoutGrid className="w-4 h-4 text-white" />

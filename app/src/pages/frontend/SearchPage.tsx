@@ -297,11 +297,21 @@ export default function SearchPage() {
                         </div>
                         {subcategories.length > 0 && (
                           <span
+                            role="button"
+                            tabIndex={0}
+                            aria-label={isExpanded ? '收起子分类' : '展开子分类'}
                             onClick={(e) => {
                               e.stopPropagation()
                               setExpandedCategory(isExpanded ? null : category.id)
                             }}
-                            className={`p-1 rounded-lg transition-all duration-150 ${isSelected && filterSubCategory === 'all' ? 'hover:bg-white/20' : 'hover:bg-gray-100'}`}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                setExpandedCategory(isExpanded ? null : category.id)
+                              }
+                            }}
+                            className={`p-1 rounded-lg transition-all duration-150 cursor-pointer ${isSelected && filterSubCategory === 'all' ? 'hover:bg-white/20' : 'hover:bg-gray-100'}`}
                           >
                             {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                           </span>
@@ -468,8 +478,17 @@ export default function SearchPage() {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.03 }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`查看 ${link.name} 详情`}
                     className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group flex items-center gap-2.5 sm:gap-3 touch-manipulation"
                     onClick={() => setSelectedLink(link)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setSelectedLink(link)
+                      }
+                    }}
                   >
                     {/* 图标 */}
                     <div className="flex-shrink-0">

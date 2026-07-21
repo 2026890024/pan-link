@@ -292,7 +292,7 @@ export default function HomePage() {
         <Link to="/" onClick={handleClearSearch} className={`flex items-center gap-4 group transition-all duration-500 ${isReturning ? 'scale-75' : 'mb-0'}`}>
           {siteSettingsLoaded && logoType === 'image' && logoUrl ? (
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center overflow-hidden bg-transparent group-hover:scale-105 transition-all duration-500">
-              <img src={logoUrl} alt={siteName} className="w-full h-full object-contain" />
+              <img src={logoUrl} alt={`${siteName} Logo`} loading="lazy" decoding="async" className="w-full h-full object-contain" />
             </div>
           ) : (
             <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-brand-600 via-brand-500 to-violet-500 rounded-2xl flex items-center justify-center shadow-glass group-hover:shadow-glass-lg group-hover:scale-105 transition-all duration-500">
@@ -406,7 +406,16 @@ export default function HomePage() {
                   {featuredLinks.map((link, idx) => (
                     <div
                       key={link.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`查看 ${link.name} 详情`}
                       onClick={() => setSelectedLink(link)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setSelectedLink(link)
+                        }
+                      }}
                       className={`group flex flex-col h-full bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-[transform,box-shadow,border-color] duration-200 cursor-pointer animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
                     >
                       <div className="flex items-start gap-2 sm:gap-3 flex-1">
@@ -526,12 +535,21 @@ export default function HomePage() {
                           {filteredLinks.map((link) => (
                             <div
                               key={link.id}
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`查看 ${link.name} 详情`}
                               className={`group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl bg-white border transition-[transform,box-shadow,border-color] duration-200 cursor-pointer ${
                                 link.is_pinned
                                   ? 'border-l-2 border-brand-400 border-l-brand-400 border-gray-100 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300'
                                   : 'border-gray-100 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300'
                               }`}
                               onClick={() => setSelectedLink(link)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  setSelectedLink(link)
+                                }
+                              }}
                             >
                               <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                                 {getLinkIcon(link)}
@@ -601,7 +619,16 @@ export default function HomePage() {
                           {filteredLinks.map((link) => (
                             <div
                               key={link.id}
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`查看 ${link.name} 详情`}
                               onClick={() => setSelectedLink(link)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  setSelectedLink(link)
+                                }
+                              }}
                               className={`group flex flex-col h-full p-3 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-[transform,box-shadow,border-color] duration-200 cursor-pointer`}
                             >
                               <div className="flex items-start gap-2 sm:gap-3 mb-2 flex-1">

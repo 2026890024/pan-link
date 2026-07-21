@@ -46,8 +46,12 @@ export default function CategorySidebar({
       {/* Mobile Sidebar Overlay */}
       {showMobileSidebar && (
         <div
+          role="button"
+          tabIndex={-1}
+          aria-label="关闭分类菜单"
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={onCloseMobile}
+          onKeyDown={(e) => { if (e.key === 'Escape') onCloseMobile() }}
         />
       )}
 

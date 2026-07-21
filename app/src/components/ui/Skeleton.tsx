@@ -7,7 +7,7 @@ interface SkeletonProps {
   height?: string | number
 }
 
-export const Skeleton: React.FC<SkeletonProps> = ({
+export const Skeleton: React.FC<SkeletonProps> = React.memo(({
   className = '',
   variant = 'text',
   width,
@@ -28,9 +28,9 @@ export const Skeleton: React.FC<SkeletonProps> = ({
       style={{ width, height }}
     />
   )
-}
+})
 
-export const SkeletonCard: React.FC<{ className?: string }> = ({ className = '' }) => (
+export const SkeletonCard: React.FC<{ className?: string }> = React.memo(({ className = '' }) => (
   <div className={`rounded-2xl bg-white p-4 md:p-5 space-y-4 shadow-card ${className}`}>
     <div className="flex items-center gap-3">
       <Skeleton variant="circular" width={40} height={40} />
@@ -45,12 +45,12 @@ export const SkeletonCard: React.FC<{ className?: string }> = ({ className = '' 
       <Skeleton className="w-12 h-6 rounded-full" />
     </div>
   </div>
-)
+))
 
 export const SkeletonList: React.FC<{
   count?: number
   className?: string
-}> = ({ count = 5, className = '' }) => (
+}> = React.memo(({ count = 5, className = '' }) => (
   <div className={`space-y-3 ${className}`}>
     {Array.from({ length: count }).map((_, i) => (
       <div key={i} className="rounded-xl bg-white p-4 shadow-card flex items-center gap-4">
@@ -63,6 +63,6 @@ export const SkeletonList: React.FC<{
       </div>
     ))}
   </div>
-)
+))
 
 export default Skeleton

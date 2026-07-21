@@ -90,8 +90,12 @@ export default function AdminLayout() {
       {/* 移动端遮罩 */}
       {mobileSidebarOpen && (
         <div
+          role="button"
+          tabIndex={-1}
+          aria-label="关闭导航菜单"
           className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
           onClick={() => setMobileSidebarOpen(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setMobileSidebarOpen(false) }}
         />
       )}
 
@@ -110,7 +114,9 @@ export default function AdminLayout() {
               <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center bg-transparent flex-shrink-0">
                 <img
                   src={siteSettings.settings.current_logo_url}
-                  alt="Logo"
+                  alt={`${siteName} Logo`}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-contain"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                 />
@@ -174,7 +180,7 @@ export default function AdminLayout() {
         {/* 顶部栏 */}
         <header className="sticky top-0 z-30 h-16 glass mx-4 mt-3 rounded-2xl flex items-center px-5 gap-3 shadow-glass-sm">
           <button
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-50 text-gray-400 transition-all duration-200 cursor-pointer"
+            className="lg:hidden p-2 rounded-lg hover:bg-gray-50 text-gray-400 transition-all duration-200 cursor-pointer touch-manipulation"
             onClick={() => setMobileSidebarOpen(true)}
           >
             <Menu className="w-5 h-5" />
@@ -199,7 +205,7 @@ export default function AdminLayout() {
           >
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-violet-500 flex items-center justify-center text-white text-xs font-bold overflow-hidden flex-shrink-0">
               {profile.avatar ? (
-                <img src={profile.avatar} alt="" className="w-full h-full object-contain" />
+                <img src={profile.avatar} alt={`${profile.username} 的头像`} loading="lazy" decoding="async" className="w-full h-full object-contain" />
               ) : (
                 profile.username.charAt(0).toUpperCase()
               )}

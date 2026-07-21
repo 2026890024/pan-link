@@ -203,7 +203,11 @@ export default function CategoryPage() {
             className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4">
             {sortedLinks.map((link) => (
               <motion.div key={link.id} variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}>
-                <div onClick={() => setSelectedLink(link)} className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:shadow-gray-900/5 hover:border-gray-200 transition-[transform,box-shadow,border-color] duration-200 overflow-hidden group cursor-pointer relative touch-manipulation">
+                <div
+                  role="button" tabIndex={0} aria-label={`查看 ${link.name} 详情`}
+                  onClick={() => setSelectedLink(link)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedLink(link) } }}
+                  className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:shadow-gray-900/5 hover:border-gray-200 transition-[transform,box-shadow,border-color] duration-200 overflow-hidden group cursor-pointer relative touch-manipulation">
                     <div className="bg-gradient-to-br from-brand-50 to-violet-50 relative flex items-center justify-center py-6">
                       <div className="flex items-center justify-center">{getLinkIcon(link)}</div>
                       {link.is_pinned && (
@@ -256,7 +260,11 @@ export default function CategoryPage() {
             className="space-y-1.5 sm:space-y-2">
             {sortedLinks.map((link) => (
               <motion.div key={link.id} variants={{ hidden: { opacity: 0, x: -16 }, visible: { opacity: 1, x: 0 } }}>
-                <div onClick={() => setSelectedLink(link)} className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-[transform,box-shadow,border-color] duration-150 group cursor-pointer touch-manipulation">
+                <div
+                  role="button" tabIndex={0} aria-label={`查看 ${link.name} 详情`}
+                  onClick={() => setSelectedLink(link)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedLink(link) } }}
+                  className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-[transform,box-shadow,border-color] duration-150 group cursor-pointer touch-manipulation">
                   <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
                     {getLinkIcon(link)}
                   </div>

@@ -57,7 +57,9 @@ function LogoIcon({ logoType, logoUrl }: { logoType: string; logoUrl?: string })
       <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-transparent">
         <img
           src={logoUrl}
-          alt="Logo"
+          alt="站点 Logo"
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-contain"
           onError={(e) => {
             (e.target as HTMLImageElement).style.display = 'none'
