@@ -84,11 +84,11 @@ export default function CategoryPage() {
       default:
         return [...result].sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || a.sort_order - b.sort_order)
     }
-  }, [links, id, debouncedQuery, sortBy])
+  }, [links, id, debouncedQuery, sortBy, isExpiredLink])
 
   // 重置分页
   const resetPage = useCallback(() => setCurrentPage(1), [])
-  useEffect(() => { resetPage() }, [debouncedQuery, sortBy, id])
+  useEffect(() => { resetPage() }, [debouncedQuery, sortBy, id, resetPage])
 
   const totalPages = Math.ceil(filteredLinks.length / itemsPerPage)
   const sortedLinks = useMemo(() => {

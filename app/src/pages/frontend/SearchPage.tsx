@@ -73,11 +73,11 @@ export default function SearchPage() {
     }
   }, [searchParams])
 
-  const getSubCategoryName = (subcategoryId: string) => {
+  const getSubCategoryName = useCallback((subcategoryId: string) => {
     if (!subcategoryId) {return ''}
     const sub = subCategories.find(sc => sc.id === subcategoryId)
     return sub ? sub.name : ''
-  }
+  }, [subCategories])
 
   // 执行搜索
   useEffect(() => {
@@ -131,7 +131,7 @@ export default function SearchPage() {
     }, 200)
 
     return () => clearTimeout(timer)
-  }, [query, links, categories, subCategories, sortBy, filterCategory])
+  }, [query, links, categories, subCategories, sortBy, filterCategory, filterSubCategory, getSubCategoryName, isExpired])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -172,12 +172,24 @@ export default function SearchPage() {
     setFloatPos({ x: newX, y: newY })
   }, [])
 
+  const handleDragEnd = useCallback(() => {
+    isDraggingRef.current = false
+    const now = Date.now()
+    // 防抖：触摸事件后会模拟触发 mouseup，400ms 内重复调用跳过
+    if (now - dragEndTimeRef.current < 400) {return}
+    dragEndTimeRef.current = now
+    // 如果没有移动，视为点击事件，打开分类面板
+    if (!dragRef.current.moved) {
+      setShowCategoryPanel(prev => !prev)
+    }
+  }, [])
+
   // window 级拖拽结束 —— 鼠标在任何位置松开都能正确结束
   const handleWindowMouseUp = useCallback(() => {
     handleDragEnd()
     window.removeEventListener('mousemove', handleWindowMouseMove)
     window.removeEventListener('mouseup', handleWindowMouseUp)
-  }, [])
+  }, [handleDragEnd, handleWindowMouseMove])
 
   // 组件卸载时清理 window 事件
   useEffect(() => {
@@ -186,18 +198,6 @@ export default function SearchPage() {
       window.removeEventListener('mouseup', handleWindowMouseUp)
     }
   }, [handleWindowMouseMove, handleWindowMouseUp])
-
-  const handleDragEnd = () => {
-    isDraggingRef.current = false
-    const now = Date.now()
-    // 防抖：触摸事件后会模拟触发 mouseup，400ms 内重复调用跳过
-    if (now - dragEndTimeRef.current < 400) {return}
-    dragEndTimeRef.current = now
-    // 如果没有移动，视为点击事件，打开分类面板
-    if (!dragRef.current.moved) {
-      setShowCategoryPanel(!showCategoryPanel)
-    }
-  }
 
   // 分页
   const totalPages = Math.ceil(results.length / itemsPerPage)

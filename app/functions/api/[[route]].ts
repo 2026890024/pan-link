@@ -847,11 +847,12 @@ async function batchAttachTags(env: Env, links: Array<Record<string, unknown>>) 
   for (let i = 0; i < (rows?.length || 0); i++) {
     const lid = String(rows[i].link_id)
     if (!byLink.has(lid)) {byLink.set(lid, [])}
-    byLink.get(lid)!.push({
+    const arr = byLink.get(lid)
+    if (arr) {arr.push({
       id: String(rows[i].tag_id),
       name: String(rows[i].tag_name),
       color: String(rows[i].tag_color || '#6366F1'),
-    })
+    })}
   }
   for (const l of links) {
     l.tags = byLink.get(String(l.id)) || []

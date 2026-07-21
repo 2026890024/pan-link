@@ -316,14 +316,14 @@ export default function DataManagementPage() {
           const result: ImportPreviewItem = { ...item }
 
           if (itemUrl && existingUrls.has(itemUrl)) {
-            const matched = existingUrls.get(itemUrl)!
+            const matched = existingUrls.get(itemUrl) as { id: string; name: string }
             result._duplicateType = 'url'
             result._duplicateAction = 'skip'
             result._matchedLinkId = matched.id
             result._matchedLinkName = matched.name
             dupCount++
           } else if (itemName && existingNames.has(itemName)) {
-            const matched = existingNames.get(itemName)!
+            const matched = existingNames.get(itemName) as { id: string; url: string }
             result._duplicateType = 'name'
             result._duplicateAction = 'skip'
             result._matchedLinkId = matched.id
@@ -430,7 +430,7 @@ export default function DataManagementPage() {
         let categoryId = item.category_id || ''
         const catName = item.category_name?.trim()
         if (!categoryId && catName && categoryMap.has(catName)) {
-          categoryId = categoryMap.get(catName)!
+          categoryId = categoryMap.get(catName) as string
         }
 
         const action = item._duplicateAction || 'skip'
@@ -519,7 +519,7 @@ export default function DataManagementPage() {
   const handleBatchDuplicateAction = (action: DuplicateAction) => {
     if (!importPreview) {return}
     setImportPreview(prev =>
-      prev!.map(item =>
+      (prev ?? []).map(item =>
         item._duplicateType ? { ...item, _duplicateAction: action } : item
       )
     )
@@ -1031,7 +1031,7 @@ export default function DataManagementPage() {
                                   onChange={(e) => {
                                     const action = e.target.value as DuplicateAction
                                     setImportPreview(prev =>
-                                      prev!.map((p, i) => i === index ? { ...p, _duplicateAction: action } : p)
+                                      (prev ?? []).map((p, i) => i === index ? { ...p, _duplicateAction: action } : p)
                                     )
                                   }}
                                   className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-300 select-arrow"

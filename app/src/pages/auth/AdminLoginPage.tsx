@@ -27,7 +27,7 @@ export default function AdminLoginPage() {
   useEffect(() => {
     const colors = siteSettings.getCurrentColors()
     if (colors.primary) {applyBrandColors(colors.primary)}
-  }, [siteSettings.settings.current_colors])
+  }, [siteSettings, siteSettings.settings.current_colors])
 
   // 检查是否设置了自定义凭证
   useEffect(() => {

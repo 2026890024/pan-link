@@ -254,7 +254,7 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
                   {link.extract_code}
                 </div>
                 <button
-                  onClick={() => handleCopy(link.extract_code!, 'code')}
+                  onClick={() => handleCopy(link.extract_code ?? '', 'code')}
                   className="px-3 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl transition-colors flex items-center gap-1.5 text-sm font-medium flex-shrink-0 cursor-pointer touch-manipulation"
                 >
                   {copiedField === 'code' ? (

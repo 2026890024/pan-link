@@ -347,7 +347,7 @@ async function doSyncSubCategories(
     const linkUpdates: Array<{ id: string; subcategory_id: string }> = []
     const links = currentLinks.map(l => {
       if (l.subcategory_id && idMap.has(l.subcategory_id)) {
-        const newId = idMap.get(l.subcategory_id)!
+        const newId = idMap.get(l.subcategory_id) as string
         linkUpdates.push({ id: l.id, subcategory_id: newId })
         return { ...l, subcategory_id: newId }
       }
@@ -655,15 +655,15 @@ async function syncPendingToCloud(
       const updatedCats = fresh.categories.map(c => {
         if (idMap.has(c.id)) {
           const { _pendingSync, ...rest } = c as unknown as Record<string, unknown>
-          return { ...rest, id: idMap.get(c.id)! } as Category
+          return { ...rest, id: idMap.get(c.id) as string } as Category
         }
         return c
       })
       const updatedLinks = fresh.links.map(l =>
-        idMap.has(l.category_id) ? { ...l, category_id: idMap.get(l.category_id)! } : l
+        idMap.has(l.category_id) ? { ...l, category_id: idMap.get(l.category_id) as string } : l
       )
       const updatedSubs = fresh.subCategories.map(sc =>
-        idMap.has(sc.category_id) ? { ...sc, category_id: idMap.get(sc.category_id)! } : sc
+        idMap.has(sc.category_id) ? { ...sc, category_id: idMap.get(sc.category_id) as string } : sc
       )
       saveLocalItem('categories', updatedCats)
       saveLocalLinks(updatedLinks)
@@ -692,12 +692,12 @@ async function syncPendingToCloud(
       const updatedSubs = fresh.subCategories.map(sc => {
         if (idMap.has(sc.id)) {
           const { _pendingSync, ...rest } = sc as unknown as Record<string, unknown>
-          return { ...rest, id: idMap.get(sc.id)! } as SubCategory
+          return { ...rest, id: idMap.get(sc.id) as string } as SubCategory
         }
         return sc
       })
       const updatedLinks = fresh.links.map(l =>
-        idMap.has(l.subcategory_id || '') ? { ...l, subcategory_id: idMap.get(l.subcategory_id!)! } : l
+        idMap.has(l.subcategory_id || '') ? { ...l, subcategory_id: idMap.get(l.subcategory_id ?? '') as string } : l
       )
       saveLocalItem('subcategories', updatedSubs)
       saveLocalLinks(updatedLinks)
@@ -1357,7 +1357,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     const linkUpdates: Array<{ id: string; subcategory_id: string }> = []
     const updatedLinks = links.map(l => {
       if (l.subcategory_id && idMap.has(l.subcategory_id)) {
-        const newId = idMap.get(l.subcategory_id)!
+        const newId = idMap.get(l.subcategory_id) as string
         linkUpdates.push({ id: l.id, subcategory_id: newId })
         return { ...l, subcategory_id: newId }
       }

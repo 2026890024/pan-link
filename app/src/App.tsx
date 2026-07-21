@@ -72,7 +72,7 @@ function App() {
     if (siteSettings.settings.site_name) {
       document.title = `${siteSettings.settings.site_name} - ${siteSettings.settings.site_description || ''}`
     }
-  }, [siteSettings.settings.current_colors, siteSettings.settings.site_name, siteSettings.settings.site_description])
+  }, [siteSettings, siteSettings.settings.current_colors, siteSettings.settings.site_name, siteSettings.settings.site_description])
 
   return (
     <ErrorBoundary>

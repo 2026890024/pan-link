@@ -72,7 +72,7 @@ export default function HomePage() {
   }, [categories, links])
 
   // 辅助函数：优先读云配置，fallback 到 localStorage
-  const getVisibilityJson = (key: string): Record<string, boolean> => {
+  const getVisibilityJson = useCallback((key: string): Record<string, boolean> => {
     // 优先从云 site_settings 读取
     const cloudVal = (siteSettings.settings as Record<string, string>)[key]
     if (cloudVal) {
@@ -80,7 +80,7 @@ export default function HomePage() {
     }
     // 向后兼容：从 localStorage 读取
     try { return JSON.parse(localStorage.getItem(key) || '{}') } catch { return {} }
-  }
+  }, [siteSettings.settings])
 
   // 首页分类按钮：按可见性过滤 + sort_order 排序
   const visibleCategories = useMemo(() => {
@@ -88,7 +88,7 @@ export default function HomePage() {
     return [...effectiveCategories]
       .filter(c => visibility[c.id] !== false)
       .sort((a, b) => a.sort_order - b.sort_order)
-  }, [effectiveCategories, siteSettings.settings])
+  }, [effectiveCategories, getVisibilityJson])
 
   // 子分类可见性过滤（已按 sort_order 排序）
   const visibleSubCategories = useMemo(() => {
@@ -100,12 +100,12 @@ export default function HomePage() {
         return subVis[sc.id] !== false
       })
       .sort((a, b) => a.sort_order - b.sort_order)
-  }, [subCategories, visibleCategories, siteSettings.settings])
+  }, [subCategories, visibleCategories, getVisibilityJson])
   
   // 获取某个分类的子分类（已全局排序，无需再排）
-  const getSubCategories = (categoryId: string) => {
+  const getSubCategories = useCallback((categoryId: string) => {
     return visibleSubCategories.filter(sc => sc.category_id === categoryId)
-  }
+  }, [visibleSubCategories])
 
   const [searchQuery, setSearchQuery] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -199,7 +199,7 @@ export default function HomePage() {
       })
       .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || b.click_count - a.click_count)
       .slice(0, 10)
-  }, [searchQuery, links, categories, subCategories])
+  }, [searchQuery, links, categories, getSubCategories, isExpired])
 
   // 过期资源过滤 + 分类筛选 + 搜索筛选（memo 优化）
   const filteredLinks = useMemo(() => {
@@ -223,7 +223,7 @@ export default function HomePage() {
         return matchesCategory && matchesSubCategory
       })
       .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || a.sort_order - b.sort_order)
-  }, [links, selectedCategory, selectedSubCategory, isSearchMode, searchQuery])
+  }, [links, selectedCategory, selectedSubCategory, isSearchMode, searchQuery, isExpired])
 
   const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault()
@@ -263,7 +263,7 @@ export default function HomePage() {
       setExpandedCategory(categoryId)
       updateUrlParams(categoryId, null)
     }
-  }, [selectedCategory])
+  }, [selectedCategory, updateUrlParams])
 
   const handleAllClick = useCallback(() => {
     setSelectedCategory(null)

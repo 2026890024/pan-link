@@ -20,7 +20,7 @@ export default function SiteSettingsPage() {
 
   useEffect(() => {
     store.loadSettings()
-  }, [])
+  }, [store])
 
   return (
     <div className="space-y-6">

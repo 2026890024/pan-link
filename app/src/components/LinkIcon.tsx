@@ -11,12 +11,6 @@ const sizeClasses = {
   lg: 'w-12 h-12',
 }
 
-const iconSizes = {
-  sm: 'w-4 h-4',
-  md: 'w-5 h-5',
-  lg: 'w-6 h-6',
-}
-
 const colors: Record<string, string> = {
   baidu: 'bg-gradient-to-br from-blue-500 to-blue-600',
   quark: 'bg-gradient-to-br from-purple-500 to-purple-600',
@@ -56,4 +50,3 @@ export function LinkIcon({ link, size = 'md' }: LinkIconProps) {
   )
 }
 
-export { iconSizes }

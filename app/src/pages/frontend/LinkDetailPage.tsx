@@ -336,7 +336,7 @@ export default function LinkDetailPage() {
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <input type="text" value={link.extract_code} readOnly
                     className="flex-1 bg-white px-4 py-2 sm:py-2.5 rounded-xl border border-amber-100 font-mono text-lg sm:text-xl text-center tracking-[0.3em] uppercase font-bold text-amber-700" />
-                  <button onClick={() => handleCopy(link.extract_code!, 'code')}
+                  <button onClick={() => handleCopy(link.extract_code ?? '', 'code')}
                     className="px-4 py-2 sm:py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium cursor-pointer touch-manipulation">
                     {copiedField === 'code' ? (<><Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> 已复制</>) : (<><Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> 一键复制</>)}
                   </button>

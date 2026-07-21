@@ -170,7 +170,7 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
     const { settings } = get()
     const scheme: ColorScheme = {
       name,
-      ...settings.current_colors!,
+      ...(settings.current_colors ?? DEFAULT_COLORS),
       saved_at: new Date().toISOString(),
     }
     const history = [...(settings.color_history || []), scheme]
