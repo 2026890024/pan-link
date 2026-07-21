@@ -224,14 +224,20 @@ export default function ResourceManagementPage() {
   }
 
   const handleDeleteCategory = (id: string) => {
-    if (confirm('确定删除该分类吗？该分类下的链接将变为未分类状态，不会被删除。')) {
-      deleteCategory(id)
-      if (selectedCategoryId === id) {
-        setSelectedCategoryId(null)
-        setSelectedSubCategoryId(null)
-      }
-      toast.success('分类已删除，关联链接已移至未分类')
-    }
+    setConfirmConfig({
+      title: '删除分类',
+      message: '确定删除该分类吗？该分类下的链接将变为未分类状态，不会被删除。',
+      variant: 'danger',
+      onConfirm: () => {
+        deleteCategory(id)
+        if (selectedCategoryId === id) {
+          setSelectedCategoryId(null)
+          setSelectedSubCategoryId(null)
+        }
+        toast.success('分类已删除，关联链接已移至未分类')
+      },
+    })
+    setConfirmOpen(true)
   }
 
   // ===== 子分类操作 =====
@@ -351,8 +357,8 @@ export default function ResourceManagementPage() {
       title: '删除链接',
       message: '确定删除该链接吗？此操作不可撤销。',
       variant: 'danger',
-      onConfirm: () => {
-        deleteLink(id)
+      onConfirm: async () => {
+        await deleteLink(id)
         toast.success('链接已删除')
       },
     })
@@ -508,9 +514,9 @@ export default function ResourceManagementPage() {
                           ) : (
                             <>
                               <div className="flex flex-col mr-1 opacity-0 group-hover/sc:opacity-100">
-                                <button onClick={() => moveSubCategorySortOrder(sc.id, 'up', sc.category_id)}
+                                <button onClick={async () => { const ok = await moveSubCategorySortOrder(sc.id, 'up', sc.category_id); if (!ok) {toast('已在最顶部')} }}
                                   className="p-0 text-gray-400 hover:text-indigo-600 leading-none"><ChevronUp className="w-3 h-3" /></button>
-                                <button onClick={() => moveSubCategorySortOrder(sc.id, 'down', sc.category_id)}
+                                <button onClick={async () => { const ok = await moveSubCategorySortOrder(sc.id, 'down', sc.category_id); if (!ok) {toast('已在最底部')} }}
                                   className="p-0 text-gray-400 hover:text-indigo-600 leading-none"><ChevronDown className="w-3 h-3" /></button>
                               </div>
                               <button onClick={() => { setSelectedCategoryId(category.id); setSelectedSubCategoryId(sc.id) }}
@@ -604,14 +610,14 @@ export default function ResourceManagementPage() {
                   <div className="col-span-2 sm:col-span-1">
                     <div className="flex items-center justify-center gap-0.5">
                       <button
-                        onClick={(e) => { e.stopPropagation(); moveLinkSortOrder(link.id, 'up', selectedCategoryId || undefined) }}
+                        onClick={async (e) => { e.stopPropagation(); const ok = await moveLinkSortOrder(link.id, 'up', selectedCategoryId || undefined); if (!ok) {toast('已在最顶部')} }}
                         className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                         title="上移"
                       >
                         <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); moveLinkSortOrder(link.id, 'down', selectedCategoryId || undefined) }}
+                        onClick={async (e) => { e.stopPropagation(); const ok = await moveLinkSortOrder(link.id, 'down', selectedCategoryId || undefined); if (!ok) {toast('已在最底部')} }}
                         className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                         title="下移"
                       >
@@ -665,11 +671,11 @@ export default function ResourceManagementPage() {
                     </div>
                       <div className="flex items-center justify-between">
                       <div className="flex items-center gap-0.5">
-                        <button onClick={(e) => { e.stopPropagation(); moveLinkSortOrder(link.id, 'up', selectedCategoryId || undefined) }}
+                        <button onClick={async (e) => { e.stopPropagation(); const ok = await moveLinkSortOrder(link.id, 'up', selectedCategoryId || undefined); if (!ok) {toast('已在最顶部')} }}
                           className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="上移">
                           <ChevronUp className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); moveLinkSortOrder(link.id, 'down', selectedCategoryId || undefined) }}
+                        <button onClick={async (e) => { e.stopPropagation(); const ok = await moveLinkSortOrder(link.id, 'down', selectedCategoryId || undefined); if (!ok) {toast('已在最底部')} }}
                           className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="下移">
                           <ChevronDown className="w-3.5 h-3.5" />
                         </button>

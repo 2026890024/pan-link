@@ -6,6 +6,15 @@ import type { Category, LinkItem, SubCategory, Tag, DriveType, IconLibraryItem }
 const devLog = (...args: Array<unknown>) => { if (import.meta.env.DEV) {console.log(...args)} }
 const DEFAULT_CUSTOM_DRIVE_TYPES: Record<string, { name: string; icon: string; color: string }> = {}
 
+// 同步锁：防止多个同步操作并发执行导致数据错乱
+let _syncLock = false
+function acquireSyncLock(): boolean {
+  if (_syncLock) {return false}
+  _syncLock = true
+  return true
+}
+function releaseSyncLock(): void { _syncLock = false }
+
 
 // ============ Store 接口 ============
 
@@ -46,14 +55,14 @@ interface DataStore {
   togglePin: (id: string) => Promise<void>
   toggleFeatured: (id: string) => Promise<void>
   toggleLinkVisibility: (id: string) => Promise<void>
-  moveLinkSortOrder: (id: string, direction: 'up' | 'down', categoryId?: string) => Promise<void>
+  moveLinkSortOrder: (id: string, direction: 'up' | 'down', categoryId?: string) => Promise<boolean>
   incrementClicks: (id: string) => Promise<void>
 
   // SubCategories
   addSubCategory: (categoryId: string, name: string) => Promise<void>
   updateSubCategory: (id: string, updates: Partial<SubCategory>) => Promise<void>
   deleteSubCategory: (id: string) => Promise<void>
-  moveSubCategorySortOrder: (id: string, direction: 'up' | 'down', categoryId: string) => Promise<void>
+  moveSubCategorySortOrder: (id: string, direction: 'up' | 'down', categoryId: string) => Promise<boolean>
   getSubCategoriesByCategory: (categoryId: string) => Array<SubCategory>
   syncSubCategoriesToCloud: () => Promise<string> // 手动同步，返回结果消息
   deduplicateSubCategories: () => Promise<string> // 清理重复子分类，返回结果消息
@@ -620,8 +629,10 @@ async function syncPendingToCloud(
   get: () => DataStore,
 ): Promise<number> {
   if (!ds.isCloudApiConfigured()) {return 0}
+  if (!acquireSyncLock()) { devLog('[DataStore] ⏳ 同步已在执行中，跳过本次调用'); return 0 }
 
   let synced = 0
+  try {
   const state = get()
 
   // 1. 同步 pending categories（先同步，因为 links/subcategories 依赖它们）
@@ -794,6 +805,7 @@ async function syncPendingToCloud(
     devLog('[DataStore] ⚠️ 仍有部分数据未能同步到云端')
   }
 
+  } finally { releaseSyncLock() }
   return synced
 }
 
@@ -1091,17 +1103,17 @@ export const useDataStore = create<DataStore>()((set, get) => ({
 
   moveLinkSortOrder: async (id, direction, categoryId) => {
     const targetLink = get().links.find(l => l.id === id)
-    if (!targetLink) {return}
+    if (!targetLink) {return false}
 
     const siblings = get().links
       .filter(l => categoryId ? l.category_id === categoryId : l.category_id === targetLink.category_id)
       .sort((a, b) => a.sort_order - b.sort_order)
 
     const currentIndex = siblings.findIndex(l => l.id === id)
-    if (currentIndex === -1) {return}
+    if (currentIndex === -1) {return false}
 
     const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
-    if (swapIndex < 0 || swapIndex >= siblings.length) {return}
+    if (swapIndex < 0 || swapIndex >= siblings.length) {return false}
 
     // 如果相邻项 sort_order 相同或存在重复，先规范化整个兄弟列表
     const hasDuplicate = new Set(siblings.map(s => s.sort_order)).size !== siblings.length
@@ -1115,7 +1127,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
           const refreshedLinks = await ds.fetchLinks()
           saveLocalLinks(refreshedLinks)
           set({ links: refreshedLinks, cloudSyncError: false })
-          return
+          return true
         }
 
         const swapLink = siblings[swapIndex]
@@ -1126,7 +1138,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         const refreshedLinks = await ds.fetchLinks()
         saveLocalLinks(refreshedLinks)
         set({ links: refreshedLinks, cloudSyncError: false })
-        return
+        return true
       }
     } catch (err) { console.error('[DataStore] moveLinkSortOrder 云API失败:', err) }
 
@@ -1141,6 +1153,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     })
     saveLocalLinks(updatedLinks)
     set({ links: updatedLinks, cloudSyncError: true })
+    return true
   },
 
   incrementClicks: async (id) => {
@@ -1219,10 +1232,10 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       .filter(sc => sc.category_id === categoryId)
       .sort((a, b) => a.sort_order - b.sort_order)
     const currentIndex = siblings.findIndex(sc => sc.id === id)
-    if (currentIndex === -1) {return}
+    if (currentIndex === -1) {return false}
 
     const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
-    if (swapIndex < 0 || swapIndex >= siblings.length) {return}
+    if (swapIndex < 0 || swapIndex >= siblings.length) {return false}
 
     // 如果相邻项 sort_order 相同或存在重复，先规范化整个兄弟列表
     const hasDuplicate = new Set(siblings.map(s => s.sort_order)).size !== siblings.length
@@ -1236,7 +1249,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
           const subCategories = await ds.fetchSubCategories()
           set({ subCategories, cloudSyncError: false })
           saveLocalItem('subcategories', subCategories)
-          return
+          return true
         }
 
         const swapSc = siblings[swapIndex]
@@ -1248,7 +1261,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         const subCategories = await ds.fetchSubCategories()
         set({ subCategories, cloudSyncError: false })
         saveLocalItem('subcategories', subCategories)
-        return
+        return true
       }
     } catch (err) { console.error('[DataStore] moveSubCategorySortOrder 云API失败:', err) }
 
@@ -1263,6 +1276,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     })
     saveLocalItem('subcategories', updated)
     set({ subCategories: updated, cloudSyncError: true })
+    return true
   },
 
   getSubCategoriesByCategory: (categoryId) => {

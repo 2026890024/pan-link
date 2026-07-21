@@ -26,6 +26,7 @@ import {
 import { useDataStore } from '@/store/useDataStore'
 import { formatDate, hexToRgba } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 type ExportFormat = 'csv' | 'json'
 type Tab = 'export' | 'import' | 'icon-library' | 'drive-types' | 'tags'
@@ -69,6 +70,8 @@ export default function DataManagementPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const iconFileInputRef = useRef<HTMLInputElement>(null)
   const [iconSearch, setIconSearch] = useState('')
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; variant?: 'danger' | 'warning' | 'info'; onConfirm: () => void }>({ title: '', message: '', onConfirm: () => {} })
 
   const tabs = [
     { id: 'export' as Tab, label: '数据导出', icon: Download, desc: 'CSV / JSON 格式导出' },
@@ -618,10 +621,16 @@ export default function DataManagementPage() {
         </div>
         {cloudSyncError && (
           <button
-            onClick={() => {
-              toast.success('正在重新同步...')
-              initialize()
-              setTimeout(() => toast.success('同步完成，请刷新查看'), 2000)
+            onClick={async () => {
+              const toastId = toast.loading('正在重新同步...')
+              try {
+                await initialize()
+                toast.dismiss(toastId)
+                toast.success('同步完成')
+              } catch {
+                toast.dismiss(toastId)
+                toast.error('同步失败，请稍后重试')
+              }
             }}
             className="px-3 py-1.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors cursor-pointer flex items-center gap-1"
           >
@@ -1203,7 +1212,7 @@ export default function DataManagementPage() {
                   {driveTypes.filter(d => !presetTypes.includes(d)).map((drive) => (
                     <div key={drive.id} className="bg-white rounded-xl border border-gray-200 p-3 text-center relative group">
                       <button
-                        onClick={() => { deleteDriveType(drive.id); toast.success('网盘类型已删除') }}
+                        onClick={() => { setConfirmConfig({ title: '删除网盘类型', message: '确定删除该网盘类型吗？', variant: 'danger', onConfirm: () => { deleteDriveType(drive.id); toast.success('网盘类型已删除') } }); setConfirmOpen(true) }}
                         className="absolute top-1 right-1 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1322,7 +1331,7 @@ export default function DataManagementPage() {
                       <span className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }} />
                       <span className="text-sm font-medium" style={{ color: tag.color }}>{tag.name}</span>
                       <button
-                        onClick={() => { deleteTag(tag.id); toast.success('标签已删除') }}
+                        onClick={() => { setConfirmConfig({ title: '删除标签', message: '确定删除该标签吗？', variant: 'danger', onConfirm: () => { deleteTag(tag.id); toast.success('标签已删除') } }); setConfirmOpen(true) }}
                         className="ml-1 hover:bg-white/50 rounded-full p-0.5 transition-colors cursor-pointer"
                         title="删除标签"
                       >
@@ -1336,6 +1345,14 @@ export default function DataManagementPage() {
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        onConfirm={() => { confirmConfig.onConfirm(); setConfirmOpen(false); }}
+        onCancel={() => setConfirmOpen(false)}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        variant={confirmConfig.variant}
+      />
     </div>
   )
 }

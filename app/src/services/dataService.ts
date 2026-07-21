@@ -170,6 +170,7 @@ function workerLinkToLinkItem(data: Record<string, unknown>): LinkItem {
     category_logo: data.category_logo ? String(data.category_logo) : undefined,
     subcategory_id: String(data.subcategory_id || ''),
     icon: String(data.icon || data.category_logo || ''),
+    icon_size: (['sm', 'md', 'lg'].includes(String(data.icon_size)) ? String(data.icon_size) : undefined) as 'sm' | 'md' | 'lg' | undefined,
     is_pinned: Boolean(data.is_pinned),
     is_featured: Boolean(data.is_favorited),
     click_count: Number(data.click_count) || 0,
