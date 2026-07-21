@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { motion, AnimatePresence } from 'framer-motion'
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { LinkIcon } from '@/components/LinkIcon'
-import LinkDetailModal from '@/components/LinkDetailModal'
+const LinkDetailModal = lazy(() => import('@/components/LinkDetailModal'))
 import SiteFooter from '@/components/SiteFooter'
 import { useLinkActions } from '@/hooks/useLinkActions'
 
@@ -683,9 +683,11 @@ export default function SearchPage() {
         )}
       </AnimatePresence>
 
-      {/* 资源详情弹窗 */}
+      {/* 资源详情弹窗 - 懒加载 */}
       {selectedLink && (
-        <LinkDetailModal link={selectedLink} onClose={() => setSelectedLink(null)} />
+        <Suspense fallback={null}>
+          <LinkDetailModal link={selectedLink} onClose={() => setSelectedLink(null)} />
+        </Suspense>
       )}
     </div>
   )

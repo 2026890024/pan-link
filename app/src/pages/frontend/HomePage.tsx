@@ -1,6 +1,6 @@
 import SearchBar from '@/components/home/SearchBar'
 import CategorySidebar from '@/components/home/CategorySidebar'
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -22,7 +22,7 @@ import {
 import { useDataStore, type LinkItem, type Category } from '@/store/useDataStore'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
 import { LinkIcon } from '@/components/LinkIcon'
-import LinkDetailModal from '@/components/LinkDetailModal'
+const LinkDetailModal = lazy(() => import('@/components/LinkDetailModal'))
 import SiteFooter from '@/components/SiteFooter'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { useBackToTop } from '@/hooks/useBackToTop'
@@ -682,9 +682,11 @@ export default function HomePage() {
       {/* Footer */}
       <SiteFooter />
 
-      {/* 资源详情弹窗 */}
+      {/* 资源详情弹窗 - 懒加载 */}
       {selectedLink && (
-        <LinkDetailModal link={selectedLink} onClose={() => setSelectedLink(null)} />
+        <Suspense fallback={null}>
+          <LinkDetailModal link={selectedLink} onClose={() => setSelectedLink(null)} />
+        </Suspense>
       )}
 
       {/* 回到顶部按钮 */}

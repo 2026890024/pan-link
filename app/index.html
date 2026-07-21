@@ -31,7 +31,13 @@
     <!-- DNS 预解析 + 预连接：加速 API 请求 -->
     <link rel="dns-prefetch" href="//pan110.pages.dev" />
     <link rel="preconnect" href="https://pan110.pages.dev" crossorigin />
-    <link rel="stylesheet" href="/preloader.css" />
+    <!-- 内联预加载 CSS：消除额外 HTTP 请求，FFP 更快 -->
+    <style>
+      #preloader{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#f8fafc;transition:opacity .3s ease}
+      #preloader.done{opacity:0;pointer-events:none}
+      #preloader .spinner{width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite}
+      @keyframes spin{to{transform:rotate(360deg)}}
+    </style>
   </head>
   <body>
     <!-- 预加载动画：JS 下载期间显示，消除白屏 -->

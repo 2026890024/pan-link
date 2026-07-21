@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Grid3X3,
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { useDataStore, type LinkItem } from '@/store/useDataStore'
 import { LinkIcon } from '@/components/LinkIcon'
-import LinkDetailModal from '@/components/LinkDetailModal'
+const LinkDetailModal = lazy(() => import('@/components/LinkDetailModal'))
 import SiteFooter from '@/components/SiteFooter'
 import { useBackToTop } from '@/hooks/useBackToTop'
 import { useLinkActions } from '@/hooks/useLinkActions'
@@ -350,9 +350,11 @@ export default function CategoryPage() {
 
       <SiteFooter />
 
-      {/* 资源详情弹窗 */}
+      {/* 资源详情弹窗 - 懒加载 */}
       {selectedLink && (
-        <LinkDetailModal link={selectedLink} onClose={() => setSelectedLink(null)} />
+        <Suspense fallback={null}>
+          <LinkDetailModal link={selectedLink} onClose={() => setSelectedLink(null)} />
+        </Suspense>
       )}
 
       {/* 回到顶部按钮 */}
