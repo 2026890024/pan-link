@@ -10,7 +10,7 @@ interface ScrollRevealProps {
 export default function ScrollReveal({
   children,
   className = '',
-  delay = 0,
+  delay = 1,
   threshold = 0.15,
 }: ScrollRevealProps) {
   const ref = useRef<HTMLDivElement>(null)
@@ -18,7 +18,9 @@ export default function ScrollReveal({
 
   useEffect(() => {
     const node = ref.current
-    if (!node) return
+    if (!node) {
+      return
+    }
 
     const observer = new IntersectionObserver(
       ([entry]) => {

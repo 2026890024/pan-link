@@ -16,7 +16,9 @@ export default function RippleButton({
   const createRipple = useCallback(
     (e: MouseEvent<HTMLButtonElement>) => {
       const button = btnRef.current
-      if (!button) return
+      if (!button) {
+        return
+      }
 
       const rect = button.getBoundingClientRect()
       const size = Math.max(rect.width, rect.height)
@@ -29,7 +31,9 @@ export default function RippleButton({
       ripple.style.top = `${y}px`
       ripple.style.width = `${size}px`
       ripple.style.height = `${size}px`
-      if (rippleColor) ripple.style.background = rippleColor
+      if (rippleColor) {
+        ripple.style.background = rippleColor
+      }
 
       button.appendChild(ripple)
 

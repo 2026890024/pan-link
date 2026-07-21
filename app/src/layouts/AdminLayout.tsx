@@ -215,6 +215,7 @@ export default function AdminLayout() {
             </div>
             <span className="hidden sm:block text-sm font-medium text-gray-700">{profile.username}</span>
           </Link>
+          </div>
         </header>
 
         {/* 内容 */}

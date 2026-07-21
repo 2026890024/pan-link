@@ -496,8 +496,8 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .dark .text-gray-800 { @apply text-gray-200; }
 .dark .text-gray-700 { @apply text-gray-300; }
 .dark .text-gray-600 { @apply text-gray-400; }
-.dark .text-gray-500 { @apply text-gray-400; }
-.dark .text-gray-400 { @apply text-gray-500; }
+.dark .text-gray-500 { color: theme('colors.gray.400'); }
+.dark .text-gray-400 { color: theme('colors.gray.500'); }
 .dark .border-gray-100 { @apply border-slate-700/50; }
 .dark .border-gray-200 { @apply border-slate-700; }
 .dark .divide-gray-100 > * + * { @apply border-slate-700/50; }

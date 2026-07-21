@@ -46,6 +46,8 @@ export function showCopyToast(message = '已复制到剪贴板') {
 
   // 兜底 (prefers-reduced-motion 不触发 transitionend)
   setTimeout(() => {
-    if (toast.parentNode) toast.remove()
+    if (toast.parentNode) {
+      toast.remove()
+    }
   }, 2500)
 }
