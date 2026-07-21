@@ -2,8 +2,11 @@ import { lazy, Suspense, useEffect, useRef } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import PageProgressBar from '@/components/ui/PageProgressBar'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 import { useDataStore } from '@/store/useDataStore'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
+import { useThemeStore } from '@/store/useThemeStore'
 import { applyBrandColors } from '@/lib/colors'
 
 // 前台页面 - 全部懒加载（减少初始 bundle ~126 kB，首屏快 2-3 秒）
@@ -32,7 +35,7 @@ import NotFoundPage from '@/pages/NotFoundPage'
 function PageLoading() {
   return (
     <div
-      className="fixed inset-0 z-[9998] flex items-center justify-center bg-[#f8fafc]"
+      className="fixed inset-0 z-[9998] flex items-center justify-center bg-[#f8fafc] dark:bg-[#0b1120]"
       style={{ pointerEvents: 'none' }}
     >
       <div
@@ -51,6 +54,7 @@ function PageLoading() {
 function App() {
   const { initialize } = useDataStore()
   const siteSettings = useSiteSettingsStore()
+  const { resolved: themeResolved } = useThemeStore()
   const initializedRef = useRef(false)
 
   useEffect(() => {
@@ -74,17 +78,41 @@ function App() {
     }
   }, [siteSettings, siteSettings.settings.current_colors, siteSettings.settings.site_name, siteSettings.settings.site_description])
 
+  const isDark = themeResolved === 'dark'
+
   return (
     <ErrorBoundary>
+      <PageProgressBar />
       <Toaster
         position="top-center"
         toastOptions={{
           duration: 2000,
           style: {
-            borderRadius: '12px',
-            background: '#1F2937',
-            color: '#F9FAFB',
+            borderRadius: '14px',
+            background: isDark ? '#1e293b' : '#1F2937',
+            color: isDark ? '#f1f5f9' : '#F9FAFB',
             fontSize: '14px',
+            fontWeight: 500,
+            padding: '12px 20px',
+            border: isDark ? '1px solid rgba(99,102,241,0.2)' : '1px solid rgba(99,102,241,0.15)',
+            boxShadow: isDark
+              ? '0 8px 32px rgba(0,0,0,0.4)'
+              : '0 8px 32px rgba(99,102,241,0.12)',
+          },
+          success: {
+            iconTheme: {
+              primary: '#6366F1',
+              secondary: '#fff',
+            },
+            style: {
+              borderColor: 'rgba(99,102,241,0.3)',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
           },
         }}
       />
@@ -118,6 +146,13 @@ function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
+
+      {/* 全局浮动主题切换按钮 - 首页和搜索页无顶部导航时可见 */}
+      <div className="fixed bottom-4 right-4 z-50 lg:hidden">
+        <div className="glass rounded-full p-1 shadow-lg">
+          <ThemeToggle />
+        </div>
+      </div>
     </ErrorBoundary>
   )
 }

@@ -8,6 +8,8 @@
     --orb-1: #818CF8;
     --orb-2: #A78BFA;
     --orb-3: #F472B6;
+    /* 暗黑模式过渡色 */
+    color-scheme: light;
   }
   * {
     @apply border-gray-200;
@@ -17,12 +19,35 @@
   }
   body {
     @apply bg-[#FAFBFC] text-gray-900;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     min-height: 100vh;
     min-height: 100dvh;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* ── 暗黑模式全局 ── */
+  .dark {
+    color-scheme: dark;
+  }
+
+  .dark body {
+    @apply bg-[#0b1120] text-gray-100;
+  }
+
+  /* 暗黑模式下减弱光球 */
+  .dark body::before {
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(129, 140, 248, 0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 70%, rgba(167, 139, 250, 0.03) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 50% 40%, rgba(244, 114, 182, 0.02) 0%, transparent 50%);
+    opacity: 0.5;
+  }
+
+  .dark body::after {
+    opacity: 0.03;
   }
 
   /* 全局背景光球效果 */
@@ -115,10 +140,22 @@ input[type="password"]::-webkit-textfield-decoration-container {
   background: #cbd5e1;
 }
 
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
 /* Firefox 滚动条 */
 * {
   scrollbar-width: thin;
   scrollbar-color: #e2e8f0 transparent;
+}
+
+.dark * {
+  scrollbar-color: #334155 transparent;
 }
 
 /* iOS 安全区域适配 */
@@ -184,11 +221,21 @@ input[type="password"]::-webkit-textfield-decoration-container {
   border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
+.dark .glass {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .glass-light {
   background: rgba(255, 255, 255, 0.55);
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.dark .glass-light {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .glass-dark {
@@ -207,9 +254,17 @@ input[type="password"]::-webkit-textfield-decoration-container {
   background: linear-gradient(180deg, #FAFBFC 0%, #F1F4F9 50%, #FFFFFF 100%);
 }
 
+.dark .gradient-bg {
+  background: linear-gradient(180deg, #0b1120 0%, #0f172a 50%, #1e293b 100%);
+}
+
 .gradient-hero {
   position: relative;
   background: linear-gradient(180deg, #FAFBFC 0%, #F1F4F9 40%, #FFFFFF 100%);
+}
+
+.dark .gradient-hero {
+  background: linear-gradient(180deg, #0b1120 0%, #0f172a 40%, #1e293b 100%);
 }
 
 .gradient-hero::before {
@@ -222,6 +277,13 @@ input[type="password"]::-webkit-textfield-decoration-container {
     radial-gradient(ellipse 50% 50% at 75% 30%, rgba(129, 140, 248, 0.08) 0%, transparent 50%),
     radial-gradient(ellipse 40% 40% at 50% 80%, rgba(167, 139, 250, 0.06) 0%, transparent 50%);
   animation: heroOrbPulse 10s ease-in-out infinite;
+}
+
+.dark .gradient-hero::before {
+  background:
+    radial-gradient(ellipse 70% 70% at 30% 10%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 50% at 75% 30%, rgba(129, 140, 248, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 40% at 50% 80%, rgba(167, 139, 250, 0.03) 0%, transparent 50%);
 }
 
 @keyframes heroOrbPulse {
@@ -257,10 +319,19 @@ input[type="password"]::-webkit-textfield-decoration-container {
   transform: translateZ(0);
 }
 
+.dark .bento-cell {
+  @apply bg-slate-800/80 border-slate-700/50;
+}
+
 .bento-cell:hover {
   border-color: #e2e8f0;
   box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
   transform: translateY(-2px) translateZ(0);
+}
+
+.dark .bento-cell:hover {
+  border-color: #475569;
+  box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.3);
 }
 
 /* ========== 动画 ========== */
@@ -369,6 +440,10 @@ input[type="password"]::-webkit-textfield-decoration-container {
   transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+.dark .card-hover:hover {
+  box-shadow: 0 12px 36px -10px rgba(99, 102, 241, 0.1), 0 3px 10px -3px rgba(99, 102, 241, 0.05);
+}
+
 /* ========== 自定义文本渐变 ========== */
 .text-gradient {
   background: linear-gradient(135deg, #6366F1 0%, #818CF8 40%, #A78BFA 100%);
@@ -385,6 +460,10 @@ input[type="password"]::-webkit-textfield-decoration-container {
   background: linear-gradient(90deg, #e8ecf1 25%, #f1f4f8 50%, #e8ecf1 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
+}
+
+.dark .skeleton {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
 }
 
 /* ========== 响应式 Bento 网格 ========== */
@@ -406,3 +485,262 @@ input[type="password"]::-webkit-textfield-decoration-container {
     grid-column: span 1;
   }
 }
+
+/* ══════════════════════════════════════════════════
+   暗黑模式全局过渡辅助（消除组件级 transition 闪烁）
+   ══════════════════════════════════════════════════ */
+.dark .bg-white { @apply bg-slate-800; }
+.dark .bg-gray-50 { @apply bg-slate-800/60; }
+.dark .bg-gray-100 { @apply bg-slate-700/60; }
+.dark .text-gray-900 { @apply text-gray-100; }
+.dark .text-gray-800 { @apply text-gray-200; }
+.dark .text-gray-700 { @apply text-gray-300; }
+.dark .text-gray-600 { @apply text-gray-400; }
+.dark .text-gray-500 { @apply text-gray-400; }
+.dark .text-gray-400 { @apply text-gray-500; }
+.dark .border-gray-100 { @apply border-slate-700/50; }
+.dark .border-gray-200 { @apply border-slate-700; }
+.dark .divide-gray-100 > * + * { @apply border-slate-700/50; }
+.dark .hover\:bg-gray-50:hover { @apply hover:bg-slate-700/50; }
+.dark .hover\:bg-gray-100:hover { @apply hover:bg-slate-700/50; }
+.dark .hover\:text-gray-700:hover { @apply hover:text-gray-200; }
+.dark .hover\:text-gray-900:hover { @apply hover:text-gray-100; }
+.dark .bg-gray-50\/50 { @apply bg-slate-800/40; }
+.dark .bg-gray-50\/80 { @apply bg-slate-800/60; }
+.dark .bg-brand-50 { @apply bg-indigo-900/30; }
+.dark .bg-red-50 { @apply bg-red-900/20; }
+.dark .bg-amber-50 { @apply bg-amber-900/20; }
+.dark .bg-green-50 { @apply bg-green-900/20; }
+.dark .bg-blue-50 { @apply bg-blue-900/20; }
+.dark .shadow-xl { @apply shadow-slate-900/50; }
+.dark .shadow-lg { @apply shadow-slate-900/40; }
+.dark .shadow-md { @apply shadow-slate-900/30; }
+.dark .shadow-sm { @apply shadow-slate-900/20; }
+.dark .shadow-xl.shadow-gray-200\/50 { box-shadow: none; }
+.dark input[type="text"],
+.dark input[type="password"],
+.dark input[type="email"],
+.dark input[type="search"],
+.dark input[type="url"],
+.dark textarea { @apply bg-slate-800/60 text-gray-100 border-slate-600/50; }
+.dark input::placeholder,
+.dark textarea::placeholder { @apply text-gray-500; }
+.dark select { @apply bg-slate-800/60 text-gray-100 border-slate-600/50; }
+.dark label { @apply text-gray-300; }
+
+/* ══════════════════════════════════════════════════
+   NProgress 风格页面加载进度条
+   ══════════════════════════════════════════════════ */
+#nprogress {
+  pointer-events: none;
+}
+
+#nprogress .bar {
+  @apply bg-indigo-500;
+  position: fixed;
+  z-index: 1031;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+}
+
+#nprogress .peg {
+  display: block;
+  position: absolute;
+  right: 0;
+  width: 100px;
+  height: 100%;
+  box-shadow: 0 0 10px #6366f1, 0 0 5px #6366f1;
+  opacity: 1.0;
+  transform: rotate(3deg) translate(0px, -4px);
+}
+
+/* ══════════════════════════════════════════════════
+   按钮涟漪效果
+   ══════════════════════════════════════════════════ */
+.ripple-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0);
+  animation: rippleOut 0.6s ease-out forwards;
+  pointer-events: none;
+}
+
+.dark .ripple-effect {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+@keyframes rippleOut {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   Tooltip 组件样式
+   ══════════════════════════════════════════════════ */
+.tooltip-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.tooltip-content {
+  @apply absolute z-50 px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-lg whitespace-nowrap pointer-events-none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.tooltip-wrapper:hover .tooltip-content,
+.tooltip-wrapper:focus-within .tooltip-content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tooltip-content::after {
+  content: '';
+  position: absolute;
+  border: 5px solid transparent;
+}
+
+.tooltip-top .tooltip-content { bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(4px); }
+.tooltip-top .tooltip-content::after { top: 100%; left: 50%; margin-left: -5px; border-top-color: #111827; }
+.tooltip-top:hover .tooltip-content { transform: translateX(-50%) translateY(0); }
+
+.tooltip-bottom .tooltip-content { top: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(-4px); }
+.tooltip-bottom .tooltip-content::after { bottom: 100%; left: 50%; margin-left: -5px; border-bottom-color: #111827; }
+.tooltip-bottom:hover .tooltip-content { transform: translateX(-50%) translateY(0); }
+
+.tooltip-left .tooltip-content { right: calc(100% + 8px); top: 50%; transform: translateY(-50%) translateX(4px); }
+.tooltip-left .tooltip-content::after { left: 100%; top: 50%; margin-top: -5px; border-left-color: #111827; }
+.tooltip-left:hover .tooltip-content { transform: translateY(-50%) translateX(0); }
+
+.tooltip-right .tooltip-content { left: calc(100% + 8px); top: 50%; transform: translateY(-50%) translateX(-4px); }
+.tooltip-right .tooltip-content::after { right: 100%; top: 50%; margin-top: -5px; border-right-color: #111827; }
+.tooltip-right:hover .tooltip-content { transform: translateY(-50%) translateX(0); }
+
+.dark .tooltip-content {
+  @apply bg-slate-700 text-gray-100;
+}
+.dark .tooltip-content::after { border-top-color: #334155; border-bottom-color: #334155; border-left-color: #334155; border-right-color: #334155; }
+
+/* ══════════════════════════════════════════════════
+   滚动视差入场动画
+   ══════════════════════════════════════════════════ */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s cubic-bezier(0.22, 0.61, 0.36, 1),
+              transform 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.scroll-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.scroll-reveal-delay-1 { transition-delay: 0.05s; }
+.scroll-reveal-delay-2 { transition-delay: 0.1s; }
+.scroll-reveal-delay-3 { transition-delay: 0.15s; }
+.scroll-reveal-delay-4 { transition-delay: 0.2s; }
+.scroll-reveal-delay-5 { transition-delay: 0.25s; }
+
+/* ══════════════════════════════════════════════════
+   复制成功粒子效果
+   ══════════════════════════════════════════════════ */
+.copy-particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  animation: particleFly 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+@keyframes particleFly {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--px), var(--py)) scale(0);
+  }
+}
+
+.copy-toast {
+  @apply fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-2xl text-sm font-medium shadow-xl;
+  background: #111827;
+  color: #fff;
+  animation: toastPopIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.dark .copy-toast {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+@keyframes toastPopIn {
+  0% { opacity: 0; transform: translateX(-50%) translateY(16px) scale(0.9); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+/* ══════════════════════════════════════════════════
+   折叠面板图标旋转动画
+   ══════════════════════════════════════════════════ */
+.accordion-icon {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.accordion-icon.open {
+  transform: rotate(180deg);
+}
+
+/* ══════════════════════════════════════════════════
+   增强焦点环（键盘导航可访问性）
+   ══════════════════════════════════════════════════ */
+:focus-visible {
+  outline: 2.5px solid #818cf8 !important;
+  outline-offset: 3px !important;
+  border-radius: 8px;
+  transition: outline-color 0.2s ease;
+}
+
+.dark :focus-visible {
+  outline-color: #a5b4fc !important;
+}
+
+/* ══════════════════════════════════════════════════
+   页面最大宽度约束（大屏体验优化）
+   ══════════════════════════════════════════════════ */
+.content-container {
+  @apply mx-auto w-full;
+  max-width: 1440px;
+}
+
+@media (min-width: 1920px) {
+  .content-container {
+    max-width: 1600px;
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   主题切换按钮图标动画
+   ══════════════════════════════════════════════════ */
+.theme-toggle-icon {
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.theme-toggle-icon:active {
+  transform: rotate(30deg) scale(0.9);
+}
+
+/* 暗黑模式按钮悬浮背景 */
+.dark .hover\:bg-brand-50:hover { @apply bg-indigo-900/30; }
+.dark .hover\:text-brand-600:hover { @apply text-indigo-400; }

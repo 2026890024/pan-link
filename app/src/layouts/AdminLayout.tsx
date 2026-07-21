@@ -14,6 +14,7 @@ import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 
 const navItems = [
   { path: '/admin/resources', label: '资源管理', icon: Link2 },
@@ -198,11 +199,13 @@ export default function AdminLayout() {
             )}
           </div>
 
-          {/* 用户信息 */}
-          <Link
-            to="/admin/account"
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
-          >
+          {/* 主题切换 + 用户信息 */}
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <Link
+              to="/admin/account"
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer"
+            >
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-violet-500 flex items-center justify-center text-white text-xs font-bold overflow-hidden flex-shrink-0">
               {profile.avatar ? (
                 <img src={profile.avatar} alt={`${profile.username} 的头像`} loading="lazy" decoding="async" className="w-full h-full object-contain" />

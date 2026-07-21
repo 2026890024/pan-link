@@ -6,12 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#6366F1" />
     <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" />
     <!-- Security Headers via meta (best-effort, should also be set at Cloudflare-level) -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <title>资源云 - 一站式网盘资源聚合管理平台</title>
     <meta name="description" content="一站式网盘资源聚合管理平台，高效管理和分享您的资源链接。支持百度网盘、夸克网盘、阿里云盘、蓝奏云、迅雷云盘等多种网盘资源聚合。" />
     <meta name="keywords" content="网盘资源,资源聚合,百度网盘,夸克网盘,阿里云盘,蓝奏云,迅雷云盘,资源分享,资源管理" />
@@ -30,12 +34,17 @@
     <meta name="twitter:title" content="资源云 - 一站式网盘资源聚合管理平台" />
     <meta name="twitter:description" content="一站式网盘资源聚合管理平台，高效管理和分享您的资源链接" />
     <!-- API 同源无需 preconnect；若迁移到独立 API 域名，请在此添加 dns-prefetch 和 preconnect -->
-    <!-- 内联预加载 CSS：消除额外 HTTP 请求，FFP 更快 -->
+    <!-- 内联预加载 CSS：消除额外 HTTP 请求，FFP 更快，支持暗黑模式 -->
     <style>
       #preloader{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#f8fafc;transition:opacity .3s ease}
       #preloader.done{opacity:0;pointer-events:none}
       #preloader .spinner{width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite}
       @keyframes spin{to{transform:rotate(360deg)}}
+      /* 暗黑模式预加载器 */
+      .dark #preloader{background:#0f172a}
+      .dark #preloader .spinner{border-color:#1e293b;border-top-color:#818cf8}
+      /* 暗黑模式初始化：避免 FOUC */
+      html.dark { color-scheme: dark; }
     </style>
   </head>
   <body>
