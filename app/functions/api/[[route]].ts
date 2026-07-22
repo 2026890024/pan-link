@@ -98,11 +98,12 @@ function cleanRateMap(now: number) {
   }
 }
 
-function checkRateLimit(ip: string, method: string, now: number) {
+function checkRateLimit(ip: string, method: string, path: string, now: number) {
   cleanRateMap(now)
   const isWrite = ['POST', 'PUT', 'DELETE'].includes(method)
-  const key = `${ip}:${isWrite ? 'write' : 'read'}`
-  const limit = isWrite ? 20 : 100
+  const isSlugLookup = path.startsWith('/api/links/public') // slug 查询也做写操作，需要更严格限流
+  const key = isWrite ? `${ip}:write` : isSlugLookup ? `${ip}:slug` : `${ip}:read`
+  const limit = isWrite ? 20 : isSlugLookup ? 30 : 60
   const windowMs = 60_000
 
   const entry = rateMap.get(key) || { count: 0, resetAt: now + windowMs }
@@ -133,8 +134,8 @@ function isCacheable(request: Request): boolean {
 }
 
 const PUBLIC_CACHE_HEADERS = {
-  'Cache-Control': 'public, max-age=120, s-maxage=300, stale-while-revalidate=600',
-  'CDN-Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
+  'Cache-Control': 'public, max-age=300, s-maxage=600',
+  'CDN-Cache-Control': 'public, max-age=600',
 }
 
 async function getCache(request: Request): Promise<Response | undefined> {
@@ -167,10 +168,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     'unknown'
 
   // Rate limit
-  const rl = checkRateLimit(clientIp, method, now)
+  const requestPath = new URL(request.url).pathname
+  const rl = checkRateLimit(clientIp, method, requestPath, now)
   if (!rl.allowed) {
-    return jsonRes({ error: '请求过于频繁，请稍后再试' }, 429,
-      { 'Retry-After': String(Math.ceil((rl.resetAt - now) / 1000)) })
+    return jsonRes({ error: '请求过于频繁，请稍后再试' }, 429, {
+      ...corsHeaders,
+      'Retry-After': String(Math.ceil((rl.resetAt - now) / 1000)),
+    })
   }
 
   // UA 爬虫拦截（仅 API 路由，正常浏览器必有 UA）
@@ -178,6 +182,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const isBot =
     !ua ||
     /python|curl|wget|httpie|go-http|scrapy|zgrab|masscan|nmap|nikto|sqlmap|nessus|burp|postman/i.test(ua) ||
+    /gptbot|chatgpt|claude|anthropic|bard|perplexity|gemini|ccbot|bytespider|petalbot|semrush|ahrefs|dotbot|mj12bot|yandex/i.test(ua) ||
     (!/mozilla|chrome|safari|firefox|edge|opera/i.test(ua) && /\b(bot|crawler|spider|scanner)\b/i.test(ua))
   if (isBot) {
     return jsonRes({ error: 'Forbidden' }, 403)
@@ -249,8 +254,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const linksList = (links.results || []) as Array<Record<string, unknown>>
       await batchAttachTags(env, linksList)
       const cacheHeaders = {
-        'Cache-Control': 'public, max-age=120, s-maxage=300, stale-while-revalidate=600',
-        'CDN-Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
+        'Cache-Control': 'public, max-age=300, s-maxage=600',
+        'CDN-Cache-Control': 'public, max-age=600',
       }
       const response = new Response(
         JSON.stringify({
@@ -410,24 +415,34 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const result = await stmt.all()
 
       if (slug) {
-        try {
-          await env.DB.prepare(
-            'INSERT INTO link_visits (link_id, visitor_ip, user_agent, referer, visit_type) VALUES (?, ?, ?, ?, ?)'
-          ).bind(
-            (result.results?.[0] as Record<string, unknown>)?.id || '',
-            request.headers.get('CF-Connecting-IP') || null,
-            request.headers.get('User-Agent') || null,
-            request.headers.get('Referer') || null, 'click'
-          ).run()
-          if (result.results?.[0]) {
+        // 仅真实浏览器访问才记录点击，爬虫不写 DB
+        if (!isBot) {
+          try {
             await env.DB.prepare(
-              'UPDATE links SET click_count = click_count + 1 WHERE id = ?'
-            ).bind((result.results[0] as Record<string, unknown>).id as string).run()
-          }
-        } catch { /* ignore */ }
+              'INSERT INTO link_visits (link_id, visitor_ip, user_agent, referer, visit_type) VALUES (?, ?, ?, ?, ?)'
+            ).bind(
+              (result.results?.[0] as Record<string, unknown>)?.id || '',
+              request.headers.get('CF-Connecting-IP') || null,
+              request.headers.get('User-Agent') || null,
+              request.headers.get('Referer') || null, 'click'
+            ).run()
+            if (result.results?.[0]) {
+              await env.DB.prepare(
+                'UPDATE links SET click_count = click_count + 1 WHERE id = ?'
+              ).bind((result.results[0] as Record<string, unknown>).id as string).run()
+            }
+          } catch { /* ignore */ }
+        }
         const single = (result.results?.[0] || null) as Record<string, unknown> | null
         if (single) { const arr = [single]; await batchAttachTags(env, arr); Object.assign(single, arr[0]) }
-        return jsonRes(single, 200, corsHeaders)
+        // 公开链接详情缓存 5 分钟，减少爬虫回源压力
+        const slugResponse = jsonRes(single, 200, {
+          ...corsHeaders,
+          'Cache-Control': 'public, max-age=120, s-maxage=300',
+          'CDN-Cache-Control': 'public, max-age=300',
+        })
+        await putCache(request, slugResponse)
+        return slugResponse
       }
       const pubList = (result.results || []) as Array<Record<string, unknown>>
       await batchAttachTags(env, pubList)
@@ -838,7 +853,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       if (!settings.favicon_library) {
         settings.favicon_library = []
       }
-      const response = jsonRes(settings, 200, { ...corsHeaders, 'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300', 'CDN-Cache-Control': 'public, max-age=120, stale-while-revalidate=300' })
+      const response = jsonRes(settings, 200, { ...corsHeaders, 'Cache-Control': 'public, max-age=60, s-maxage=300', 'CDN-Cache-Control': 'public, max-age=300' })
       await putCache(request, response)
       return response
     }
@@ -1029,10 +1044,10 @@ const securityHeaders = {
 
 function jsonRes(data: unknown, status: number, extraHeaders?: Record<string, string>): Response {
   const isGet = status >= 200 && status < 300
-  // GET 响应启用 CDN 缓存：浏览器 2 分钟 / CDN 边缘 5 分钟 / 过期后异步刷新 10 分钟
+  // GET 响应启用 CDN 缓存：浏览器 5 分钟 / CDN 边缘 10 分钟
   const cacheHeaders = isGet ? {
-    'Cache-Control': 'public, max-age=120, s-maxage=300, stale-while-revalidate=600',
-    'CDN-Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
+    'Cache-Control': 'public, max-age=300, s-maxage=600',
+    'CDN-Cache-Control': 'public, max-age=600',
   } : {}
   return new Response(JSON.stringify(data), {
     status,
