@@ -816,32 +816,32 @@ function InfoTab() {
         <div className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              站点名称
+              网站 Logo 旁名称
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="输入站点名称"
+              placeholder="输入网站 Logo 旁显示的名称"
               maxLength={100}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 text-sm"
             />
-            <p className="text-xs text-gray-400 mt-1">显示在浏览器标签页、导航栏 Logo 旁</p>
+            <p className="text-xs text-gray-400 mt-1">显示在网站内部导航栏 Logo 旁边</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              站点描述
+              浏览器标题描述
             </label>
             <textarea
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
-              placeholder="输入站点描述"
+              placeholder="输入浏览器标签页标题中的描述"
               maxLength={500}
               rows={3}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 text-sm resize-none"
             />
-            <p className="text-xs text-gray-400 mt-1">用于 SEO 描述和页面元信息</p>
+            <p className="text-xs text-gray-400 mt-1">显示在浏览器标签页标题中，位于站点名称之后</p>
           </div>
 
           <div className="pt-2">

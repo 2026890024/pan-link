@@ -10,7 +10,7 @@ import {
   Settings,
   Palette,
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
@@ -25,23 +25,6 @@ const navItems = [
   { path: '/admin/account', label: '账户设置', icon: User },
 ]
 
-interface Profile {
-  username: string
-  email: string
-  avatar: string | null
-}
-
-function getProfile(): Profile {
-  try {
-    const stored = localStorage.getItem('admin_profile')
-    if (stored) {
-      const p = JSON.parse(stored)
-      return { username: p.username || 'Admin', email: p.email || '', avatar: p.avatar || null }
-    }
-  } catch { /* ignore */ }
-  return { username: 'Admin', email: 'admin@example.com', avatar: null }
-}
-
 export default function AdminLayout() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -52,27 +35,7 @@ export default function AdminLayout() {
   // 动态 Logo/颜色
   const siteSettings = useSiteSettingsStore()
   const settingsLoaded = siteSettings.loaded
-  const siteName = siteSettings.settings.site_name || '资源云'
   const logoType = siteSettings.settings.current_logo_type || 'text'
-
-  const [profile, setProfile] = useState<Profile>(getProfile)
-
-  // 监听 localStorage 变化、窗口聚焦、以及自定义事件更新头像
-  useEffect(() => {
-    const handleFocus = () => setProfile(getProfile())
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'admin_profile') {setProfile(getProfile())}
-    }
-    const handleProfileUpdate = () => setProfile(getProfile())
-    window.addEventListener('focus', handleFocus)
-    window.addEventListener('storage', handleStorage)
-    window.addEventListener('admin-profile-updated', handleProfileUpdate)
-    return () => {
-      window.removeEventListener('focus', handleFocus)
-      window.removeEventListener('storage', handleStorage)
-      window.removeEventListener('admin-profile-updated', handleProfileUpdate)
-    }
-  }, [])
 
   const handleLogout = async () => {
     await logout()
@@ -109,13 +72,18 @@ export default function AdminLayout() {
         )}
       >
         {/* Logo */}
-        <div className="flex items-center h-16 px-4 border-b border-gray-100">
-          <Link to="/admin" className="flex items-center gap-3 overflow-hidden">
+        <div className="flex items-center justify-center h-16 px-4 border-b border-gray-100">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-all cursor-pointer"
+            title={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}
+            aria-label={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}
+          >
             {settingsLoaded && logoType === 'image' && siteSettings.settings.current_logo_url ? (
               <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center bg-transparent flex-shrink-0">
                 <img
                   src={siteSettings.settings.current_logo_url}
-                  alt={`${siteName} Logo`}
+                  alt="Logo"
                   loading="lazy"
                   decoding="async"
                   className="w-full h-full object-contain"
@@ -127,15 +95,6 @@ export default function AdminLayout() {
                 <Link2 className="w-5 h-5 text-white" />
               </div>
             )}
-            {sidebarOpen && (
-              <span className="font-bold text-gray-900 text-base whitespace-nowrap">{siteName}</span>
-            )}
-          </Link>
-          <button
-            className="ml-auto p-1.5 rounded-lg hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-all duration-200 hidden lg:block cursor-pointer"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            <Menu className="w-4 h-4" />
           </button>
         </div>
 
@@ -199,22 +158,9 @@ export default function AdminLayout() {
             )}
           </div>
 
-          {/* 主题切换 + 用户信息 */}
+          {/* 主题切换 */}
           <div className="flex items-center gap-1">
             <ThemeToggle />
-            <Link
-              to="/admin/account"
-              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer"
-            >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-violet-500 flex items-center justify-center text-white text-xs font-bold overflow-hidden flex-shrink-0">
-              {profile.avatar ? (
-                <img src={profile.avatar} alt={`${profile.username} 的头像`} loading="lazy" decoding="async" className="w-full h-full object-contain" />
-              ) : (
-                profile.username.charAt(0).toUpperCase()
-              )}
-            </div>
-            <span className="hidden sm:block text-sm font-medium text-gray-700">{profile.username}</span>
-          </Link>
           </div>
         </header>
 
