@@ -48,14 +48,22 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
   useEffect(() => {
     previousFocusRef.current = document.activeElement as HTMLElement
     document.addEventListener('keydown', handleKeyDown)
-    // iOS Safari 兼容滚动锁定
+    // iOS Safari 兼容滚动锁定 + 补偿滚动条宽度，避免页面横向抖动
     const scrollY = window.scrollY
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
     const originalPosition = document.body.style.position
     const originalTop = document.body.style.top
     const originalWidth = document.body.style.width
+    const originalLeft = document.body.style.left
+    const originalRight = document.body.style.right
+    const originalPaddingRight = document.body.style.paddingRight
     document.body.style.position = 'fixed'
     document.body.style.top = `-${scrollY}px`
-    document.body.style.width = '100%'
+    document.body.style.left = '0'
+    document.body.style.right = '0'
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`
+    }
     // 用 rAF 替代 setTimeout 确保动画完成后聚焦
     requestAnimationFrame(() => {
       const focusable = modalRef.current?.querySelector<HTMLElement>(
@@ -68,6 +76,9 @@ export default function LinkDetailModal({ link, onClose }: LinkDetailModalProps)
       document.body.style.position = originalPosition
       document.body.style.top = originalTop
       document.body.style.width = originalWidth
+      document.body.style.left = originalLeft
+      document.body.style.right = originalRight
+      document.body.style.paddingRight = originalPaddingRight
       window.scrollTo(0, scrollY)
       previousFocusRef.current?.focus()
     }
