@@ -5,7 +5,7 @@
  * 安全策略:
  * - POST/PUT/DELETE 需要 Bearer Token (HMAC-SHA256 签名)
  * - GET 公开（读取资源/分类等公开数据）
- * - 内存级 Rate Limiting
+ * - 分布式 Cache API Rate Limiting
  * - 凭证通过 Cloudflare Pages 环境变量配置 (ADMIN_USER, ADMIN_PASS, JWT_SECRET)
  */
 
@@ -83,40 +83,52 @@ function requireAuth(request: Request, env: Env): Promise<boolean> {
   return verifyToken(auth.slice(7), env)
 }
 
-// ============ Rate Limiting ============
+// ============ Rate Limiting (Distributed via Cache API) ============
+// Workers 实例间内存不共享，因此使用 Cache API 作为分布式计数器存储。
+// 注意：Cache API 非原子操作，极端并发下可能有少量漏过，但已能阻挡常规刷量。
 
-interface RateEntry { count: number; resetAt: number }
-const rateMap = new Map<string, RateEntry>()
-let lastCleanup = 0
+interface RateLimitState { count: number; windowStart: number }
 
-function cleanRateMap(now: number) {
-  if (now - lastCleanup > 300_000) {
-    for (const [k, v] of rateMap) {
-      if (now > v.resetAt) {rateMap.delete(k)}
-    }
-    lastCleanup = now
-  }
-}
-
-function checkRateLimit(ip: string, method: string, path: string, now: number) {
-  cleanRateMap(now)
+async function checkRateLimit(ip: string, method: string, path: string, now: number): Promise<{ allowed: boolean; limit: number; resetAt: number }> {
   const isWrite = ['POST', 'PUT', 'DELETE'].includes(method)
-  const isSlugLookup = path.startsWith('/api/links/public') // slug 查询也做写操作，需要更严格限流
-  const key = isWrite ? `${ip}:write` : isSlugLookup ? `${ip}:slug` : `${ip}:read`
-  const limit = isWrite ? 20 : isSlugLookup ? 30 : 60
+  const isSlugLookup = path.startsWith('/api/links/public')
+  const isLogin = path === '/api/auth/login' && method === 'POST'
+  const keySuffix = isLogin ? 'login' : isWrite ? 'write' : isSlugLookup ? 'slug' : 'read'
+  const cacheKey = new Request(`https://ratelimit.pan110.pages.dev/${ip}/${keySuffix}`)
+  const cache = (caches as CacheStorage).default
+
+  const limit = isLogin ? 5 : isWrite ? 10 : isSlugLookup ? 30 : 60
   const windowMs = 60_000
 
-  const entry = rateMap.get(key) || { count: 0, resetAt: now + windowMs }
-  if (now > entry.resetAt) {
-    entry.count = 0
-    entry.resetAt = now + windowMs
+  try {
+    const cached = await cache.match(cacheKey)
+    let state: RateLimitState = { count: 0, windowStart: now }
+    if (cached) {
+      const text = await cached.text()
+      try { state = JSON.parse(text) as RateLimitState } catch { /* ignore malformed */ }
+    }
+
+    if (now - state.windowStart >= windowMs) {
+      state = { count: 0, windowStart: now }
+    }
+
+    if (state.count >= limit) {
+      return { allowed: false, limit, resetAt: state.windowStart + windowMs }
+    }
+
+    state.count++
+    const response = new Response(JSON.stringify(state), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `private, max-age=${Math.ceil(windowMs / 1000)}`,
+      },
+    })
+    await cache.put(cacheKey, response)
+    return { allowed: true, limit, resetAt: state.windowStart + windowMs }
+  } catch {
+    // 缓存失败时放行，避免自身故障导致服务不可用
+    return { allowed: true, limit, resetAt: now + windowMs }
   }
-  if (entry.count >= limit) {
-    return { allowed: false, limit, resetAt: entry.resetAt }
-  }
-  entry.count++
-  rateMap.set(key, entry)
-  return { allowed: true, limit, resetAt: entry.resetAt }
 }
 
 // ============ 边缘缓存 ============
@@ -167,9 +179,16 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
     'unknown'
 
-  // Rate limit
   const requestPath = new URL(request.url).pathname
-  const rl = checkRateLimit(clientIp, method, requestPath, now)
+
+  // 拦截常见爬虫/攻击路径，避免进入后续业务逻辑
+  const blockedPrefixes = ['/wp-admin', '/wp-login', '/phpmyadmin', '/xmlrpc.php', '/.env', '/.git', '/admin.php', '/config', '/login.php', '/setup.php']
+  if (blockedPrefixes.some(p => requestPath.startsWith(p))) {
+    return new Response('Not Found', { status: 404, headers: securityHeaders })
+  }
+
+  // Rate limit
+  const rl = await checkRateLimit(clientIp, method, requestPath, now)
   if (!rl.allowed) {
     return jsonRes({ error: '请求过于频繁，请稍后再试' }, 429, {
       ...corsHeaders,
