@@ -933,11 +933,19 @@ export interface IconLibraryItem {
   created_at: string
 }
 
+export interface FaviconItem {
+  url: string
+  name: string
+  added_at: string
+}
+
 export interface SiteSettings {
   current_logo_type?: 'text' | 'image'
   current_logo_text?: string
   current_logo_url?: string
   logo_library?: Array<LogoItem>
+  current_favicon_url?: string
+  favicon_library?: Array<FaviconItem>
   icon_library?: Array<IconLibraryItem>
   current_colors?: Omit<ColorScheme, 'name' | 'saved_at'>
   color_history?: Array<ColorScheme>
@@ -1062,6 +1070,60 @@ export async function deleteLogoFromLibrary(urlOrIndex: string | number): Promis
     return data.library
   } catch (err) {
     console.error('[DataService] deleteLogoFromLibrary error:', err)
+    return library
+  }
+}
+
+export async function addFaviconToLibrary(url: string, name: string): Promise<Array<FaviconItem>> {
+  const local = getLocalSiteSettings()
+  const library = local.favicon_library || []
+  const newItem: FaviconItem = { url, name, added_at: new Date().toISOString() }
+  local.favicon_library = [...library, newItem]
+  local.current_favicon_url = url
+  saveLocalSiteSettings(local)
+
+  if (!isCloudApiConfigured()) {return local.favicon_library}
+  try {
+    const data = await apiFetch<{ success: boolean; library: Array<FaviconItem> }>('/api/site-settings/favicon', {
+      method: 'POST',
+      body: JSON.stringify({ url, name }),
+    })
+    return data.library
+  } catch (err) {
+    console.error('[DataService] addFaviconToLibrary error:', err)
+    return local.favicon_library
+  }
+}
+
+export async function deleteFaviconFromLibrary(urlOrIndex: string | number): Promise<Array<FaviconItem>> {
+  const local = getLocalSiteSettings()
+  let library = local.favicon_library || []
+  const removed = typeof urlOrIndex === 'number'
+    ? library[urlOrIndex]
+    : library.find(l => l.url === urlOrIndex)
+
+  if (typeof urlOrIndex === 'number') {
+    library = library.filter((_, i) => i !== urlOrIndex)
+  } else {
+    library = library.filter(l => l.url !== urlOrIndex)
+  }
+  local.favicon_library = library
+  if (removed && local.current_favicon_url === removed.url) {
+    local.current_favicon_url = '/favicon.png'
+  }
+  saveLocalSiteSettings(local)
+
+  if (!isCloudApiConfigured()) {return library}
+  try {
+    const params = typeof urlOrIndex === 'number'
+      ? `?index=${urlOrIndex}`
+      : `?url=${encodeURIComponent(urlOrIndex)}`
+    const data = await apiFetch<{ success: boolean; library: Array<FaviconItem> }>(`/api/site-settings/favicon${params}`, {
+      method: 'DELETE',
+    })
+    return data.library
+  } catch (err) {
+    console.error('[DataService] deleteFaviconFromLibrary error:', err)
     return library
   }
 }

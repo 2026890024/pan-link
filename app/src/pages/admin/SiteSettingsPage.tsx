@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
   Palette, Image, Type, Upload, Trash2, Save, Plus, Check, Loader2,
-  Globe, X, Sparkles, ChevronDown, History,
+  Globe, X, Sparkles, ChevronDown, History, PanelTop,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useSiteSettingsStore, type ColorScheme } from '@/store/useSiteSettingsStore'
@@ -10,12 +10,22 @@ import { applyBrandColors, generatePaletteFromPrimary } from '@/lib/colors'
 
 const tabs = [
   { id: 'logo' as const, label: 'Logo 管理', icon: Image },
+  { id: 'favicon' as const, label: 'Favicon', icon: PanelTop },
   { id: 'colors' as const, label: '配色方案', icon: Palette },
   { id: 'info' as const, label: '站点信息', icon: Globe },
 ]
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 export default function SiteSettingsPage() {
-  const [activeTab, setActiveTab] = useState<'logo' | 'colors' | 'info'>('logo')
+  const [activeTab, setActiveTab] = useState<'logo' | 'favicon' | 'colors' | 'info'>('logo')
   const store = useSiteSettingsStore()
 
   useEffect(() => {
@@ -48,6 +58,7 @@ export default function SiteSettingsPage() {
       </div>
 
       {activeTab === 'logo' && <LogoTab />}
+      {activeTab === 'favicon' && <FaviconTab />}
       {activeTab === 'colors' && <ColorsTab />}
       {activeTab === 'info' && <InfoTab />}
     </div>
@@ -302,6 +313,205 @@ function LogoTab() {
             </p>
           )}
         </div>
+      </motion.div>
+    </div>
+  )
+}
+
+// ============ Favicon 标签 ============
+
+function FaviconTab() {
+  const { settings, addFavicon, removeFavicon, selectFavicon } = useSiteSettingsStore()
+  const [urlInput, setUrlInput] = useState('')
+  const [urlError, setUrlError] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const library = settings.favicon_library || []
+  const currentUrl = settings.current_favicon_url || '/favicon.png'
+
+  const isValidImageUrl = (url: string) => {
+    if (!url) { return false }
+    if (url.startsWith('data:image/')) { return true }
+    try { new URL(url); return true } catch { return false }
+  }
+
+  const handleUrlSubmit = async () => {
+    const trimmed = urlInput.trim()
+    if (!isValidImageUrl(trimmed)) {
+      setUrlError('请输入有效的图片 URL 或 Base64 图片')
+      return
+    }
+    await addFavicon(trimmed, `Favicon ${library.length + 1}`)
+    setUrlInput('')
+    setUrlError('')
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) { return }
+    if (!file.type.startsWith('image/')) {
+      toast.error('请选择图片文件')
+      return
+    }
+    setIsUploading(true)
+    try {
+      const dataUrl = await fileToBase64(file)
+      await addFavicon(dataUrl, file.name.replace(/\.[^/.]+$/, ''))
+      toast.success('Favicon 上传成功')
+    } catch {
+      toast.error('上传失败')
+    } finally {
+      setIsUploading(false)
+      if (fileInputRef.current) { fileInputRef.current.value = '' }
+    }
+  }
+
+  const handleDelete = async (index: number) => {
+    await removeFavicon(index)
+    toast.success('已删除')
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* 左侧：当前 Favicon 预览 */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="lg:col-span-5 bg-white rounded-2xl p-6 border border-gray-100 shadow-sm"
+      >
+        <div className="flex items-center gap-2 mb-5">
+          <PanelTop className="w-4 h-4 text-brand-600" />
+          <h3 className="text-base font-semibold text-gray-900">当前 Favicon</h3>
+        </div>
+
+        {/* 浏览器标签页预览 */}
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 mb-5">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-3 py-2 flex items-center gap-2 max-w-[260px]">
+            <img
+              src={currentUrl}
+              alt="favicon"
+              className="w-4 h-4 object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/favicon.png'
+              }}
+            />
+            <span className="text-xs text-gray-600 truncate">{settings.site_name || '资源云'}</span>
+            <X className="w-3 h-3 text-gray-300 ml-auto" />
+          </div>
+          <p className="text-xs text-gray-400 mt-3">浏览器标签页图标预览</p>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Favicon URL</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={urlInput}
+                onChange={(e) => { setUrlInput(e.target.value); setUrlError('') }}
+                placeholder="输入图片 URL 或 Base64"
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+              />
+              <button
+                onClick={handleUrlSubmit}
+                disabled={!urlInput.trim()}
+                className="px-4 py-2 text-sm text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                添加
+              </button>
+            </div>
+            {urlError && <p className="text-xs text-red-500 mt-1.5">{urlError}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">上传本地图片</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="w-full py-8 border-2 border-dashed border-gray-200 rounded-xl hover:border-brand-400 hover:bg-brand-50/50 transition-colors flex flex-col items-center gap-2 text-gray-500 hover:text-brand-600"
+            >
+              {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+              <span className="text-sm">{isUploading ? '上传中...' : '点击上传 Favicon'}</span>
+            </button>
+            <p className="text-xs text-gray-400 mt-2">建议尺寸 32×32 或 64×64，支持 PNG / JPG / SVG</p>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* 右侧：Favicon 库 */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="lg:col-span-7 bg-white rounded-2xl p-6 border border-gray-100 shadow-sm"
+      >
+        <div className="flex items-center gap-2 mb-5">
+          <History className="w-4 h-4 text-brand-600" />
+          <h3 className="text-base font-semibold text-gray-900">Favicon 库 ({library.length})</h3>
+        </div>
+
+        {library.length === 0 ? (
+          <div className="text-center py-12 border border-dashed border-gray-200 rounded-xl">
+            <PanelTop className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-gray-500">暂无 Favicon</p>
+            <p className="text-xs text-gray-400 mt-1">上传或输入 URL 后会显示在这里</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
+            {library.map((item, index) => {
+              const isActive = currentUrl === item.url
+              return (
+                <div
+                  key={`${item.url}-${index}`}
+                  onClick={() => selectFavicon(index)}
+                  className={`relative group cursor-pointer rounded-xl border-2 p-3 flex flex-col items-center gap-2 transition-all ${
+                    isActive
+                      ? 'border-brand-500 bg-brand-50 shadow-sm'
+                      : 'border-gray-100 hover:border-brand-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <img
+                    src={item.url}
+                    alt={item.name}
+                    className="w-8 h-8 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/favicon.png'
+                    }}
+                  />
+                  <span className="text-[10px] text-gray-500 truncate w-full text-center">{item.name}</span>
+
+                  {isActive && (
+                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-brand-600 rounded-full flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(index) }}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-white text-red-500 border border-gray-100 rounded-full items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hidden group-hover:flex"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {library.length > 0 && (
+          <p className="text-xs text-gray-400 mt-4">
+            点击 Favicon 即可设为当前使用的标签页图标，悬停显示删除按钮
+          </p>
+        )}
       </motion.div>
     </div>
   )

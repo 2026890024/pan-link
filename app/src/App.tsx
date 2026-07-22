@@ -79,6 +79,21 @@ function App() {
     }
   }, [siteSettings, siteSettings.settings.current_colors, siteSettings.settings.site_name, siteSettings.settings.site_description])
 
+  // 动态同步 favicon
+  useEffect(() => {
+    const faviconUrl = siteSettings.settings.current_favicon_url || '/favicon.png'
+    let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement | null
+    if (!link) {
+      link = document.createElement('link')
+      link.rel = 'icon'
+      link.type = 'image/png'
+      document.head.appendChild(link)
+    }
+    // 加时间戳避免浏览器缓存导致切换不生效
+    const sep = faviconUrl.includes('?') ? '&' : '?'
+    link.href = `${faviconUrl}${sep}_t=${Date.now()}`
+  }, [siteSettings.settings.current_favicon_url])
+
   const isDark = themeResolved === 'dark'
 
   return (

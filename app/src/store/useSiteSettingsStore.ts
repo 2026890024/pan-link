@@ -36,6 +36,8 @@ const DEFAULT_SETTINGS: SiteSettings = {
   current_logo_text: 'Pan Link',
   current_logo_url: '',
   logo_library: [],
+  current_favicon_url: '/favicon.png',
+  favicon_library: [],
   current_colors: DEFAULT_COLORS,
   color_history: [],
   site_name: '资源云',
@@ -61,6 +63,11 @@ interface SiteSettingsStore {
   addLogo: (url: string, name: string) => Promise<void>
   removeLogo: (index: number) => Promise<void>
   selectLogo: (index: number) => Promise<void>
+
+  // Favicon 操作
+  addFavicon: (url: string, name: string) => Promise<void>
+  removeFavicon: (index: number) => Promise<void>
+  selectFavicon: (index: number) => Promise<void>
 
   // 颜色操作
   updateColors: (colors: typeof DEFAULT_COLORS) => Promise<void>
@@ -92,6 +99,8 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
         current_logo_text: settings.current_logo_text || DEFAULT_SETTINGS.current_logo_text,
         current_logo_url: settings.current_logo_url || DEFAULT_SETTINGS.current_logo_url,
         logo_library: settings.logo_library || [],
+        current_favicon_url: settings.current_favicon_url || DEFAULT_SETTINGS.current_favicon_url,
+        favicon_library: settings.favicon_library || [],
         current_colors: settings.current_colors || DEFAULT_COLORS,
         color_history: settings.color_history || [],
         site_name: settings.site_name || DEFAULT_SETTINGS.site_name,
@@ -154,6 +163,41 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
         current_logo_type: 'image',
         current_logo_url: logo.url,
       })
+    }
+  },
+
+  // ===== Favicon =====
+
+  addFavicon: async (url, name) => {
+    const library = await ds.addFaviconToLibrary(url, name)
+    const settings = { ...get().settings, favicon_library: library, current_favicon_url: url }
+    set({ settings })
+    saveCachedSettings(settings)
+  },
+
+  removeFavicon: async (index) => {
+    const { settings } = get()
+    const target = settings.favicon_library?.[index]
+    const library = await ds.deleteFaviconFromLibrary(index)
+    const updated: SiteSettings = {
+      ...settings,
+      favicon_library: library,
+      current_favicon_url: target && settings.current_favicon_url === target.url
+        ? '/favicon.png'
+        : settings.current_favicon_url,
+    }
+    set({ settings: updated })
+    saveCachedSettings(updated)
+  },
+
+  selectFavicon: async (index) => {
+    const { settings } = get()
+    const item = settings.favicon_library?.[index]
+    if (item) {
+      const updated = { ...settings, current_favicon_url: item.url }
+      set({ settings: updated })
+      saveCachedSettings(updated)
+      await ds.updateSiteSettings({ current_favicon_url: item.url })
     }
   },
 

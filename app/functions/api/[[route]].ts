@@ -758,6 +758,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           try { settings[row.key] = JSON.parse(row.value) } catch { settings[row.key] = row.value }
         }
       }
+      // 保证 favicon 默认值
+      if (!settings.current_favicon_url) {
+        settings.current_favicon_url = '/favicon.png'
+      }
+      if (!settings.favicon_library) {
+        settings.favicon_library = []
+      }
       return jsonRes(settings, 200, corsHeaders)
     }
 
@@ -813,6 +820,46 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
       ).bind(logoKey, JSON.stringify(library), nowISO).run()
+      return jsonRes({ success: true, library }, 200, corsHeaders)
+    }
+
+    if (path === '/api/site-settings/favicon' && method === 'POST') {
+      const body = await request.json<{ url: string; name: string }>()
+      const faviconKey = 'favicon_library'
+      const result = await env.DB.prepare('SELECT value FROM site_settings WHERE key = ?').bind(faviconKey).first()
+      const library: Array<{ url: string; name: string; added_at: string }> = result
+        ? JSON.parse((result as { value: string }).value || '[]') : []
+      library.push({ url: body.url || '', name: body.name || `Favicon ${library.length + 1}`, added_at: new Date().toISOString() })
+      const nowISO = new Date().toISOString()
+      await env.DB.prepare(
+        `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+      ).bind(faviconKey, JSON.stringify(library), nowISO).run()
+      await env.DB.prepare(
+        `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+      ).bind('current_favicon_url', body.url || '', nowISO).run()
+      return jsonRes({ success: true, library }, 200, corsHeaders)
+    }
+
+    if (path === '/api/site-settings/favicon' && method === 'DELETE') {
+      const urlToDelete = url.searchParams.get('url')
+      const indexToDelete = url.searchParams.get('index')
+      const faviconKey = 'favicon_library'
+      const result = await env.DB.prepare('SELECT value FROM site_settings WHERE key = ?').bind(faviconKey).first()
+      let library: Array<{ url: string; name: string; added_at: string }> = result
+        ? JSON.parse((result as { value: string }).value || '[]') : []
+      if (urlToDelete) {
+        library = library.filter((l) => l.url !== urlToDelete)
+      } else if (indexToDelete !== null) {
+        const idx = parseInt(indexToDelete, 10)
+        if (!isNaN(idx) && idx >= 0 && idx < library.length) {library.splice(idx, 1)}
+      }
+      const nowISO = new Date().toISOString()
+      await env.DB.prepare(
+        `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+      ).bind(faviconKey, JSON.stringify(library), nowISO).run()
       return jsonRes({ success: true, library }, 200, corsHeaders)
     }
 
