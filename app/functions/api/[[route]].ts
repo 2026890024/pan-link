@@ -373,8 +373,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const params: Array<unknown> = []
       if (categoryId) { query += ' AND l.category_id = ?'; params.push(categoryId) }
       query += ' ORDER BY l.is_pinned DESC, l.sort_order ASC, l.created_at DESC'
-      const stmt = env.DB.prepare(query)
-      for (const p of params) {stmt.bind(p as string)}
+      let stmt = env.DB.prepare(query)
+      for (const p of params) { stmt = stmt.bind(p as string) }
       const result = await stmt.all()
       const list = (result.results || []) as Array<Record<string, unknown>>
       await batchAttachTags(env, list)
@@ -410,8 +410,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const params: Array<unknown> = []
       if (slug) { query += ' AND l.slug = ?'; params.push(slug) }
       query += ' ORDER BY l.is_pinned DESC, l.sort_order ASC, l.created_at DESC'
-      const stmt = env.DB.prepare(query)
-      for (const p of params) {stmt.bind(p as string)}
+      let stmt = env.DB.prepare(query)
+      for (const p of params) { stmt = stmt.bind(p as string) }
       const result = await stmt.all()
 
       if (slug) {
