@@ -244,6 +244,18 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     return new Response(null, { status: 204, headers: { ...corsHeaders, ...securityHeaders } })
   }
 
+  // POST/PUT 请求体安全校验：拒绝超大负载和非法 Content-Type，防止 Worker OOM
+  if (method === 'POST' || method === 'PUT') {
+    const ct = request.headers.get('Content-Type') || ''
+    if (!ct.includes('application/json')) {
+      return jsonRes({ error: 'Content-Type 必须为 application/json' }, 415, corsHeaders)
+    }
+    const cl = parseInt(request.headers.get('Content-Length') || '0', 10)
+    if (cl > 100_000) {
+      return jsonRes({ error: '请求体过大，上限 100KB' }, 413, corsHeaders)
+    }
+  }
+
   try {
     const url = new URL(request.url)
     const path = url.pathname
