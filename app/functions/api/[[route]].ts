@@ -137,6 +137,16 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       { 'Retry-After': String(Math.ceil((rl.resetAt - now) / 1000)) })
   }
 
+  // UA 爬虫拦截（仅 API 路由，正常浏览器必有 UA）
+  const ua = (request.headers.get('User-Agent') || '').toLowerCase()
+  const isBot =
+    !ua ||
+    /python|curl|wget|httpie|go-http|scrapy|zgrab|masscan|nmap|nikto|sqlmap|nessus|burp|postman/i.test(ua) ||
+    (!/mozilla|chrome|safari|firefox|edge|opera/i.test(ua) && /\b(bot|crawler|spider|scanner)\b/i.test(ua))
+  if (isBot) {
+    return jsonRes({ error: 'Forbidden' }, 403)
+  }
+
   // CORS - 生产环境同域 + 本地开发 + preview 域名
   // 更换域名时设置 CORS_PREVIEW_PATTERN 环境变量（正则字符串），默认为 pan110.pages.dev
   const origin = request.headers.get('Origin') || ''
