@@ -120,7 +120,6 @@ function checkRateLimit(ip: string, method: string, now: number) {
 
 // ============ 边缘缓存 ============
 
-const CACHE_TTL_MS = 300_000 // 5 分钟边缘缓存
 const CACHEABLE_PATHS = ['/api/all', '/api/links', '/api/categories', '/api/tags', '/api/site-settings']
 
 function isCacheable(request: Request): boolean {
@@ -135,12 +134,7 @@ function isCacheable(request: Request): boolean {
 
 async function getCache(request: Request): Promise<Response | undefined> {
   try {
-    const cache = (caches as CacheStorage).default
-    const cached = await cache.match(request)
-    if (cached && Date.now() - new Date(cached.headers.get('CF-Cache-Created') || 0).getTime() < CACHE_TTL_MS) {
-      return cached
-    }
-    return undefined
+    return await (caches as CacheStorage).default.match(request)
   } catch {
     return undefined
   }
@@ -148,12 +142,8 @@ async function getCache(request: Request): Promise<Response | undefined> {
 
 async function putCache(request: Request, response: Response): Promise<void> {
   try {
-    const cache = (caches as CacheStorage).default
-    const cloned = response.clone()
-    const headers = new Headers(cloned.headers)
-    headers.set('CF-Cache-Created', new Date().toISOString())
-    const toCache = new Response(cloned.body, { status: cloned.status, statusText: cloned.statusText, headers })
-    await cache.put(request, toCache)
+    // clone 避免原始响应 body 被 cache.put 消耗，导致返回客户端时报错
+    await (caches as CacheStorage).default.put(request, response.clone())
   } catch {
     // 缓存失败不阻断响应
   }
