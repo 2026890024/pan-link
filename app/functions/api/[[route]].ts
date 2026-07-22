@@ -493,7 +493,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         favorited_links: fav?.total || 0,
         expiring_soon: expiring?.total || 0,
         expired_links: expired?.total || 0,
-      }, 200, corsHeaders)
+      }, 200, {
+        ...corsHeaders,
+        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+        'CDN-Cache-Control': 'private, no-store',
+      })
     }
 
     // POST /api/links
@@ -1043,15 +1047,18 @@ const securityHeaders = {
 }
 
 function jsonRes(data: unknown, status: number, extraHeaders?: Record<string, string>): Response {
-  const isGet = status >= 200 && status < 300
-  // GET 响应启用 CDN 缓存：浏览器 5 分钟 / CDN 边缘 10 分钟
-  const cacheHeaders = isGet ? {
+  const isSuccess = status >= 200 && status < 300
+  // 仅在成功响应且调用方未显式设置缓存策略时，才添加 CDN 缓存头
+  const hasExplicitCache = extraHeaders && (
+    'Cache-Control' in extraHeaders || 'CDN-Cache-Control' in extraHeaders
+  )
+  const cacheHeaders = (isSuccess && !hasExplicitCache) ? {
     'Cache-Control': 'public, max-age=300, s-maxage=600',
     'CDN-Cache-Control': 'public, max-age=600',
   } : {}
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', ...securityHeaders, ...extraHeaders, ...cacheHeaders },
+    headers: { 'Content-Type': 'application/json', ...securityHeaders, ...cacheHeaders, ...extraHeaders },
   })
 }
 
