@@ -758,7 +758,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           try { settings[row.key] = JSON.parse(row.value) } catch { settings[row.key] = row.value }
         }
       }
-      // 保证 favicon 默认值
+      // 保证默认值
+      if (!settings.site_name) {
+        settings.site_name = '资源云'
+      }
+      if (!settings.site_description) {
+        settings.site_description = '全网资源交流分享'
+      }
       if (!settings.current_favicon_url) {
         settings.current_favicon_url = '/favicon.png'
       }
