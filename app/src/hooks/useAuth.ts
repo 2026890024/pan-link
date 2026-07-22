@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { isCloudApiConfigured, API_BASE } from '@/services/dataService'
 import { AUTH_CONFIG } from '@/config/auth'
-import { hashPassword, verifyPassword } from '@/lib/crypto'
+import { verifyPassword } from '@/lib/crypto'
 
 export function useAuth() {
   const [loading, setLoading] = useState(true)
