@@ -149,10 +149,11 @@ async function getCache(request: Request): Promise<Response | undefined> {
 async function putCache(request: Request, response: Response): Promise<void> {
   try {
     const cache = (caches as CacheStorage).default
-    const headers = new Headers(response.headers)
+    const cloned = response.clone()
+    const headers = new Headers(cloned.headers)
     headers.set('CF-Cache-Created', new Date().toISOString())
-    const cloned = new Response(response.body, { status: response.status, statusText: response.statusText, headers })
-    await cache.put(request, cloned)
+    const toCache = new Response(cloned.body, { status: cloned.status, statusText: cloned.statusText, headers })
+    await cache.put(request, toCache)
   } catch {
     // 缓存失败不阻断响应
   }
