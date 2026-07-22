@@ -386,7 +386,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // GET /api/links/search?q=
     if (path === '/api/links/search' && method === 'GET') {
       const q = url.searchParams.get('q') || ''
-      if (!q.trim()) {return jsonRes([], 200, corsHeaders)}
+      if (!q.trim()) {
+        const response = jsonRes([], 200, { ...corsHeaders, ...PUBLIC_CACHE_HEADERS })
+        await putCache(request, response)
+        return response
+      }
       const like = `%${q}%`
       const result = await env.DB.prepare(
         `SELECT l.*, c.name as category_name, c.logo_url as category_logo
@@ -687,10 +691,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         const result = await env.DB.prepare(
           'SELECT * FROM subcategories ORDER BY sort_order ASC'
         ).all()
-        return jsonRes(result.results || [], 200, corsHeaders)
+        const response = jsonRes(result.results || [], 200, { ...corsHeaders, ...PUBLIC_CACHE_HEADERS })
+        await putCache(request, response)
+        return response
       } catch {
         // 表不存在时返回空数组，兼容未执行建表脚本的旧数据库
-        return jsonRes([], 200, corsHeaders)
+        const response = jsonRes([], 200, { ...corsHeaders, ...PUBLIC_CACHE_HEADERS })
+        await putCache(request, response)
+        return response
       }
     }
 
@@ -1046,13 +1054,15 @@ const securityHeaders = {
 
 function jsonRes(data: unknown, status: number, extraHeaders?: Record<string, string>): Response {
   const isSuccess = status >= 200 && status < 300
-  // 仅在成功响应且调用方未显式设置缓存策略时，才添加 CDN 缓存头
+  // 仅在调用方未显式设置缓存策略时，才添加默认缓存头
   const hasExplicitCache = extraHeaders && (
     'Cache-Control' in extraHeaders || 'CDN-Cache-Control' in extraHeaders
   )
+  // 默认使用私有缓存策略，防止写操作响应被 CDN 缓存泄露
+  // 公开 GET 端点由 isCacheable 路由覆盖为 public 缓存头
   const cacheHeaders = (isSuccess && !hasExplicitCache) ? {
-    'Cache-Control': 'public, max-age=300, s-maxage=600',
-    'CDN-Cache-Control': 'public, max-age=600',
+    'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+    'CDN-Cache-Control': 'private, no-store',
   } : {}
   return new Response(JSON.stringify(data), {
     status,
