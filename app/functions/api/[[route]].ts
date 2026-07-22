@@ -195,7 +195,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const linksList = (links.results || []) as Array<Record<string, unknown>>
       await batchAttachTags(env, linksList)
       const cacheHeaders = {
-        'Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
+        'Cache-Control': 'public, max-age=120, s-maxage=300, stale-while-revalidate=600',
+        'CDN-Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
       }
       return new Response(
         JSON.stringify({
@@ -771,7 +772,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       if (!settings.favicon_library) {
         settings.favicon_library = []
       }
-      return jsonRes(settings, 200, { ...corsHeaders, 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' })
+      return jsonRes(settings, 200, { ...corsHeaders, 'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300', 'CDN-Cache-Control': 'public, max-age=120, stale-while-revalidate=300' })
     }
 
     if (path === '/api/site-settings' && method === 'PUT') {
@@ -960,7 +961,11 @@ const securityHeaders = {
 
 function jsonRes(data: unknown, status: number, extraHeaders?: Record<string, string>): Response {
   const isGet = status >= 200 && status < 300
-  const cacheHeaders = isGet ? { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=600' } : {}
+  // GET 响应启用 CDN 缓存：浏览器 2 分钟 / CDN 边缘 5 分钟 / 过期后异步刷新 10 分钟
+  const cacheHeaders = isGet ? {
+    'Cache-Control': 'public, max-age=120, s-maxage=300, stale-while-revalidate=600',
+    'CDN-Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
+  } : {}
   return new Response(JSON.stringify(data), {
     status,
     headers: { 'Content-Type': 'application/json', ...securityHeaders, ...extraHeaders, ...cacheHeaders },

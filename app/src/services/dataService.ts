@@ -92,8 +92,6 @@ export interface LinkItem {
 // ============ HTTP 工具函数 ============
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  // 所有请求都加时间戳，避免 CDN/浏览器缓存导致写后读不到最新数据
-  const url = `${API_BASE}${path}${path.includes('?') ? '&' : '?'}_cb=${Date.now()}`
   const isWrite = options?.method && ['POST', 'PUT', 'DELETE'].includes(options.method)
   const token = getAuthToken()
   const headers: Record<string, string> = {
@@ -103,6 +101,12 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   if (isWrite && token) {
     headers['Authorization'] = `Bearer ${token}`
   }
+
+  // GET 请求：利用 CDN/浏览器缓存，不加时间戳，大幅减少 Functions 调用次数
+  // 写请求：加时间戳避免缓存旧数据，确保写后立即读到最新
+  const url = isWrite
+    ? `${API_BASE}${path}${path.includes('?') ? '&' : '?'}_cb=${Date.now()}`
+    : `${API_BASE}${path}${path.includes('?') ? '&' : '?'}_t=1` // 固定的 query param，让 CDN 能命中缓存
 
   // AbortController 超时控制（15秒）
   const controller = new AbortController()
@@ -119,8 +123,8 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
         ...options,
         headers,
         signal,
-        // 管理后台需要写后立即可读，禁用缓存
-        cache: 'no-store',
+        // GET 请求允许 CDN 缓存，写请求禁用缓存确保拿到最新数据
+        cache: isWrite ? 'no-store' : 'default',
       })
 
       clearTimeout(timeoutId)

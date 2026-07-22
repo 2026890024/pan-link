@@ -474,16 +474,13 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
       saveLocalLinks(mergedLinks)
       saveLocalItem('subcategories', mergedSubCategories)
 
-      // 加载次要数据（tags + driveTypes）
-      const localTags = loadLocal<Array<Tag>>('tags', [])
-      const [tags, driveTypes] = await Promise.all([
-        ds.fetchTags().catch(() => [] as Array<Tag>),
-        Promise.resolve(ds.fetchDriveTypes()),
-      ])
+      // 加载次要数据（driveTypes）- tags 已由 /api/all 返回，无需重复请求
+      const driveTypes = await Promise.resolve(ds.fetchDriveTypes())
 
       // 云端标签规范化 + 过滤待删除
       const pendingDeletes = loadLocal<Array<string>>('tag_delete_pending', [])
-      const cloudTags = tags
+      const localTags = loadLocal<Array<Tag>>('tags', [])
+      const cloudTags = (allData.tags || [])
         .filter(t => !pendingDeletes.includes(t.id))
         .map(t => ({
           ...t,
@@ -491,10 +488,10 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
           created_at: t.created_at || new Date().toISOString(),
           updated_at: t.updated_at || new Date().toISOString(),
         }))
-      const mergedTags = mergeLists(cloudTags, localTags, [])
+      const finalMergedTags = mergeLists(cloudTags, localTags, [])
 
       set({
-        tags: mergedTags,
+        tags: finalMergedTags,
         driveTypes: [...driveTypes] as Array<DriveType>,
       })
 
