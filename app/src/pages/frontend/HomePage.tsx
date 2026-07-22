@@ -170,11 +170,10 @@ export default function HomePage() {
     return localStorage.getItem('homepage_show_featured') !== 'false'
   })()
 
-  // SEO 标题
+  // SEO 标题：完整使用“浏览器标题描述”字段，不再拼接站点名称
   useEffect(() => {
-    const desc = siteSettings.settings.site_description || '全网资源交流分享'
-    document.title = `${siteName} - ${desc}`
-  }, [siteName, siteSettings.settings.site_description])
+    document.title = siteSettings.settings.site_description || '全网资源交流分享'
+  }, [siteSettings.settings.site_description])
 
   // 数据是否加载中（用 initialized 标记，而非依赖数据长度——空数据库 ≠ 未加载）
   const isLoading = !initialized

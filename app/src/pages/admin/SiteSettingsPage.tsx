@@ -792,8 +792,8 @@ function InfoTab() {
     try {
       await setSiteName(trimmedName)
       await setSiteDescription(trimmedDesc)
-      // 同时更新页面 title
-      document.title = `${trimmedName} - ${trimmedDesc}`
+      // 浏览器标题完整使用“浏览器标题描述”字段
+      document.title = trimmedDesc
       toast.success('站点信息已保存')
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -826,7 +826,7 @@ function InfoTab() {
               maxLength={100}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 text-sm"
             />
-            <p className="text-xs text-gray-400 mt-1">显示在网站内部导航栏 Logo 旁边</p>
+            <p className="text-xs text-gray-400 mt-1">仅显示在首页顶部与页脚的 Logo 旁边</p>
           </div>
 
           <div>
@@ -841,7 +841,7 @@ function InfoTab() {
               rows={3}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 text-sm resize-none"
             />
-            <p className="text-xs text-gray-400 mt-1">显示在浏览器标签页标题中，位于站点名称之后</p>
+            <p className="text-xs text-gray-400 mt-1">完整显示在浏览器标签页标题中，不再拼接站点名称</p>
           </div>
 
           <div className="pt-2">

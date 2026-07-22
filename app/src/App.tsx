@@ -74,10 +74,12 @@ function App() {
     if (colors.primary) {
       applyBrandColors(colors.primary)
     }
-    if (siteSettings.settings.site_name) {
-      document.title = `${siteSettings.settings.site_name} - ${siteSettings.settings.site_description || ''}`
+    // 浏览器标题完整使用“浏览器标题描述”字段，不再拼接站点名称
+    const pageTitle = siteSettings.settings.site_description || '全网资源交流分享'
+    if (document.title !== pageTitle) {
+      document.title = pageTitle
     }
-  }, [siteSettings, siteSettings.settings.current_colors, siteSettings.settings.site_name, siteSettings.settings.site_description])
+  }, [siteSettings, siteSettings.settings.current_colors, siteSettings.settings.site_description])
 
   // 动态同步 favicon
   useEffect(() => {
