@@ -41,7 +41,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
   current_colors: DEFAULT_COLORS,
   color_history: [],
   site_name: '资源云',
-  site_description: '一站式网盘资源聚合管理平台',
+  site_description: '全网资源交流分享',
 }
 
 // 启动时优先用 localStorage 缓存，确保 Logo 和数据内容同步显示

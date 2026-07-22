@@ -172,7 +172,7 @@ export default function HomePage() {
 
   // SEO 标题
   useEffect(() => {
-    const desc = siteSettings.settings.site_description || '一站式网盘资源聚合管理平台'
+    const desc = siteSettings.settings.site_description || '全网资源交流分享'
     document.title = `${siteName} - ${desc}`
   }, [siteName, siteSettings.settings.site_description])
 

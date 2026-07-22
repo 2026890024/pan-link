@@ -977,7 +977,7 @@ function getLocalSiteSettings(): SiteSettings {
     },
     color_history: [],
     site_name: '资源云',
-    site_description: '一站式网盘资源聚合管理平台',
+    site_description: '全网资源交流分享',
   }
 }
 
