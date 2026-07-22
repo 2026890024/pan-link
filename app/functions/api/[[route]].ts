@@ -181,10 +181,34 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   const requestPath = new URL(request.url).pathname
 
+  // CORS headers 必须在任何可能提前返回的逻辑之前定义，避免限流/黑名单响应引用未初始化变量
+  const originRaw = request.headers.get('Origin') || ''
+  const requestHost = new URL(request.url).host
+  let isSameOrigin = !originRaw
+  if (originRaw) {
+    try { isSameOrigin = requestHost === new URL(originRaw).host } catch { isSameOrigin = false }
+  }
+  const previewPattern = (env as Record<string, unknown>).CORS_PREVIEW_PATTERN as string || 'pan110\\.pages\\.dev'
+  const isAllowedPreview = requestHost.match(new RegExp(String.raw`^[a-f0-9]+\.${previewPattern}$`))
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:8788',
+  ]
+  const isAllowedOrigin = isSameOrigin || !!isAllowedPreview || allowedOrigins.includes(originRaw)
+  const allowOrigin = isAllowedOrigin ? (originRaw || '*') : 'null'
+
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400',
+  }
+
   // 拦截常见爬虫/攻击路径，避免进入后续业务逻辑
   const blockedPrefixes = ['/wp-admin', '/wp-login', '/phpmyadmin', '/xmlrpc.php', '/.env', '/.git', '/admin.php', '/config', '/login.php', '/setup.php']
   if (blockedPrefixes.some(p => requestPath.startsWith(p))) {
-    return new Response('Not Found', { status: 404, headers: securityHeaders })
+    return new Response('Not Found', { status: 404, headers: { ...corsHeaders, ...securityHeaders } })
   }
 
   // Rate limit
@@ -204,7 +228,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     /gptbot|chatgpt|claude|anthropic|bard|perplexity|gemini|ccbot|bytespider|petalbot|semrush|ahrefs|dotbot|mj12bot|yandex/i.test(ua) ||
     (!/mozilla|chrome|safari|firefox|edge|opera/i.test(ua) && /\b(bot|crawler|spider|scanner)\b/i.test(ua))
   if (isBot) {
-    return jsonRes({ error: 'Forbidden' }, 403)
+    return jsonRes({ error: 'Forbidden' }, 403, corsHeaders)
   }
 
   // GET 公开 API 边缘缓存：命中则直接返回，不再消耗 D1 查询和 CPU
@@ -214,31 +238,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       return cached
     }
   }
-
-  // CORS - 生产环境同域 + 本地开发 + preview 域名
-  // 更换域名时设置 CORS_PREVIEW_PATTERN 环境变量（正则字符串），默认为 pan110.pages.dev
-  const origin = request.headers.get('Origin') || ''
-  const requestHost = new URL(request.url).host
-  const isSameOrigin = !origin || requestHost === new URL(origin).host
-  // 通过环境变量配置 preview 域名匹配规则，支持域名迁移
-  const previewPattern = (env as Record<string, unknown>).CORS_PREVIEW_PATTERN as string || 'pan110\\.pages\\.dev'
-  const isAllowedPreview = requestHost.match(new RegExp(String.raw`^[a-f0-9]+\.${previewPattern}$`))
-  const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://localhost:8788',
-  ]
-  const isAllowedOrigin = isSameOrigin || !!isAllowedPreview || allowedOrigins.includes(origin)
-  const allowOrigin = isAllowedOrigin ? (origin || '*') : 'null'
-
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': allowOrigin,
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Max-Age': '86400',
-  }
-
-
 
   if (method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: { ...corsHeaders, ...securityHeaders } })
