@@ -36,7 +36,7 @@ export default function AdminLoginPage() {
       const stored = localStorage.getItem('admin_auth_config')
       if (stored) {
         const parsed = JSON.parse(stored)
-        if (parsed.password) {setHasCustomCred(true)}
+        if (parsed.passwordHash) {setHasCustomCred(true)}
       }
     } catch { /* ignore */ }
   }, [])
