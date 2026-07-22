@@ -765,7 +765,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       if (!settings.favicon_library) {
         settings.favicon_library = []
       }
-      return jsonRes(settings, 200, corsHeaders)
+      return jsonRes(settings, 200, { ...corsHeaders, 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' })
     }
 
     if (path === '/api/site-settings' && method === 'PUT') {
