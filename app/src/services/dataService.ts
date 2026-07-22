@@ -130,8 +130,9 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
       clearTimeout(timeoutId)
 
       if (!resp.ok) {
-        // 401/403 = 认证失效，清除 token 并重定向到登录页
-        if (resp.status === 401 || resp.status === 403) {
+        // 401 = 始终是认证失效
+        // 403 = 仅当请求携带了 token 且非 GET 时才判定为认证失效（避免前台公开页受爬虫拦截影响）
+        if (resp.status === 401 || (resp.status === 403 && isWrite && token)) {
           try { sessionStorage.removeItem('admin_token') } catch { /* ignore */ }
           if (import.meta.env.DEV) { console.log('[DataService] Auth expired, redirecting to login'); }
           window.location.href = '/admin-login'

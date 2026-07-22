@@ -415,24 +415,22 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const result = await stmt.all()
 
       if (slug) {
-        // 仅真实浏览器访问才记录点击，爬虫不写 DB
-        if (!isBot) {
-          try {
+        // 记录点击和访问统计（bot 已在入口处被拦截，此处无需重复判断）
+        try {
+          await env.DB.prepare(
+            'INSERT INTO link_visits (link_id, visitor_ip, user_agent, referer, visit_type) VALUES (?, ?, ?, ?, ?)'
+          ).bind(
+            (result.results?.[0] as Record<string, unknown>)?.id || '',
+            request.headers.get('CF-Connecting-IP') || null,
+            request.headers.get('User-Agent') || null,
+            request.headers.get('Referer') || null, 'click'
+          ).run()
+          if (result.results?.[0]) {
             await env.DB.prepare(
-              'INSERT INTO link_visits (link_id, visitor_ip, user_agent, referer, visit_type) VALUES (?, ?, ?, ?, ?)'
-            ).bind(
-              (result.results?.[0] as Record<string, unknown>)?.id || '',
-              request.headers.get('CF-Connecting-IP') || null,
-              request.headers.get('User-Agent') || null,
-              request.headers.get('Referer') || null, 'click'
-            ).run()
-            if (result.results?.[0]) {
-              await env.DB.prepare(
-                'UPDATE links SET click_count = click_count + 1 WHERE id = ?'
-              ).bind((result.results[0] as Record<string, unknown>).id as string).run()
-            }
-          } catch { /* ignore */ }
-        }
+              'UPDATE links SET click_count = click_count + 1 WHERE id = ?'
+            ).bind((result.results[0] as Record<string, unknown>).id as string).run()
+          }
+        } catch { /* ignore */ }
         const single = (result.results?.[0] || null) as Record<string, unknown> | null
         if (single) { const arr = [single]; await batchAttachTags(env, arr); Object.assign(single, arr[0]) }
         // 公开链接详情缓存 5 分钟，减少爬虫回源压力

@@ -7,13 +7,31 @@ const devLog = (...args: Array<unknown>) => { if (import.meta.env.DEV) {console.
 const DEFAULT_CUSTOM_DRIVE_TYPES: Record<string, { name: string; icon: string; color: string }> = {}
 
 // 同步锁：防止多个同步操作并发执行导致数据错乱
+// 使用 localStorage 标志位实现跨标签页防并发，避免多标签页同时写入云端
 let _syncLock = false
+const SYNC_LOCK_KEY = 'panlink_syncing'
+const SYNC_LOCK_TIMEOUT = 30000 // 30 秒超时，防止锁死
+
 function acquireSyncLock(): boolean {
   if (_syncLock) {return false}
-  _syncLock = true
+  try {
+    const raw = localStorage.getItem(SYNC_LOCK_KEY)
+    if (raw) {
+      const elapsed = Date.now() - parseInt(raw, 10)
+      if (elapsed < SYNC_LOCK_TIMEOUT) {return false}
+      // 锁已过期，可以接管
+    }
+    _syncLock = true
+    localStorage.setItem(SYNC_LOCK_KEY, String(Date.now()))
+  } catch {
+    _syncLock = true
+  }
   return true
 }
-function releaseSyncLock(): void { _syncLock = false }
+function releaseSyncLock(): void {
+  _syncLock = false
+  try { localStorage.removeItem(SYNC_LOCK_KEY) } catch { /* ignore */ }
+}
 
 
 // ============ Store 接口 ============

@@ -50,7 +50,7 @@ export function useAuth() {
     let authPasswordHash: string | null = null
 
     if (!authUsername) {
-      // 默认凭证未配置，检查 localStorage 自定义配置
+      // 默认凭证未配置，检查 localStorage 自定义配置（仅支持 passwordHash，不接受明文）
       try {
         const stored = localStorage.getItem('admin_auth_config')
         if (stored) {
@@ -58,13 +58,8 @@ export function useAuth() {
           if (parsed.username) {authUsername = parsed.username}
           if (parsed.passwordHash) {
             authPasswordHash = parsed.passwordHash
-          } else if (parsed.password) {
-            authPasswordHash = await hashPassword(parsed.password)
-            localStorage.setItem('admin_auth_config', JSON.stringify({
-              username: authUsername,
-              passwordHash: authPasswordHash,
-            }))
           }
+          // 不再支持明文 password 字段，防止 XSS 泄露
         }
       } catch { /* ignore */ }
     }
