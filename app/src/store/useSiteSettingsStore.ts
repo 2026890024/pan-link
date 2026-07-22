@@ -169,10 +169,20 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
   // ===== Favicon =====
 
   addFavicon: async (url, name) => {
+    const { settings } = get()
+    const previous = settings.current_favicon_url
     const library = await ds.addFaviconToLibrary(url, name)
-    const settings = { ...get().settings, favicon_library: library, current_favicon_url: url }
-    set({ settings })
-    saveCachedSettings(settings)
+    const updated = { ...settings, favicon_library: library, current_favicon_url: url }
+    set({ settings: updated })
+    saveCachedSettings(updated)
+    try {
+      await ds.updateSiteSettings({ current_favicon_url: url })
+    } catch {
+      const reverted = { ...settings, favicon_library: library, current_favicon_url: previous }
+      set({ settings: reverted })
+      saveCachedSettings(reverted)
+      throw new Error('设置 Favicon 失败，数据可能过大')
+    }
   },
 
   removeFavicon: async (index) => {
@@ -194,10 +204,18 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
     const { settings } = get()
     const item = settings.favicon_library?.[index]
     if (item) {
+      const previous = settings.current_favicon_url
       const updated = { ...settings, current_favicon_url: item.url }
       set({ settings: updated })
       saveCachedSettings(updated)
-      await ds.updateSiteSettings({ current_favicon_url: item.url })
+      try {
+        await ds.updateSiteSettings({ current_favicon_url: item.url })
+      } catch {
+        const reverted = { ...settings, current_favicon_url: previous }
+        set({ settings: reverted })
+        saveCachedSettings(reverted)
+        throw new Error('设置 Favicon 失败，数据可能过大')
+      }
     }
   },
 

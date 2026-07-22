@@ -784,7 +784,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           continue // 拒绝危险字段
         }
         const jsonValue = typeof value === 'string' ? value : JSON.stringify(value)
-        if (jsonValue.length > 65535) {continue} // 拒绝超大数据
+        if (jsonValue.length > 65535) {
+          return jsonRes({ success: false, error: `字段 ${key} 数据过大，请压缩后重试` }, 413, corsHeaders)
+        }
         await env.DB.prepare(
           `INSERT INTO site_settings (key, value, updated_at) VALUES (?, ?, ?)
            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`

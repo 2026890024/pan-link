@@ -91,9 +91,13 @@ function App() {
       link.type = 'image/png'
       document.head.appendChild(link)
     }
-    // 加时间戳避免浏览器缓存导致切换不生效
-    const sep = faviconUrl.includes('?') ? '&' : '?'
-    link.href = `${faviconUrl}${sep}_t=${Date.now()}`
+    // 加时间戳避免浏览器缓存导致切换不生效（data URL 不能追加参数）
+    if (faviconUrl.startsWith('data:')) {
+      link.href = faviconUrl
+    } else {
+      const sep = faviconUrl.includes('?') ? '&' : '?'
+      link.href = `${faviconUrl}${sep}_t=${Date.now()}`
+    }
   }, [siteSettings.settings.current_favicon_url])
 
   const isDark = themeResolved === 'dark'

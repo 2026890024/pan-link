@@ -15,12 +15,40 @@ const tabs = [
   { id: 'info' as const, label: '站点信息', icon: Globe },
 ]
 
-function fileToBase64(file: File): Promise<string> {
+function resizeImageToDataURL(file: File, maxSize = 64): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
+    const img = new window.Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const canvas = document.createElement('canvas')
+      const size = Math.min(maxSize, Math.max(img.width, img.height))
+      canvas.width = size
+      canvas.height = size
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        reject(new Error('Canvas not supported'))
+        return
+      }
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(img, 0, 0, size, size)
+      // 优先使用 PNG，必要时降级为 JPEG 以控制体积
+      let dataUrl = canvas.toDataURL('image/png')
+      if (dataUrl.length > 16384) {
+        dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+      }
+      if (dataUrl.length > 65535) {
+        reject(new Error('图片压缩后仍超过限制，请选择更小的图片'))
+      } else {
+        resolve(dataUrl)
+      }
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('图片加载失败'))
+    }
+    img.src = url
   })
 }
 
@@ -356,11 +384,11 @@ function FaviconTab() {
     }
     setIsUploading(true)
     try {
-      const dataUrl = await fileToBase64(file)
+      const dataUrl = await resizeImageToDataURL(file, 64)
       await addFavicon(dataUrl, file.name.replace(/\.[^/.]+$/, ''))
       toast.success('Favicon 上传成功')
-    } catch {
-      toast.error('上传失败')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '上传失败')
     } finally {
       setIsUploading(false)
       if (fileInputRef.current) { fileInputRef.current.value = '' }
@@ -472,7 +500,13 @@ function FaviconTab() {
               return (
                 <div
                   key={`${item.url}-${index}`}
-                  onClick={() => selectFavicon(index)}
+                  onClick={async () => {
+                    try {
+                      await selectFavicon(index)
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : '设置失败')
+                    }
+                  }}
                   className={`relative group cursor-pointer rounded-xl border-2 p-3 flex flex-col items-center gap-2 transition-all ${
                     isActive
                       ? 'border-brand-500 bg-brand-50 shadow-sm'
