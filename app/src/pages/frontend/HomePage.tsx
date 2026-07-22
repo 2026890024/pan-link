@@ -32,67 +32,7 @@ import { useLinkActions } from '@/hooks/useLinkActions'
 const BTN_PRIMARY = 'py-2 px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-colors,shadow duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium min-h-[44px] sm:min-h-[36px]'
 const BTN_SECONDARY = 'py-2 px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors duration-200 cursor-pointer flex items-center gap-1 min-h-[44px] sm:min-h-[36px]'
 
-// ── 120fps 级切换动画配置 ──
-const contentVariants = {
-  hidden: { opacity: 0, x: 20 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: { type: 'spring', stiffness: 300, damping: 30, mass: 0.7 },
-  },
-  exit: {
-    opacity: 0,
-    x: -14,
-    transition: { duration: 0.16, ease: 'easeIn' },
-  },
-}
-
-const listContainerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.03, delayChildren: 0.03 },
-  },
-  exit: {
-    opacity: 0,
-    transition: { duration: 0.08 },
-  },
-}
-
-const gridContainerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.025, delayChildren: 0.03 },
-  },
-  exit: {
-    opacity: 0,
-    transition: { duration: 0.08 },
-  },
-}
-
-const listItemVariants = {
-  hidden: { opacity: 0, y: 18, scale: 0.98 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { type: 'spring', stiffness: 380, damping: 29, mass: 0.5 },
-  },
-  exit: { opacity: 0, y: -8, transition: { duration: 0.1 } },
-}
-
-const gridItemVariants = {
-  hidden: { opacity: 0, y: 20, scale: 0.95 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { type: 'spring', stiffness: 360, damping: 28, mass: 0.55 },
-  },
-  exit: { opacity: 0, scale: 0.98, transition: { duration: 0.1 } },
-}
-
+// ── 标题轻量动画（分类名切换用）──
 const titleVariants = {
   hidden: { opacity: 0, y: -8 },
   visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 280, damping: 28 } },
@@ -605,43 +545,27 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <>
-                    <AnimatePresence mode="wait">
-                      {viewMode === 'list' ? (
-                        <motion.div
-                          key={`list-${selectedCategory || 'all'}-${selectedSubCategory || 'all'}`}
-                          variants={contentVariants}
-                          initial="hidden"
-                          animate="visible"
-                          exit="exit"
-                          className="space-y-3 will-change-transform"
-                        >
-                          <motion.div
-                            variants={listContainerVariants}
-                            initial="hidden"
-                            animate="visible"
-                            exit="exit"
-                            className="space-y-3"
+                    {viewMode === 'list' ? (
+                      <div key={`list-${selectedCategory || 'all'}-${selectedSubCategory || 'all'}`} className="space-y-3">
+                        {filteredLinks.map((link) => (
+                          <div
+                            key={link.id}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`查看 ${link.name} 详情`}
+                            className={`group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl bg-white border transition-[transform,box-shadow,border-color] duration-200 cursor-pointer ${
+                              link.is_pinned
+                                ? 'border-l-2 border-brand-400 border-l-brand-400 border-gray-100 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300'
+                                : 'border-gray-100 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300'
+                            }`}
+                            onClick={() => setSelectedLink(link)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                setSelectedLink(link)
+                              }
+                            }}
                           >
-                          {filteredLinks.map((link) => (
-                            <motion.div
-                              key={link.id}
-                              variants={listItemVariants}
-                              role="button"
-                              tabIndex={0}
-                              aria-label={`查看 ${link.name} 详情`}
-                              className={`group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl bg-white border transition-[transform,box-shadow,border-color] duration-200 cursor-pointer will-change-transform ${
-                                link.is_pinned
-                                  ? 'border-l-2 border-brand-400 border-l-brand-400 border-gray-100 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300'
-                                  : 'border-gray-100 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300'
-                              }`}
-                              onClick={() => setSelectedLink(link)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault()
-                                  setSelectedLink(link)
-                                }
-                              }}
-                            >
                               <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                                 {getLinkIcon(link)}
                                 <div className="flex-1 min-w-0">
@@ -695,80 +619,62 @@ export default function HomePage() {
                                   分享
                                 </button>
                               </div>
-                            </motion.div>
-                          ))}
-                          </motion.div>
-                        </motion.div>
-                      ) : (
-                        <motion.div
-                          key={`grid-${selectedCategory || 'all'}-${selectedSubCategory || 'all'}`}
-                          variants={contentVariants}
-                          initial="hidden"
-                          animate="visible"
-                          exit="exit"
-                          className="will-change-transform"
-                        >
-                          <motion.div
-                            variants={gridContainerVariants}
-                            initial="hidden"
-                            animate="visible"
-                            exit="exit"
-                            className="grid grid-cols-2 lg:grid-cols-3 gap-4"
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div key={`grid-${selectedCategory || 'all'}-${selectedSubCategory || 'all'}`} className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredLinks.map((link) => (
+                          <div
+                            key={link.id}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`查看 ${link.name} 详情`}
+                            onClick={() => setSelectedLink(link)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                setSelectedLink(link)
+                              }
+                            }}
+                            className="group flex flex-col h-full p-3 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-[transform,box-shadow,border-color] duration-200 cursor-pointer"
                           >
-                          {filteredLinks.map((link) => (
-                            <motion.div
-                              key={link.id}
-                              variants={gridItemVariants}
-                              role="button"
-                              tabIndex={0}
-                              aria-label={`查看 ${link.name} 详情`}
-                              onClick={() => setSelectedLink(link)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault()
-                                  setSelectedLink(link)
-                                }
-                              }}
-                              className={`group flex flex-col h-full p-3 sm:p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-[transform,box-shadow,border-color] duration-200 cursor-pointer will-change-transform`}
-                            >
-                              <div className="flex items-start gap-2 sm:gap-3 mb-2 flex-1">
-                                <div className="shrink-0">{getLinkIcon(link)}</div>
-                                <div className="flex-1 min-w-0 self-center">
-                                  <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug break-all line-clamp-2 sm:line-clamp-none">
-                                    {link.name}
-                                  </h3>
-                                </div>
+                            <div className="flex items-start gap-2 sm:gap-3 mb-2 flex-1">
+                              <div className="shrink-0">{getLinkIcon(link)}</div>
+                              <div className="flex-1 min-w-0 self-center">
+                                <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors text-[13px] sm:text-sm leading-snug break-all line-clamp-2 sm:line-clamp-none">
+                                  {link.name}
+                                </h3>
                               </div>
-                              <div className="flex items-center gap-1.5 pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleLinkClick(link)
-                                  }}
-                                  className="flex-1 justify-center py-1.5 sm:py-2 px-2 sm:px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium whitespace-nowrap"
-                                  aria-label={`下载 ${link.name}`}
-                                >
-                                  <Download className="w-3 h-3" />
-                                  下载
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    shareLink(link)
-                                  }}
-                                  className="py-1.5 sm:py-2 px-2 sm:px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 whitespace-nowrap"
-                                  aria-label={`分享 ${link.name}`}
-                                >
-                                  {copiedId === link.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Share2 className="w-3 h-3" />}
-                                  分享
-                                </button>
-                              </div>
-                            </motion.div>
-                          ))}
-                          </motion.div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                            </div>
+                            <div className="flex items-center gap-1.5 pt-2 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleLinkClick(link)
+                                }}
+                                className="flex-1 justify-center py-1.5 sm:py-2 px-2 sm:px-3 text-xs text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 shadow-sm font-medium whitespace-nowrap"
+                                aria-label={`下载 ${link.name}`}
+                              >
+                                <Download className="w-3 h-3" />
+                                下载
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  shareLink(link)
+                                }}
+                                className="py-1.5 sm:py-2 px-2 sm:px-3 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-1 whitespace-nowrap"
+                                aria-label={`分享 ${link.name}`}
+                              >
+                                {copiedId === link.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Share2 className="w-3 h-3" />}
+                                分享
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </>
                 )}
               </div>

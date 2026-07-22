@@ -67,9 +67,6 @@ export default defineConfig({
       },
     },
     minify: 'esbuild',
-    esbuild: {
-      drop: ['console', 'debugger'],
-    },
     chunkSizeWarningLimit: 500,
     // 小于此大小的资源内联为 base64，减少 HTTP 请求
     assetsInlineLimit: 8192,
