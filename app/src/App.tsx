@@ -8,6 +8,7 @@ import { useDataStore } from '@/store/useDataStore'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import { applyBrandColors } from '@/lib/colors'
+import { fetchSiteSettings } from '@/services/dataService'
 
 // 前台页面 - 全部懒加载（减少初始 bundle ~126 kB，首屏快 2-3 秒）
 const HomePage = lazy(() => import('@/pages/frontend/HomePage'))
@@ -62,8 +63,11 @@ function App() {
     // 后台静默加载，不阻塞页面渲染（仅执行一次）
     if (!initializedRef.current) {
       initializedRef.current = true
-      initialize()
-      siteSettings.loadSettings()
+      // 只请求一次 siteSettings，避免 initialize() 和 loadSettings() 并发重复请求
+      fetchSiteSettings().then((settings) => {
+        initialize(settings)
+        siteSettings.loadSettings()
+      })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

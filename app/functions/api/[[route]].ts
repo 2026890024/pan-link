@@ -120,16 +120,21 @@ function checkRateLimit(ip: string, method: string, now: number) {
 
 // ============ 边缘缓存 ============
 
-const CACHEABLE_PATHS = ['/api/all', '/api/links', '/api/categories', '/api/tags', '/api/site-settings']
+const CACHEABLE_PATHS = ['/api/all', '/api/links', '/api/categories', '/api/tags', '/api/site-settings', '/api/links/public']
 
 function isCacheable(request: Request): boolean {
-  if (request.method !== 'GET') return false
+  if (request.method !== 'GET') { return false }
   const url = new URL(request.url)
   // 健康检查不缓存；搜索/分页参数繁多，命中低，不缓存
-  if (url.pathname === '/api/health') return false
-  if (url.pathname.startsWith('/api/admin/')) return false
-  if (url.pathname === '/api/auth/status') return false
+  if (url.pathname === '/api/health') { return false }
+  if (url.pathname.startsWith('/api/admin/')) { return false }
+  if (url.pathname === '/api/auth/status') { return false }
   return CACHEABLE_PATHS.includes(url.pathname) || url.pathname === '/api/links/search'
+}
+
+const PUBLIC_CACHE_HEADERS = {
+  'Cache-Control': 'public, max-age=120, s-maxage=300, stale-while-revalidate=600',
+  'CDN-Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
 }
 
 async function getCache(request: Request): Promise<Response | undefined> {
@@ -298,7 +303,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const result = await env.DB.prepare(
         'SELECT * FROM categories ORDER BY sort_order ASC'
       ).all()
-      const response = jsonRes(result.results || [], 200, corsHeaders)
+      const response = jsonRes(result.results || [], 200, { ...corsHeaders, ...PUBLIC_CACHE_HEADERS })
       await putCache(request, response)
       return response
     }
@@ -368,7 +373,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const result = await stmt.all()
       const list = (result.results || []) as Array<Record<string, unknown>>
       await batchAttachTags(env, list)
-      const response = jsonRes(list, 200, corsHeaders)
+      const response = jsonRes(list, 200, { ...corsHeaders, ...PUBLIC_CACHE_HEADERS })
       await putCache(request, response)
       return response
     }
@@ -386,7 +391,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       ).bind(like, like, like).all()
       const searchList = (result.results || []) as Array<Record<string, unknown>>
       await batchAttachTags(env, searchList)
-      const response = jsonRes(searchList, 200, corsHeaders)
+      const response = jsonRes(searchList, 200, { ...corsHeaders, ...PUBLIC_CACHE_HEADERS })
       await putCache(request, response)
       return response
     }
@@ -426,7 +431,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       }
       const pubList = (result.results || []) as Array<Record<string, unknown>>
       await batchAttachTags(env, pubList)
-      return jsonRes(pubList, 200, corsHeaders)
+      const response = jsonRes(pubList, 200, { ...corsHeaders, ...PUBLIC_CACHE_HEADERS })
+      await putCache(request, response)
+      return response
     }
 
     // GET /api/links/stats - 需要认证（管理统计）
@@ -747,7 +754,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     if (path === '/api/tags' && method === 'GET') {
       const result = await env.DB.prepare('SELECT * FROM tags ORDER BY name ASC').all()
-      const response = jsonRes(result.results || [], 200, corsHeaders)
+      const response = jsonRes(result.results || [], 200, { ...corsHeaders, ...PUBLIC_CACHE_HEADERS })
       await putCache(request, response)
       return response
     }

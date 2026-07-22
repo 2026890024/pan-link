@@ -607,7 +607,7 @@ export async function deleteSubCategoryApi(id: string): Promise<void> {
 
 // ============ DriveTypes (cloud + local) ============
 
-export async function fetchDriveTypes(): Promise<Array<DriveType>> {
+export async function fetchDriveTypes(settings?: SiteSettings): Promise<Array<DriveType>> {
   const base = [...FALLBACK_DRIVE_TYPES]
   
   if (!isCloudApiConfigured()) {
@@ -617,8 +617,8 @@ export async function fetchDriveTypes(): Promise<Array<DriveType>> {
   }
   
   try {
-    const settings = await fetchSiteSettings()
-    const cloudCustom: Array<DriveType> = (settings as Record<string, unknown>).drive_types as Array<DriveType> || []
+    const siteSettings = settings || await fetchSiteSettings()
+    const cloudCustom: Array<DriveType> = (siteSettings as Record<string, unknown>).drive_types as Array<DriveType> || []
     if (cloudCustom.length > 0) {
       const customMap = new Map(cloudCustom.map(dt => [dt.id, dt]))
       // Deduplicate: cloud types override local with same id
@@ -991,30 +991,65 @@ function saveLocalSiteSettings(settings: SiteSettings): void {
   } catch { /* ignore */ }
 }
 
-export async function fetchSiteSettings(): Promise<SiteSettings> {
-  if (!isCloudApiConfigured()) {return getLocalSiteSettings()}
-  try {
-    const data = await apiFetch<SiteSettings>('/api/site-settings')
-    // 深度合并：云端有值的字段优先，空值/null/undefined 回退到本地
-    const local = getLocalSiteSettings()
-    const result = { ...local }
-    for (const key of Object.keys(data) as Array<keyof SiteSettings>) {
-      const val = data[key]
-      if (val !== null && val !== undefined && !(typeof val === 'string' && val === '')) {
-        result[key] = val as never
-      }
-    }
-    return result
-  } catch (err) {
-    console.error('[DataService] fetchSiteSettings error:', err)
-    return getLocalSiteSettings()
+// ============ 内存缓存 + 请求去重 ============
+// 避免短时间内重复请求 /api/site-settings，减少 Workers 调用次数
+let _siteSettingsCache: { data: SiteSettings; timestamp: number } | null = null
+let _siteSettingsPromise: Promise<SiteSettings> | null = null
+const SETTINGS_CACHE_TTL = 30_000 // 30 秒
+
+export function fetchSiteSettings(): Promise<SiteSettings> {
+  // 1. 优先返回内存缓存（30 秒内有效）
+  if (_siteSettingsCache && (Date.now() - _siteSettingsCache.timestamp) < SETTINGS_CACHE_TTL) {
+    return Promise.resolve(_siteSettingsCache.data)
   }
+
+  // 2. 如果有正在进行的请求，复用同一个 Promise（避免并发重复请求）
+  if (_siteSettingsPromise) {
+    return _siteSettingsPromise
+  }
+
+  if (!isCloudApiConfigured()) {return Promise.resolve(getLocalSiteSettings())}
+
+  // 3. 发起新请求，Promise 存入全局变量用于去重
+  _siteSettingsPromise = (async () => {
+    try {
+      const data = await apiFetch<SiteSettings>('/api/site-settings')
+      // 深度合并：云端有值的字段优先，空值/null/undefined 回退到本地
+      const local = getLocalSiteSettings()
+      const result = { ...local }
+      for (const key of Object.keys(data) as Array<keyof SiteSettings>) {
+        const val = data[key]
+        if (val !== null && val !== undefined && !(typeof val === 'string' && val === '')) {
+          result[key] = val as never
+        }
+      }
+      // 存入内存缓存
+      _siteSettingsCache = { data: result, timestamp: Date.now() }
+      return result
+    } catch (err) {
+      console.error('[DataService] fetchSiteSettings error:', err)
+      // 错误时也返回缓存（如果有），避免雪崩
+      if (_siteSettingsCache) {return _siteSettingsCache.data}
+      return getLocalSiteSettings()
+    } finally {
+      _siteSettingsPromise = null
+    }
+  })()
+
+  return _siteSettingsPromise
+}
+
+/** 清除 siteSettings 内存缓存（写入后调用，确保后续读最新的数据） */
+export function invalidateSiteSettingsCache(): void {
+  _siteSettingsCache = null
 }
 
 export async function updateSiteSettings(updates: Partial<SiteSettings>): Promise<void> {
   const local = getLocalSiteSettings()
   const merged = { ...local, ...updates }
   saveLocalSiteSettings(merged)
+  // 写入后清除内存缓存，确保下次读取获取最新数据
+  invalidateSiteSettingsCache()
 
   if (!isCloudApiConfigured()) {return}
   try {

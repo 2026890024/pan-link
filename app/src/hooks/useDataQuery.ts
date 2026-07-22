@@ -64,7 +64,7 @@ export function useLinks() {
   return useQuery({
     queryKey: queryKeys.links,
     queryFn: ds.fetchLinks,
-    staleTime: 30 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 分钟，减少后台页面刷新频率
   })
 }
 
@@ -72,7 +72,7 @@ export function usePublicLinks() {
   return useQuery({
     queryKey: queryKeys.publicLinks,
     queryFn: ds.fetchPublicLinks,
-    staleTime: 60 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 分钟，游客侧链接列表不需要实时
   })
 }
 
@@ -191,7 +191,7 @@ export function useDeleteSubCategory() {
 export function useDriveTypes() {
   return useQuery({
     queryKey: queryKeys.driveTypes,
-    queryFn: ds.fetchDriveTypes,
+    queryFn: () => ds.fetchDriveTypes(),
     staleTime: Infinity,
   })
 }
@@ -219,6 +219,6 @@ export function useDashboardStats() {
   return useQuery({
     queryKey: queryKeys.dashboardStats,
     queryFn: () => ds.fetchDashboardStats(),
-    staleTime: 30 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 分钟，后台统计数据不需要实时刷新
   })
 }

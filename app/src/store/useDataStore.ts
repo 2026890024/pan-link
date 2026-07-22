@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import * as ds from '@/services/dataService'
 import { FALLBACK_DRIVE_TYPES } from '@/services/dataService'
-import type { Category, LinkItem, SubCategory, Tag, DriveType, IconLibraryItem } from '@/services/dataService'
+import type { Category, LinkItem, SubCategory, Tag, DriveType, IconLibraryItem, SiteSettings } from '@/services/dataService'
 
 const devLog = (...args: Array<unknown>) => { if (import.meta.env.DEV) {console.log(...args)} }
 const DEFAULT_CUSTOM_DRIVE_TYPES: Record<string, { name: string; icon: string; color: string }> = {}
@@ -37,7 +37,7 @@ interface DataStore {
   lastSyncErrorDetail: string // 最后一次云写入的精确错误详情
 
   // 初始化（非阻塞：先显示页面，后台静默加载数据）
-  initialize: () => void
+  initialize: (settings?: SiteSettings) => void
 
   // Icon Library
   addIconToLibrary: (name: string, dataUrl: string) => void
@@ -445,7 +445,7 @@ async function autoSyncSubCategories(
 // Helper: reload all data from service (非阻塞)
 // 优化 1: 先显示本地缓存（在 initialize 中完成）
 // 优化 2: 使用 /api/all 合并查询，一次请求获取所有核心数据，减少 Workers 冷启动
-async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => DataStore) {
+async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => DataStore, settings?: SiteSettings) {
   try {
     // 尝试合并查询：一次请求获取所有核心数据
     const allData = await ds.fetchAll()
@@ -474,8 +474,9 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
       saveLocalLinks(mergedLinks)
       saveLocalItem('subcategories', mergedSubCategories)
 
-      // 加载次要数据（driveTypes）- tags 已由 /api/all 返回，无需重复请求
-      const driveTypes = await Promise.resolve(ds.fetchDriveTypes())
+      // 加载次要数据：优先使用传入的 settings，避免重复请求 /api/site-settings
+      const siteSettings = settings || await ds.fetchSiteSettings()
+      const driveTypes = await Promise.resolve(ds.fetchDriveTypes(siteSettings))
 
       // 云端标签规范化 + 过滤待删除
       const pendingDeletes = loadLocal<Array<string>>('tag_delete_pending', [])
@@ -495,9 +496,8 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
         driveTypes: [...driveTypes] as Array<DriveType>,
       })
 
-      // 从云端加载图标库
+      // 从云端加载图标库（复用已获取的 settings）
       try {
-        const siteSettings = await ds.fetchSiteSettings()
         if (siteSettings.icon_library && siteSettings.icon_library.length > 0) {
           const merged = [...(get().iconLibrary || []), ...siteSettings.icon_library.filter(
             (ci: IconLibraryItem) => !(get().iconLibrary || []).find(li => li.id === ci.id || li.name === ci.name)
@@ -558,9 +558,10 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
     saveLocalItem('subcategories', mergedSubCategories)
 
     const localTags = loadLocal<Array<Tag>>('tags', [])
+    const siteSettings = settings || await ds.fetchSiteSettings()
     const [tags, driveTypes] = await Promise.all([
       ds.fetchTags().catch(() => [] as Array<Tag>),
-      Promise.resolve(ds.fetchDriveTypes()),
+      Promise.resolve(ds.fetchDriveTypes(siteSettings)),
     ])
 
     // 云端标签规范化 + 过滤待删除
@@ -580,9 +581,8 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
       driveTypes: [...driveTypes] as Array<DriveType>,
     })
 
-    // 从云端加载图标库（回退路径也需要）
+    // 从云端加载图标库（回退路径复用已获取的 settings）
     try {
-      const siteSettings = await ds.fetchSiteSettings()
       if (siteSettings.icon_library && siteSettings.icon_library.length > 0) {
         const merged = [...(get().iconLibrary || []), ...siteSettings.icon_library.filter(
           (ci: IconLibraryItem) => !(get().iconLibrary || []).find(li => li.id === ci.id || li.name === ci.name)
@@ -830,7 +830,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   lastSyncErrorDetail: '',
 
   // 初始化 - 先加载本地缓存让页面不空白，再后台刷新云端
-  initialize: () => {
+  initialize: (settings?: SiteSettings) => {
     const localCats = loadLocal<Array<Category>>('categories', [])
     const localLinks = loadLocalLinks()
     const localSubs = loadLocalSubCategoriesCompat()
@@ -847,7 +847,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     }
 
     // 后台静默刷新云端数据，完成后自动重试待同步数据
-    reloadAll(set, get).then(() => {
+    reloadAll(set, get, settings).then(() => {
       if (ds.isCloudApiConfigured()) {
         syncPendingToCloud(set, get)
       }
