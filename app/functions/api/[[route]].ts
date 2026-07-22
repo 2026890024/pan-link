@@ -118,6 +118,46 @@ function checkRateLimit(ip: string, method: string, now: number) {
   return { allowed: true, limit, resetAt: entry.resetAt }
 }
 
+// ============ 边缘缓存 ============
+
+const CACHE_TTL_MS = 300_000 // 5 分钟边缘缓存
+const CACHEABLE_PATHS = ['/api/all', '/api/links', '/api/categories', '/api/tags', '/api/site-settings']
+
+function isCacheable(request: Request): boolean {
+  if (request.method !== 'GET') return false
+  const url = new URL(request.url)
+  // 健康检查不缓存；搜索/分页参数繁多，命中低，不缓存
+  if (url.pathname === '/api/health') return false
+  if (url.pathname.startsWith('/api/admin/')) return false
+  if (url.pathname === '/api/auth/status') return false
+  return CACHEABLE_PATHS.includes(url.pathname) || url.pathname === '/api/links/search'
+}
+
+async function getCache(request: Request): Promise<Response | undefined> {
+  try {
+    const cache = (caches as CacheStorage).default
+    const cached = await cache.match(request)
+    if (cached && Date.now() - new Date(cached.headers.get('CF-Cache-Created') || 0).getTime() < CACHE_TTL_MS) {
+      return cached
+    }
+    return undefined
+  } catch {
+    return undefined
+  }
+}
+
+async function putCache(request: Request, response: Response): Promise<void> {
+  try {
+    const cache = (caches as CacheStorage).default
+    const headers = new Headers(response.headers)
+    headers.set('CF-Cache-Created', new Date().toISOString())
+    const cloned = new Response(response.body, { status: response.status, statusText: response.statusText, headers })
+    await cache.put(request, cloned)
+  } catch {
+    // 缓存失败不阻断响应
+  }
+}
+
 // ============ 主处理 ============
 
 export const onRequest: PagesFunction<Env> = async (context) => {
@@ -145,6 +185,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     (!/mozilla|chrome|safari|firefox|edge|opera/i.test(ua) && /\b(bot|crawler|spider|scanner)\b/i.test(ua))
   if (isBot) {
     return jsonRes({ error: 'Forbidden' }, 403)
+  }
+
+  // GET 公开 API 边缘缓存：命中则直接返回，不再消耗 D1 查询和 CPU
+  if (isCacheable(request)) {
+    const cached = await getCache(request)
+    if (cached) {
+      return cached
+    }
   }
 
   // CORS - 生产环境同域 + 本地开发 + preview 域名
@@ -208,7 +256,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         'Cache-Control': 'public, max-age=120, s-maxage=300, stale-while-revalidate=600',
         'CDN-Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
       }
-      return new Response(
+      const response = new Response(
         JSON.stringify({
           categories: categories.results || [],
           links: linksList,
@@ -217,6 +265,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders, ...cacheHeaders } }
       )
+      await putCache(request, response)
+      return response
     }
 
     // ====== Auth ======
@@ -257,7 +307,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const result = await env.DB.prepare(
         'SELECT * FROM categories ORDER BY sort_order ASC'
       ).all()
-      return jsonRes(result.results || [], 200, corsHeaders)
+      const response = jsonRes(result.results || [], 200, corsHeaders)
+      await putCache(request, response)
+      return response
     }
 
     if (path === '/api/categories' && method === 'POST') {
@@ -325,7 +377,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const result = await stmt.all()
       const list = (result.results || []) as Array<Record<string, unknown>>
       await batchAttachTags(env, list)
-      return jsonRes(list, 200, corsHeaders)
+      const response = jsonRes(list, 200, corsHeaders)
+      await putCache(request, response)
+      return response
     }
 
     // GET /api/links/search?q=
@@ -341,7 +395,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       ).bind(like, like, like).all()
       const searchList = (result.results || []) as Array<Record<string, unknown>>
       await batchAttachTags(env, searchList)
-      return jsonRes(searchList, 200, corsHeaders)
+      const response = jsonRes(searchList, 200, corsHeaders)
+      await putCache(request, response)
+      return response
     }
 
     // GET /api/links/public
@@ -700,7 +756,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     if (path === '/api/tags' && method === 'GET') {
       const result = await env.DB.prepare('SELECT * FROM tags ORDER BY name ASC').all()
-      return jsonRes(result.results || [], 200, corsHeaders)
+      const response = jsonRes(result.results || [], 200, corsHeaders)
+      await putCache(request, response)
+      return response
     }
 
     if (path === '/api/tags' && method === 'POST') {
@@ -782,7 +840,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       if (!settings.favicon_library) {
         settings.favicon_library = []
       }
-      return jsonRes(settings, 200, { ...corsHeaders, 'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300', 'CDN-Cache-Control': 'public, max-age=120, stale-while-revalidate=300' })
+      const response = jsonRes(settings, 200, { ...corsHeaders, 'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300', 'CDN-Cache-Control': 'public, max-age=120, stale-while-revalidate=300' })
+      await putCache(request, response)
+      return response
     }
 
     if (path === '/api/site-settings' && method === 'PUT') {
