@@ -284,6 +284,30 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   const requestPath = new URL(request.url).pathname
 
+  // CORS 预计算（必须在限流/封禁/拦截等任何提前返回的逻辑之前定义，避免引用未初始化的临时死区变量）
+  const originRaw = request.headers.get('Origin') || ''
+  const requestHost = new URL(request.url).host
+  let isSameOrigin = !originRaw
+  if (originRaw) {
+    try { isSameOrigin = requestHost === new URL(originRaw).host } catch { isSameOrigin = false }
+  }
+  const previewPattern = (env as Record<string, unknown>).CORS_PREVIEW_PATTERN as string || 'pan110\\.pages\\.dev'
+  const isAllowedPreview = requestHost.match(new RegExp(String.raw`^[a-f0-9]+\.${previewPattern}$`))
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:8788',
+  ]
+  const isAllowedOrigin = isSameOrigin || !!isAllowedPreview || allowedOrigins.includes(originRaw)
+  const allowOrigin = isAllowedOrigin ? (originRaw || '*') : 'null'
+
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400',
+  }
+
   // 全局限流：当全局请求数超过阈值时，拒绝所有请求，保护配额
   const globalRl = await checkGlobalRateLimit(now)
   if (!globalRl.allowed) {
@@ -309,30 +333,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         'Content-Type': 'text/plain',
       },
     })
-  }
-
-  // CORS headers 必须在任何可能提前返回的逻辑之前定义，避免限流/黑名单响应引用未初始化变量
-  const originRaw = request.headers.get('Origin') || ''
-  const requestHost = new URL(request.url).host
-  let isSameOrigin = !originRaw
-  if (originRaw) {
-    try { isSameOrigin = requestHost === new URL(originRaw).host } catch { isSameOrigin = false }
-  }
-  const previewPattern = (env as Record<string, unknown>).CORS_PREVIEW_PATTERN as string || 'pan110\\.pages\\.dev'
-  const isAllowedPreview = requestHost.match(new RegExp(String.raw`^[a-f0-9]+\.${previewPattern}$`))
-  const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://localhost:8788',
-  ]
-  const isAllowedOrigin = isSameOrigin || !!isAllowedPreview || allowedOrigins.includes(originRaw)
-  const allowOrigin = isAllowedOrigin ? (originRaw || '*') : 'null'
-
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': allowOrigin,
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Max-Age': '86400',
   }
 
   // 拦截常见爬虫/攻击路径，避免进入后续业务逻辑
@@ -1135,6 +1135,31 @@ export const onRequest: PagesFunction<Env> = async (context) => {
          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
       ).bind(faviconKey, JSON.stringify(library), nowISO).run()
       return jsonRes({ success: true, library }, 200, corsHeaders)
+    }
+
+    // ====== Short Link Slug Redirect (非 /api/ 路径) ======
+    // 短链接用户访问如 /1 /Photoshop-2026 等，查询 D1 后 302 跳转到目标 URL
+    if (!path.startsWith('/api/')) {
+      const slug = path.replace(/^\/+/, '').replace(/\/+$/, '')
+      if (slug) {
+        try {
+          const link = await env.DB.prepare(
+            'SELECT url, id FROM links WHERE slug = ? AND status = ? LIMIT 1'
+          ).bind(slug, 'active').first<{ url: string; id: string }>()
+          if (link && link.url) {
+            // 异步记录点击统计，不阻塞重定向响应
+            context.waitUntil(
+              env.DB.prepare('UPDATE links SET click_count = click_count + 1 WHERE id = ?').bind(link.id).run()
+            )
+            return new Response(null, {
+              status: 302,
+              headers: { 'Location': link.url, ...corsHeaders },
+            })
+          }
+        } catch { /* D1 查询失败，降级走静态文件 */ }
+      }
+      // 未匹配到 slug 或为首页 → 交给 Pages 提供静态 HTML
+      return context.next()
     }
 
     return jsonRes({ error: 'Not found' }, 404, corsHeaders)

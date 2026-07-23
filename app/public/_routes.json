@@ -1,5 +1,5 @@
 {
   "version": 1,
-  "include": ["/api/*"],
-  "exclude": ["/assets/*", "/vite.svg", "/favicon.ico"]
+  "include": ["/*"],
+  "exclude": ["/assets/*", "/vite.svg", "/favicon.ico", "/favicon.png", "/preloader.css", "/manifest.webmanifest", "/apple-touch-icon.png"]
 }
