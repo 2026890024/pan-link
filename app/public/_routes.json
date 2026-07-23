@@ -1,5 +1,8 @@
 {
   "version": 1,
-  "include": ["/*"],
-  "exclude": ["/assets/*", "/vite.svg", "/favicon.ico", "/favicon.png", "/preloader.css", "/manifest.webmanifest", "/apple-touch-icon.png"]
+  "include": [
+    "/api/*",
+    "/s/*"
+  ],
+  "exclude": []
 }

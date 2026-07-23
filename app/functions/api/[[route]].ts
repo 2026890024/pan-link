@@ -1137,31 +1137,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       return jsonRes({ success: true, library }, 200, corsHeaders)
     }
 
-    // ====== Short Link Slug Redirect (非 /api/ 路径) ======
-    // 短链接用户访问如 /1 /Photoshop-2026 等，查询 D1 后 302 跳转到目标 URL
-    if (!path.startsWith('/api/')) {
-      const slug = path.replace(/^\/+/, '').replace(/\/+$/, '')
-      if (slug) {
-        try {
-          const link = await env.DB.prepare(
-            'SELECT url, id FROM links WHERE slug = ? AND status = ? LIMIT 1'
-          ).bind(slug, 'active').first<{ url: string; id: string }>()
-          if (link && link.url) {
-            // 异步记录点击统计，不阻塞重定向响应
-            context.waitUntil(
-              env.DB.prepare('UPDATE links SET click_count = click_count + 1 WHERE id = ?').bind(link.id).run()
-            )
-            return new Response(null, {
-              status: 302,
-              headers: { 'Location': link.url, ...corsHeaders },
-            })
-          }
-        } catch { /* D1 查询失败，降级走静态文件 */ }
-      }
-      // 未匹配到 slug 或为首页 → 交给 Pages 提供静态 HTML
-      return context.next()
-    }
-
     return jsonRes({ error: 'Not found' }, 404, corsHeaders)
   } catch (err) {
     console.error('[pan-link API] Error:', err)
