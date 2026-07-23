@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && npx wrangler pages functions build --outdir dist && node -e \"require('fs').renameSync('dist/index.js','dist/_worker.js')\"",
+    "deploy": "npx wrangler pages deploy dist --project-name pan110 --branch main",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
