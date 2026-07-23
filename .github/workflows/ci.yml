@@ -34,5 +34,6 @@ jobs:
         working-directory: app
 
       - name: Build
-        run: npm run build
+        # CI 仅验证前端产物，不执行 wrangler Worker 编译（部署时由本地 npm run build + deploy 完成）
+        run: npx vite build
         working-directory: app

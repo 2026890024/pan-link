@@ -300,11 +300,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   // 封禁列表：已被拉黑的 IP 直接拒绝
   const banStatus = await checkBanlist(clientIp, now)
   if (banStatus.banned) {
+    const retryAfter = banStatus.banUntil ? Math.ceil((banStatus.banUntil - now) / 1000) : 60
     return new Response('Access denied', {
       status: 403,
       headers: {
         ...corsHeaders,
-        'Retry-After': String(Math.ceil((banStatus.banUntil! - now) / 1000)),
+        'Retry-After': String(retryAfter),
         'Content-Type': 'text/plain',
       },
     })
