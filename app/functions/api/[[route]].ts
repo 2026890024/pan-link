@@ -278,17 +278,17 @@ async function invalidateRelatedCaches(request: Request, path: string): Promise<
     const requestUrl = new URL(request.url)
     const host = requestUrl.host
 
-    let prefixes: string[] = []
+    const prefixes: Array<string> = []
     if (path.startsWith('/api/links') || path.startsWith('/api/categories') || path.startsWith('/api/subcategories') || path.startsWith('/api/tags')) {
-      prefixes = ['/api/all', '/api/links', '/api/categories', '/api/tags']
+      prefixes.push('/api/all', '/api/links', '/api/categories', '/api/tags')
     } else if (path.startsWith('/api/site-settings')) {
-      prefixes = ['/api/site-settings', '/api/all']
+      prefixes.push('/api/site-settings', '/api/all')
     }
-    if (prefixes.length === 0) return
+    if (prefixes.length === 0) { return }
 
     for (const key of keys) {
       const keyUrl = new URL(key.url)
-      if (keyUrl.host !== host) continue
+      if (keyUrl.host !== host) { continue }
       const keyPath = keyUrl.pathname
       if (prefixes.some(p => keyPath === p || keyPath.startsWith(p + '/'))) {
         await cache.delete(key)
