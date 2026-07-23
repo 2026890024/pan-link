@@ -100,7 +100,9 @@ const securityHeaders = {
 /** 懒迁移：首次请求时自动建表，无需手动执行 D1 SQL */
 let tablesInitialized = false
 async function ensureRateLimitTables(env: Env): Promise<void> {
-  if (tablesInitialized) return
+  if (tablesInitialized) {
+    return
+  }
   tablesInitialized = true
   try {
     await env.DB.prepare(
@@ -127,7 +129,9 @@ async function ensureRateLimitTables(env: Env): Promise<void> {
 let cleanupCounter = 0
 async function maybeCleanupRatelimits(env: Env): Promise<void> {
   cleanupCounter++
-  if (cleanupCounter % 200 !== 0) return
+  if (cleanupCounter % 200 !== 0) {
+    return
+  }
   const expireThreshold = Date.now() - 10 * 60_000 // 10分钟前的限流记录视为过期
   try {
     await env.DB.prepare('DELETE FROM rate_limits WHERE window_start < ? AND key != ?')
@@ -222,7 +226,9 @@ async function checkBanlist(env: Env, ip: string, now: number): Promise<{ banned
       'SELECT strikes, last_strike, ban_until FROM banlist WHERE ip = ?'
     ).bind(ip).first<{ strikes: number; last_strike: number; ban_until: number }>()
 
-    if (!row) return { banned: false }
+    if (!row) {
+      return { banned: false }
+    }
 
     // 已拉黑且在有效期内
     if (row.ban_until > 0 && now < row.ban_until) {
