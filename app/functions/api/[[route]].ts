@@ -5,7 +5,7 @@
  * 安全策略:
  * - POST/PUT/DELETE 需要 Bearer Token (HMAC-SHA256 签名)
  * - GET 公开（读取资源/分类等公开数据）
- * - 分布式 Cache API Rate Limiting
+ * - D1-based Rate Limiting (IP + 全局限流 + 渐进式封禁)
  * - 凭证通过 Cloudflare Pages 环境变量配置 (ADMIN_USER, ADMIN_PASS, JWT_SECRET)
  */
 
@@ -83,9 +83,9 @@ function requireAuth(request: Request, env: Env): Promise<boolean> {
   return verifyToken(auth.slice(7), env)
 }
 
-// ============ Rate Limiting (Distributed via Cache API) ============
-// Workers 实例间内存不共享，因此使用 Cache API 作为分布式计数器存储。
-// 注意：Cache API 非原子操作，极端并发下可能有少量漏过，但已能阻挡常规刷量。
+// ============ Rate Limiting (D1-based) ============
+// caches.default 在 Cloudflare Pages Functions 中对合成 URL 不可用，
+// 因此改用 D1 数据库存储限流/封禁状态 —— 这是 Pages Functions 中唯一可靠的分布式存储。
 
 interface RateLimitState { count: number; windowStart: number }
 
@@ -97,24 +97,39 @@ const securityHeaders = {
   'X-XSS-Protection': '1; mode=block',
 }
 
-async function checkRateLimit(ip: string, method: string, path: string, now: number): Promise<{ allowed: boolean; limit: number; resetAt: number }> {
+/** 定期清理过期的限流和封禁记录（每 200 次请求执行一次，避免 D1 表膨胀） */
+let cleanupCounter = 0
+async function maybeCleanupRatelimits(env: Env): Promise<void> {
+  cleanupCounter++
+  if (cleanupCounter % 200 !== 0) return
+  const expireThreshold = Date.now() - 10 * 60_000 // 10分钟前的限流记录视为过期
+  try {
+    await env.DB.prepare('DELETE FROM rate_limits WHERE window_start < ? AND key != ?')
+      .bind(expireThreshold, '__global__').run()
+    await env.DB.prepare('DELETE FROM banlist WHERE ban_until > 0 AND ban_until < ?')
+      .bind(Date.now()).run()
+  } catch { /* cleanup 失败不影响业务 */ }
+}
+
+async function checkRateLimit(env: Env, ip: string, method: string, path: string, now: number): Promise<{ allowed: boolean; limit: number; resetAt: number }> {
   const isWrite = ['POST', 'PUT', 'DELETE'].includes(method)
   const isSlugLookup = path.startsWith('/api/links/public')
   const isLogin = path === '/api/auth/login' && method === 'POST'
   const keySuffix = isLogin ? 'login' : isWrite ? 'write' : isSlugLookup ? 'slug' : 'read'
-  const cacheKey = new Request(`https://ratelimit.pan110.pages.dev/${ip}/${keySuffix}`)
-  const cache = (caches as CacheStorage).default
+  const key = `${ip}/${keySuffix}`
 
-  // 大幅降低限流：login=3, write=5, slug=5, read=10 (per IP per minute)
+  // login=3, write=5, slug=5, read=10 (per IP per minute)
   const limit = isLogin ? 3 : isWrite ? 5 : isSlugLookup ? 5 : 10
   const windowMs = 60_000
 
   try {
-    const cached = await cache.match(cacheKey)
+    const row = await env.DB.prepare(
+      'SELECT count, window_start FROM rate_limits WHERE key = ?'
+    ).bind(key).first<{ count: number; window_start: number }>()
+
     let state: RateLimitState = { count: 0, windowStart: now }
-    if (cached) {
-      const text = await cached.text()
-      try { state = JSON.parse(text) as RateLimitState } catch { /* ignore malformed */ }
+    if (row) {
+      state = { count: row.count, windowStart: row.window_start }
     }
 
     if (now - state.windowStart >= windowMs) {
@@ -126,16 +141,14 @@ async function checkRateLimit(ip: string, method: string, path: string, now: num
     }
 
     state.count++
-    const response = new Response(JSON.stringify(state), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': `private, max-age=${Math.ceil(windowMs / 1000)}`,
-      },
-    })
-    await cache.put(cacheKey, response)
+    await env.DB.prepare(
+      `INSERT INTO rate_limits (key, count, window_start, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET count = excluded.count, window_start = excluded.window_start, updated_at = excluded.updated_at`
+    ).bind(key, state.count, state.windowStart, new Date().toISOString()).run()
+
     return { allowed: true, limit, resetAt: state.windowStart + windowMs }
   } catch {
-    // 缓存失败时放行，避免自身故障导致服务不可用
+    // D1 失败时放行，避免自身故障导致服务不可用
     return { allowed: true, limit, resetAt: now + windowMs }
   }
 }
@@ -143,31 +156,33 @@ async function checkRateLimit(ip: string, method: string, path: string, now: num
 // ============ 全局限流: 全局请求数超过阈值时拒绝所有新请求 ============
 const GLOBAL_LIMIT = 500  // 每分钟全局最大 500 次请求
 const GLOBAL_WINDOW = 60_000
+const GLOBAL_KEY = '__global__'
 
-async function checkGlobalRateLimit(now: number): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
-  const cacheKey = new Request('https://ratelimit.pan110.pages.dev/__global__/counter')
-  const cache = (caches as CacheStorage).default
+async function checkGlobalRateLimit(env: Env, now: number): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
   try {
-    const cached = await cache.match(cacheKey)
+    const row = await env.DB.prepare(
+      'SELECT count, window_start FROM rate_limits WHERE key = ?'
+    ).bind(GLOBAL_KEY).first<{ count: number; window_start: number }>()
+
     let state: RateLimitState = { count: 0, windowStart: now }
-    if (cached) {
-      const text = await cached.text()
-      try { state = JSON.parse(text) as RateLimitState } catch { /* ignore */ }
+    if (row) {
+      state = { count: row.count, windowStart: row.window_start }
     }
+
     if (now - state.windowStart >= GLOBAL_WINDOW) {
       state = { count: 0, windowStart: now }
     }
+
     if (state.count >= GLOBAL_LIMIT) {
       return { allowed: false, remaining: 0, resetAt: state.windowStart + GLOBAL_WINDOW }
     }
+
     state.count++
-    const response = new Response(JSON.stringify(state), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': `private, max-age=${Math.ceil(GLOBAL_WINDOW / 1000)}`,
-      },
-    })
-    await cache.put(cacheKey, response)
+    await env.DB.prepare(
+      `INSERT INTO rate_limits (key, count, window_start, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET count = excluded.count, window_start = excluded.window_start, updated_at = excluded.updated_at`
+    ).bind(GLOBAL_KEY, state.count, state.windowStart, new Date().toISOString()).run()
+
     return { allowed: true, remaining: GLOBAL_LIMIT - state.count, resetAt: state.windowStart + GLOBAL_WINDOW }
   } catch {
     return { allowed: true, remaining: GLOBAL_LIMIT, resetAt: now + GLOBAL_WINDOW }
@@ -175,26 +190,23 @@ async function checkGlobalRateLimit(now: number): Promise<{ allowed: boolean; re
 }
 
 // ============ 渐进式封禁: 连续触发 429 的 IP 自动拉黑 ============
-async function checkBanlist(ip: string, now: number): Promise<{ banned: boolean; banUntil?: number }> {
-  const banKey = new Request(`https://ratelimit.pan110.pages.dev/__ban__/${ip}`)
-  const cache = (caches as CacheStorage).default
+async function checkBanlist(env: Env, ip: string, now: number): Promise<{ banned: boolean; banUntil?: number }> {
   try {
-    const cached = await cache.match(banKey)
-    if (cached) {
-      const data = JSON.parse(await cached.text()) as { strikes: number; lastStrike: number; banUntil: number }
-      // 已拉黑
-      if (data.banUntil > 0 && now < data.banUntil) {
-        return { banned: true, banUntil: data.banUntil }
-      }
-      // 拉黑已过期
-      if (data.banUntil > 0 && now >= data.banUntil) {
-        // 重置
-        const reset = new Response(JSON.stringify({ strikes: 0, lastStrike: 0, banUntil: 0 }), {
-          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, max-age=900' },
-        })
-        await cache.put(banKey, reset)
-        return { banned: false }
-      }
+    const row = await env.DB.prepare(
+      'SELECT strikes, last_strike, ban_until FROM banlist WHERE ip = ?'
+    ).bind(ip).first<{ strikes: number; last_strike: number; ban_until: number }>()
+
+    if (!row) return { banned: false }
+
+    // 已拉黑且在有效期内
+    if (row.ban_until > 0 && now < row.ban_until) {
+      return { banned: true, banUntil: row.ban_until }
+    }
+    // 拉黑已过期 → 重置计数器
+    if (row.ban_until > 0 && now >= row.ban_until) {
+      await env.DB.prepare(
+        'UPDATE banlist SET strikes = 0, last_strike = 0, ban_until = 0, updated_at = ? WHERE ip = ?'
+      ).bind(new Date().toISOString(), ip).run()
       return { banned: false }
     }
     return { banned: false }
@@ -203,38 +215,54 @@ async function checkBanlist(ip: string, now: number): Promise<{ banned: boolean;
   }
 }
 
-async function recordStrike(ip: string, now: number): Promise<{ banned: boolean; banUntil?: number }> {
-  const banKey = new Request(`https://ratelimit.pan110.pages.dev/__ban__/${ip}`)
-  const cache = (caches as CacheStorage).default
+async function recordStrike(env: Env, ip: string, now: number): Promise<{ banned: boolean; banUntil?: number }> {
   const STRIKE_WINDOW = 5 * 60_000  // 5分钟内的违规累积
   const MAX_STRIKES = 3              // 3次违规 = 拉黑15分钟
   const BAN_DURATION = 15 * 60_000
+  const nowISO = new Date().toISOString()
+
   try {
-    const cached = await cache.match(banKey)
-    let data = { strikes: 0, lastStrike: 0, banUntil: 0 }
-    if (cached) {
-      try { data = JSON.parse(await cached.text()) } catch { /* ignore */ }
+    const row = await env.DB.prepare(
+      'SELECT strikes, last_strike, ban_until FROM banlist WHERE ip = ?'
+    ).bind(ip).first<{ strikes: number; last_strike: number; ban_until: number }>()
+
+    let strikes = 0
+    let lastStrike = 0
+    let banUntil = 0
+
+    if (row) {
+      strikes = row.strikes
+      lastStrike = row.last_strike
+      banUntil = row.ban_until
     }
-    // 窗口外重置
-    if (now - data.lastStrike > STRIKE_WINDOW) {
-      data.strikes = 0
+
+    // 窗口外重置违规计数
+    if (now - lastStrike > STRIKE_WINDOW) {
+      strikes = 0
     }
-    data.strikes++
-    data.lastStrike = now
-    if (data.strikes >= MAX_STRIKES) {
-      data.banUntil = now + BAN_DURATION
+
+    strikes++
+    lastStrike = now
+
+    if (strikes >= MAX_STRIKES) {
+      banUntil = now + BAN_DURATION
     }
-    const response = new Response(JSON.stringify(data), {
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, max-age=900' },
-    })
-    await cache.put(banKey, response)
-    return data.banUntil > 0 ? { banned: true, banUntil: data.banUntil } : { banned: false }
+
+    await env.DB.prepare(
+      `INSERT INTO banlist (ip, strikes, last_strike, ban_until, updated_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(ip) DO UPDATE SET strikes = excluded.strikes, last_strike = excluded.last_strike, ban_until = excluded.ban_until, updated_at = excluded.updated_at`
+    ).bind(ip, strikes, lastStrike, banUntil, nowISO).run()
+
+    return banUntil > 0 ? { banned: true, banUntil } : { banned: false }
   } catch {
     return { banned: false }
   }
 }
 
 // ============ 边缘缓存 ============
+// Programmatic Cache API (caches.default) 仅用于真实 API 路由缓存。
+// 即使 caches.default 在部分 Pages 环境不可用，Cloudflare CDN 仍会按 Cache-Control
+// 响应头进行边缘缓存，因此业务缓存不受影响。
 
 const CACHEABLE_PATHS = ['/api/all', '/api/links', '/api/categories', '/api/tags', '/api/site-settings', '/api/links/public']
 
@@ -266,7 +294,7 @@ async function putCache(request: Request, response: Response): Promise<void> {
     // clone 避免原始响应 body 被 cache.put 消耗，导致返回客户端时报错
     await (caches as CacheStorage).default.put(request, response.clone())
   } catch {
-    // 缓存失败不阻断响应
+    // 缓存失败不阻断响应 —— CDN 层面的 Cache-Control 头仍生效
   }
 }
 
@@ -295,7 +323,7 @@ async function invalidateRelatedCaches(request: Request, path: string): Promise<
       }
     }
   } catch {
-    // 缓存失效失败不影响业务
+    // 缓存失效失败不影响业务 —— 最多等 5 分钟 CDN 自然过期
   }
 }
 
@@ -338,7 +366,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   // 全局限流：当全局请求数超过阈值时，拒绝所有请求，保护配额
-  const globalRl = await checkGlobalRateLimit(now)
+  const globalRl = await checkGlobalRateLimit(env, now)
   if (!globalRl.allowed) {
     return new Response('Service temporarily unavailable due to high traffic', {
       status: 503,
@@ -351,7 +379,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   // 封禁列表：已被拉黑的 IP 直接拒绝
-  const banStatus = await checkBanlist(clientIp, now)
+  const banStatus = await checkBanlist(env, clientIp, now)
   if (banStatus.banned) {
     const retryAfter = banStatus.banUntil ? Math.ceil((banStatus.banUntil - now) / 1000) : 60
     return new Response('Access denied', {
@@ -371,15 +399,18 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   // Rate limit
-  const rl = await checkRateLimit(clientIp, method, requestPath, now)
+  const rl = await checkRateLimit(env, clientIp, method, requestPath, now)
   if (!rl.allowed) {
     // 记录违规：连续3次429触发15分钟IP拉黑
-    context.waitUntil(recordStrike(clientIp, now))
+    context.waitUntil(recordStrike(env, clientIp, now))
     return jsonRes({ error: '请求过于频繁，请稍后再试' }, 429, {
       ...corsHeaders,
       'Retry-After': String(Math.ceil((rl.resetAt - now) / 1000)),
     })
   }
+
+  // 定期清理过期限流/封禁记录（后台异步，不阻塞响应）
+  context.waitUntil(maybeCleanupRatelimits(env))
 
   // UA 爬虫拦截（仅 API 路由，正常浏览器必有 UA）
   const ua = (request.headers.get('User-Agent') || '').toLowerCase()
