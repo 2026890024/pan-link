@@ -89,6 +89,14 @@ function requireAuth(request: Request, env: Env): Promise<boolean> {
 
 interface RateLimitState { count: number; windowStart: number }
 
+/** Security headers for all responses */
+const securityHeaders = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'X-XSS-Protection': '1; mode=block',
+}
+
 async function checkRateLimit(ip: string, method: string, path: string, now: number): Promise<{ allowed: boolean; limit: number; resetAt: number }> {
   const isWrite = ['POST', 'PUT', 'DELETE'].includes(method)
   const isSlugLookup = path.startsWith('/api/links/public')
@@ -97,7 +105,8 @@ async function checkRateLimit(ip: string, method: string, path: string, now: num
   const cacheKey = new Request(`https://ratelimit.pan110.pages.dev/${ip}/${keySuffix}`)
   const cache = (caches as CacheStorage).default
 
-  const limit = isLogin ? 5 : isWrite ? 10 : isSlugLookup ? 30 : 60
+  // 大幅降低限流：login=3, write=5, slug=5, read=10 (per IP per minute)
+  const limit = isLogin ? 3 : isWrite ? 5 : isSlugLookup ? 5 : 10
   const windowMs = 60_000
 
   try {
@@ -128,6 +137,100 @@ async function checkRateLimit(ip: string, method: string, path: string, now: num
   } catch {
     // 缓存失败时放行，避免自身故障导致服务不可用
     return { allowed: true, limit, resetAt: now + windowMs }
+  }
+}
+
+// ============ 全局限流: 全局请求数超过阈值时拒绝所有新请求 ============
+const GLOBAL_LIMIT = 500  // 每分钟全局最大 500 次请求
+const GLOBAL_WINDOW = 60_000
+
+async function checkGlobalRateLimit(now: number): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+  const cacheKey = new Request('https://ratelimit.pan110.pages.dev/__global__/counter')
+  const cache = (caches as CacheStorage).default
+  try {
+    const cached = await cache.match(cacheKey)
+    let state: RateLimitState = { count: 0, windowStart: now }
+    if (cached) {
+      const text = await cached.text()
+      try { state = JSON.parse(text) as RateLimitState } catch { /* ignore */ }
+    }
+    if (now - state.windowStart >= GLOBAL_WINDOW) {
+      state = { count: 0, windowStart: now }
+    }
+    if (state.count >= GLOBAL_LIMIT) {
+      return { allowed: false, remaining: 0, resetAt: state.windowStart + GLOBAL_WINDOW }
+    }
+    state.count++
+    const response = new Response(JSON.stringify(state), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `private, max-age=${Math.ceil(GLOBAL_WINDOW / 1000)}`,
+      },
+    })
+    await cache.put(cacheKey, response)
+    return { allowed: true, remaining: GLOBAL_LIMIT - state.count, resetAt: state.windowStart + GLOBAL_WINDOW }
+  } catch {
+    return { allowed: true, remaining: GLOBAL_LIMIT, resetAt: now + GLOBAL_WINDOW }
+  }
+}
+
+// ============ 渐进式封禁: 连续触发 429 的 IP 自动拉黑 ============
+async function checkBanlist(ip: string, now: number): Promise<{ banned: boolean; banUntil?: number }> {
+  const banKey = new Request(`https://ratelimit.pan110.pages.dev/__ban__/${ip}`)
+  const cache = (caches as CacheStorage).default
+  try {
+    const cached = await cache.match(banKey)
+    if (cached) {
+      const data = JSON.parse(await cached.text()) as { strikes: number; lastStrike: number; banUntil: number }
+      // 已拉黑
+      if (data.banUntil > 0 && now < data.banUntil) {
+        return { banned: true, banUntil: data.banUntil }
+      }
+      // 拉黑已过期
+      if (data.banUntil > 0 && now >= data.banUntil) {
+        // 重置
+        const reset = new Response(JSON.stringify({ strikes: 0, lastStrike: 0, banUntil: 0 }), {
+          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, max-age=900' },
+        })
+        await cache.put(banKey, reset)
+        return { banned: false }
+      }
+      return { banned: false }
+    }
+    return { banned: false }
+  } catch {
+    return { banned: false }
+  }
+}
+
+async function recordStrike(ip: string, now: number): Promise<{ banned: boolean; banUntil?: number }> {
+  const banKey = new Request(`https://ratelimit.pan110.pages.dev/__ban__/${ip}`)
+  const cache = (caches as CacheStorage).default
+  const STRIKE_WINDOW = 5 * 60_000  // 5分钟内的违规累积
+  const MAX_STRIKES = 3              // 3次违规 = 拉黑15分钟
+  const BAN_DURATION = 15 * 60_000
+  try {
+    const cached = await cache.match(banKey)
+    let data = { strikes: 0, lastStrike: 0, banUntil: 0 }
+    if (cached) {
+      try { data = JSON.parse(await cached.text()) } catch { /* ignore */ }
+    }
+    // 窗口外重置
+    if (now - data.lastStrike > STRIKE_WINDOW) {
+      data.strikes = 0
+    }
+    data.strikes++
+    data.lastStrike = now
+    if (data.strikes >= MAX_STRIKES) {
+      data.banUntil = now + BAN_DURATION
+    }
+    const response = new Response(JSON.stringify(data), {
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, max-age=900' },
+    })
+    await cache.put(banKey, response)
+    return data.banUntil > 0 ? { banned: true, banUntil: data.banUntil } : { banned: false }
+  } catch {
+    return { banned: false }
   }
 }
 
@@ -181,6 +284,32 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   const requestPath = new URL(request.url).pathname
 
+  // 全局限流：当全局请求数超过阈值时，拒绝所有请求，保护配额
+  const globalRl = await checkGlobalRateLimit(now)
+  if (!globalRl.allowed) {
+    return new Response('Service temporarily unavailable due to high traffic', {
+      status: 503,
+      headers: {
+        ...corsHeaders,
+        'Retry-After': String(Math.ceil((globalRl.resetAt - now) / 1000)),
+        'Content-Type': 'text/plain',
+      },
+    })
+  }
+
+  // 封禁列表：已被拉黑的 IP 直接拒绝
+  const banStatus = await checkBanlist(clientIp, now)
+  if (banStatus.banned) {
+    return new Response('Access denied', {
+      status: 403,
+      headers: {
+        ...corsHeaders,
+        'Retry-After': String(Math.ceil((banStatus.banUntil! - now) / 1000)),
+        'Content-Type': 'text/plain',
+      },
+    })
+  }
+
   // CORS headers 必须在任何可能提前返回的逻辑之前定义，避免限流/黑名单响应引用未初始化变量
   const originRaw = request.headers.get('Origin') || ''
   const requestHost = new URL(request.url).host
@@ -214,6 +343,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   // Rate limit
   const rl = await checkRateLimit(clientIp, method, requestPath, now)
   if (!rl.allowed) {
+    // 记录违规：连续3次429触发15分钟IP拉黑
+    context.waitUntil(recordStrike(clientIp, now))
     return jsonRes({ error: '请求过于频繁，请稍后再试' }, 429, {
       ...corsHeaders,
       'Retry-After': String(Math.ceil((rl.resetAt - now) / 1000)),
@@ -224,9 +355,19 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const ua = (request.headers.get('User-Agent') || '').toLowerCase()
   const isBot =
     !ua ||
-    /python|curl|wget|httpie|go-http|scrapy|zgrab|masscan|nmap|nikto|sqlmap|nessus|burp|postman/i.test(ua) ||
-    /gptbot|chatgpt|claude|anthropic|bard|perplexity|gemini|ccbot|bytespider|petalbot|semrush|ahrefs|dotbot|mj12bot|yandex/i.test(ua) ||
-    (!/mozilla|chrome|safari|firefox|edge|opera/i.test(ua) && /\b(bot|crawler|spider|scanner)\b/i.test(ua))
+    // 命令行工具 & 渗透测试
+    /^(python|curl|wget|httpie|go-http-client|java|ruby|perl|php|libwww|axios|node-fetch|got|request|superagent|okhttp|wget|httpx|fasthttp|urllib|scrapy|zgrab|masscan|nmap|nikto|sqlmap|nessus|burp|postman|insomnia|paw|bruno)/.test(ua) ||
+    /python-requests|python-urllib|python-aiohttp|go-http|lua-resty/.test(ua) ||
+    // AI 爬虫
+    /gptbot|chatgpt|claude|anthropic|bard|perplexity|gemini|ccbot|bytespider|petalbot|openai|cohere|diffbot|ia_archiver|facebookexternalhit|twitterbot|timpibot|applebot|duckduckbot|seznambot|sogou|yisouspider|naverbot|daumoa/.test(ua) ||
+    // SEO & 监控爬虫
+    /semrush|ahrefs|dotbot|mj12bot|yandex|rogerbot|exabot|bingbot|slurp|baiduspider|360spider|haosouspider|sosospider|youdaobot|proximic|blexbot|datafeedwatch|feedfetcher|internetarchive|linkdex|majestic|nutch|omgili|paperlibot|screaming|siteimprove|turnitinbot|veooz|webalta|werlitzbot|whatweb|wotbox|zoominfo|embedly|flipboard|iframely|outbrain|panscient|pinterest|reddit|slack|telegram|whatsapp|viber|wechat|line|discord/.test(ua) ||
+    // 通用爬虫模式匹配
+    (!/mozilla|chrome|safari|firefox|edge|opera|samsung|ucbrowser|miui/i.test(ua) && /\b(bot|crawler|spider|scanner|scraper|fetcher|extractor|grabber)\b/i.test(ua)) ||
+    // Headless Chrome / Puppeteer
+    /headless|headlesschrome|phantomjs|slimerjs|casperjs|nightmare|puppeteer|playwright|selenium|webdriver/.test(ua) ||
+    // 无 UA + 直接请求 API
+    (!ua && requestPath.startsWith('/api/'))
   if (isBot) {
     return jsonRes({ error: 'Forbidden' }, 403, corsHeaders)
   }
@@ -1072,14 +1213,6 @@ async function getMaxSort(env: Env): Promise<number> {
     ).first()
     return (r as Record<string, number>)?.max_sort || 0
   } catch { return 0 }
-}
-
-/** Security headers for all responses */
-const securityHeaders = {
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'X-XSS-Protection': '1; mode=block',
 }
 
 function jsonRes(data: unknown, status: number, extraHeaders?: Record<string, string>): Response {
