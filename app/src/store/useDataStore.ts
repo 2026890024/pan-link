@@ -1049,10 +1049,17 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     try {
       if (ds.isCloudApiConfigured()) {
         await ds.deleteLinkApi(id)
-        // 云删除成功 → 以云端数据为准
-        const links = await ds.fetchLinks()
-        saveLocalLinks(links)
-        set({ links, cloudSyncError: false })
+        // 先立即从本地移除，保证 UI 立刻刷新；再在后台与云端同步
+        const filteredLinks = get().links.filter(l => l.id !== id)
+        saveLocalLinks(filteredLinks)
+        set({ links: filteredLinks, cloudSyncError: false })
+        // 后台重新拉取，确保与云端一致
+        ds.fetchLinks().then(links => {
+          saveLocalLinks(links)
+          set({ links, cloudSyncError: false })
+        }).catch(err => {
+          console.error('[DataStore] deleteLink 后台同步失败:', err)
+        })
         return
       }
     } catch (err) {

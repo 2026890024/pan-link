@@ -270,6 +270,35 @@ async function putCache(request: Request, response: Response): Promise<void> {
   }
 }
 
+// 写操作后清理相关 GET 缓存，避免前端删除/修改后列表仍是旧数据
+async function invalidateRelatedCaches(request: Request, path: string): Promise<void> {
+  try {
+    const cache = (caches as CacheStorage).default
+    const keys = await cache.keys()
+    const requestUrl = new URL(request.url)
+    const host = requestUrl.host
+
+    let prefixes: string[] = []
+    if (path.startsWith('/api/links') || path.startsWith('/api/categories') || path.startsWith('/api/subcategories') || path.startsWith('/api/tags')) {
+      prefixes = ['/api/all', '/api/links', '/api/categories', '/api/tags']
+    } else if (path.startsWith('/api/site-settings')) {
+      prefixes = ['/api/site-settings', '/api/all']
+    }
+    if (prefixes.length === 0) return
+
+    for (const key of keys) {
+      const keyUrl = new URL(key.url)
+      if (keyUrl.host !== host) continue
+      const keyPath = keyUrl.pathname
+      if (prefixes.some(p => keyPath === p || keyPath.startsWith(p + '/'))) {
+        await cache.delete(key)
+      }
+    }
+  } catch {
+    // 缓存失效失败不影响业务
+  }
+}
+
 // ============ 主处理 ============
 
 export const onRequest: PagesFunction<Env> = async (context) => {
@@ -504,6 +533,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       ).bind(id, (body.user_id as string) || '', name,
         (body.logo_url as string) || null, sortOrder,
         body.is_system ? 1 : 0, nowISO, nowISO).run()
+      await invalidateRelatedCaches(request, path)
       return jsonRes({ success: true, id }, 201, corsHeaders)
     }
 
@@ -520,6 +550,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         'UPDATE categories SET name=COALESCE(?, name), logo_url=COALESCE(?, logo_url), sort_order=COALESCE(?, sort_order), updated_at=? WHERE id=?'
       ).bind(updateName || null, (body.logo_url as string) || null,
         (body.sort_order as number) || 0, nowISO, catId).run()
+      await invalidateRelatedCaches(request, path)
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
@@ -532,6 +563,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       // Delete related subcategories
       await env.DB.prepare('DELETE FROM subcategories WHERE category_id = ?').bind(catId).run()
       await env.DB.prepare('DELETE FROM categories WHERE id = ?').bind(catId).run()
+      await invalidateRelatedCaches(request, path)
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
@@ -759,6 +791,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       }
 
       const link = await env.DB.prepare('SELECT * FROM links WHERE id = ?').bind(id).first()
+      await invalidateRelatedCaches(request, path)
       return jsonRes(link, 201, corsHeaders)
     }
 
@@ -845,6 +878,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           console.error(`[PUT /api/links/${linkId}] 标签关联失败 tags=${JSON.stringify(tagIds)}:`, e)
         }
       }
+      await invalidateRelatedCaches(request, path)
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
@@ -853,6 +887,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const linkId = extractParam(path, '/api/links/:id')
       // CASCADE 自动清理 link_visits 和 link_tags
       await env.DB.prepare('DELETE FROM links WHERE id = ?').bind(linkId).run()
+      await invalidateRelatedCaches(request, path)
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
@@ -900,6 +935,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         sortOrder,
         nowISO, nowISO
       ).run()
+      await invalidateRelatedCaches(request, path)
       return jsonRes({ success: true, id }, 201, corsHeaders)
     }
 
@@ -929,6 +965,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         values.push(subId)
         await env.DB.prepare(`UPDATE subcategories SET ${fields.join(', ')} WHERE id = ?`).bind(...values).run()
       }
+      await invalidateRelatedCaches(request, path)
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
@@ -944,6 +981,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         console.error('DELETE subcategory error:', err)
         return jsonRes({ success: false, error: '删除子分类失败' }, 500, corsHeaders)
       }
+      await invalidateRelatedCaches(request, path)
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
@@ -971,6 +1009,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       await env.DB.prepare(
         'INSERT INTO tags (id, user_id, name, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
       ).bind(id, (body.user_id as string) || '', name, color, nowISO, nowISO).run()
+      await invalidateRelatedCaches(request, path)
       return jsonRes({ success: true, id }, 201, corsHeaders)
     }
 
@@ -1003,12 +1042,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         values.push(tagId)
         await env.DB.prepare(`UPDATE tags SET ${fields.join(', ')} WHERE id = ?`).bind(...values).run()
       }
+      await invalidateRelatedCaches(request, path)
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
     if (matchPath(path, '/api/tags/:id') && method === 'DELETE') {
       const tagId = extractParam(path, '/api/tags/:id')
       await env.DB.prepare('DELETE FROM tags WHERE id = ?').bind(tagId).run()
+      await invalidateRelatedCaches(request, path)
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
@@ -1058,6 +1099,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
         ).bind(key, jsonValue, nowISO).run()
       }
+      await invalidateRelatedCaches(request, path)
       return jsonRes({ success: true }, 200, corsHeaders)
     }
 
