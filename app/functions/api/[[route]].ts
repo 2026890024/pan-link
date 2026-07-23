@@ -97,6 +97,32 @@ const securityHeaders = {
   'X-XSS-Protection': '1; mode=block',
 }
 
+/** 懒迁移：首次请求时自动建表，无需手动执行 D1 SQL */
+let tablesInitialized = false
+async function ensureRateLimitTables(env: Env): Promise<void> {
+  if (tablesInitialized) return
+  tablesInitialized = true
+  try {
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS rate_limits (
+        key TEXT PRIMARY KEY,
+        count INTEGER NOT NULL DEFAULT 0,
+        window_start INTEGER NOT NULL,
+        updated_at TEXT DEFAULT (datetime('now'))
+      )`
+    ).run()
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS banlist (
+        ip TEXT PRIMARY KEY,
+        strikes INTEGER NOT NULL DEFAULT 0,
+        last_strike INTEGER NOT NULL DEFAULT 0,
+        ban_until INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT DEFAULT (datetime('now'))
+      )`
+    ).run()
+  } catch { /* DDL 失败不影响业务 */ }
+}
+
 /** 定期清理过期的限流和封禁记录（每 200 次请求执行一次，避免 D1 表膨胀） */
 let cleanupCounter = 0
 async function maybeCleanupRatelimits(env: Env): Promise<void> {
@@ -364,6 +390,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',
   }
+
+  // 懒迁移：首次请求自动建 rate_limits / banlist 表
+  await ensureRateLimitTables(env)
 
   // 全局限流：当全局请求数超过阈值时，拒绝所有请求，保护配额
   const globalRl = await checkGlobalRateLimit(env, now)
