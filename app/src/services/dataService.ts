@@ -245,44 +245,29 @@ export async function fetchCategories(): Promise<Array<Category>> {
 export async function createCategory(name: string, userId?: string): Promise<Category> {
   if (!isCloudApiConfigured()) {return addLocalCategory(name)}
 
-  try {
-    const result = await apiFetch<{ success: boolean; id: string }>('/api/categories', {
-      method: 'POST',
-      body: JSON.stringify({ name, user_id: userId || '' }),
-    })
-    log('createCategory', name)
-    return { id: result.id, name, icon: 'folder', logo_url: null, sort_order: 0 }
-  } catch (err) {
-    console.error('[DataService] createCategory cloud error, falling back to local:', err)
-    return addLocalCategory(name)
-  }
+  const result = await apiFetch<{ success: boolean; id: string }>('/api/categories', {
+    method: 'POST',
+    body: JSON.stringify({ name, user_id: userId || '' }),
+  })
+  log('createCategory', name)
+  return { id: result.id, name, icon: 'folder', logo_url: null, sort_order: 0 }
 }
 
 export async function updateCategoryApi(id: string, updates: { name?: string; sort_order?: number }): Promise<void> {
   if (!isCloudApiConfigured()) { updateLocalCategory(id, updates); return }
 
-  try {
-    await apiFetch(`/api/categories/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    })
-    log('updateCategory', id, updates)
-  } catch (err) {
-    console.error('[DataService] updateCategoryApi cloud error, falling back to local:', err)
-    updateLocalCategory(id, updates as Record<string, unknown>)
-  }
+  await apiFetch(`/api/categories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  })
+  log('updateCategory', id, updates)
 }
 
 export async function deleteCategoryApi(id: string): Promise<void> {
   if (!isCloudApiConfigured()) { deleteLocalCategory(id); return }
 
-  try {
-    await apiFetch(`/api/categories/${id}`, { method: 'DELETE' })
-    log('deleteCategory', id)
-  } catch (err) {
-    console.error('[DataService] deleteCategoryApi cloud error, falling back to local:', err)
-    deleteLocalCategory(id)
-  }
+  await apiFetch(`/api/categories/${id}`, { method: 'DELETE' })
+  log('deleteCategory', id)
 }
 
 // ============ Links API ============
@@ -321,55 +306,40 @@ export async function createLinkApi(linkData: {
 }, userId?: string): Promise<LinkItem> {
   if (!isCloudApiConfigured()) {return addLocalLink(linkData)}
 
-  try {
-    const data = await apiFetch<Record<string, unknown>>('/api/links', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...linkData,
-        user_id: userId || '',
-        status: 'active',
-      }),
-    })
-    log('createLink', linkData.name)
-    return workerLinkToLinkItem(data)
-  } catch (err) {
-    console.error('[DataService] createLinkApi cloud error, falling back to local:', err)
-    return addLocalLink(linkData)
-  }
+  const data = await apiFetch<Record<string, unknown>>('/api/links', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...linkData,
+      user_id: userId || '',
+      status: 'active',
+    }),
+  })
+  log('createLink', linkData.name)
+  return workerLinkToLinkItem(data)
 }
 
 export async function updateLinkApi(id: string, updates: Record<string, unknown>): Promise<void> {
   if (!isCloudApiConfigured()) { updateLocalLink(id, updates); return }
 
-  try {
-    // Convert field names for the worker
-    const workerUpdates: Record<string, unknown> = {}
-    if (updates.is_featured !== undefined) {workerUpdates.is_favorited = updates.is_featured}
-    for (const [key, val] of Object.entries(updates)) {
-      if (key !== 'is_featured') {workerUpdates[key] = val}
-    }
-    
-    await apiFetch(`/api/links/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(workerUpdates),
-    })
-    log('updateLink', id, Object.keys(workerUpdates))
-  } catch (err) {
-    console.error('[DataService] updateLinkApi cloud error, falling back to local:', err)
-    updateLocalLink(id, updates)
+  // Convert field names for the worker
+  const workerUpdates: Record<string, unknown> = {}
+  if (updates.is_featured !== undefined) {workerUpdates.is_favorited = updates.is_featured}
+  for (const [key, val] of Object.entries(updates)) {
+    if (key !== 'is_featured') {workerUpdates[key] = val}
   }
+
+  await apiFetch(`/api/links/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(workerUpdates),
+  })
+  log('updateLink', id, Object.keys(workerUpdates))
 }
 
 export async function deleteLinkApi(id: string): Promise<void> {
   if (!isCloudApiConfigured()) { deleteLocalLink(id); return }
 
-  try {
-    await apiFetch(`/api/links/${id}`, { method: 'DELETE' })
-    log('deleteLink', id)
-  } catch (err) {
-    console.error('[DataService] deleteLinkApi cloud error, falling back to local:', err)
-    deleteLocalLink(id)
-  }
+  await apiFetch(`/api/links/${id}`, { method: 'DELETE' })
+  log('deleteLink', id)
 }
 
 export async function incrementLinkClicks(id: string): Promise<void> {
@@ -401,40 +371,25 @@ export async function fetchTags(_userId?: string): Promise<Array<Tag>> {
 export async function createTagApi(name: string, color: string, userId?: string): Promise<Tag> {
   if (!isCloudApiConfigured()) {return addLocalTag(name, color)}
 
-  try {
-    const result = await apiFetch<{ success: boolean; id: string }>('/api/tags', {
-      method: 'POST',
-      body: JSON.stringify({ name, color, user_id: userId || '' }),
-    })
-    return { id: result.id, user_id: userId || '', name, color, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
-  } catch (err) {
-    console.error('[DataService] createTagApi cloud error, falling back to local:', err)
-    return addLocalTag(name, color)
-  }
+  const result = await apiFetch<{ success: boolean; id: string }>('/api/tags', {
+    method: 'POST',
+    body: JSON.stringify({ name, color, user_id: userId || '' }),
+  })
+  return { id: result.id, user_id: userId || '', name, color, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
 }
 
 export async function updateTagApi(id: string, updates: { name?: string; color?: string }): Promise<void> {
   if (!isCloudApiConfigured()) { updateLocalTag(id, updates); return }
-  try {
-    await apiFetch(`/api/tags/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    })
-  } catch (err) {
-    console.error('[DataService] updateTagApi cloud error, falling back to local:', err)
-    updateLocalTag(id, updates)
-  }
+  await apiFetch(`/api/tags/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  })
 }
 
 export async function deleteTagApi(id: string): Promise<void> {
   if (!isCloudApiConfigured()) { deleteLocalTag(id); return }
-  
-  try {
-    await apiFetch(`/api/tags/${id}`, { method: 'DELETE' })
-  } catch (err) {
-    console.error('[DataService] deleteTagApi cloud error, falling back to local:', err)
-    deleteLocalTag(id)
-  }
+
+  await apiFetch(`/api/tags/${id}`, { method: 'DELETE' })
 }
 
 // ============ Dashboard Stats ============
@@ -567,43 +522,28 @@ export async function fetchAll(): Promise<AllData | null> {
 export async function addSubCategoryApi(categoryId: string, name: string): Promise<SubCategory> {
   if (!isCloudApiConfigured()) {return addLocalSubCategory(categoryId, name)}
 
-  try {
-    const result = await apiFetch<{ success: boolean; id: string }>('/api/subcategories', {
-      method: 'POST',
-      body: JSON.stringify({ category_id: categoryId, name }),
-    })
-    return { id: result.id, category_id: categoryId, name, sort_order: 0 }
-  } catch (err) {
-    console.error('[DataService] addSubCategoryApi cloud error, falling back to local:', err)
-    return addLocalSubCategory(categoryId, name)
-  }
+  const result = await apiFetch<{ success: boolean; id: string }>('/api/subcategories', {
+    method: 'POST',
+    body: JSON.stringify({ category_id: categoryId, name }),
+  })
+  return { id: result.id, category_id: categoryId, name, sort_order: 0 }
 }
 
 export async function updateSubCategoryApi(id: string, updates: Partial<SubCategory>): Promise<void> {
   if (!isCloudApiConfigured()) { updateLocalSubCategory(id, updates); return }
 
-  try {
-    await apiFetch(`/api/subcategories/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    })
-    log('updateSubCategory', id, updates)
-  } catch (err) {
-    console.error('[DataService] updateSubCategoryApi cloud error, falling back to local:', err)
-    updateLocalSubCategory(id, updates)
-  }
+  await apiFetch(`/api/subcategories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  })
+  log('updateSubCategory', id, updates)
 }
 
 export async function deleteSubCategoryApi(id: string): Promise<void> {
   if (!isCloudApiConfigured()) { deleteLocalSubCategory(id); return }
 
-  try {
-    await apiFetch(`/api/subcategories/${id}`, { method: 'DELETE' })
-    log('deleteSubCategory', id)
-  } catch (err) {
-    console.error('[DataService] deleteSubCategoryApi cloud error, falling back to local:', err)
-    deleteLocalSubCategory(id)
-  }
+  await apiFetch(`/api/subcategories/${id}`, { method: 'DELETE' })
+  log('deleteSubCategory', id)
 }
 
 // ============ DriveTypes (cloud + local) ============
@@ -639,32 +579,31 @@ export async function fetchDriveTypes(settings?: SiteSettings): Promise<Array<Dr
 
 export async function addDriveTypeApi(name: string, icon: string, color: string): Promise<DriveType> {
   const dt: DriveType = { id: `custom-${Date.now()}`, name, icon, color }
-  addLocalDriveType(name, icon, color)
-  if (isCloudApiConfigured()) {
-    try {
-      const settings = await fetchSiteSettings()
-      const driveTypes: Array<DriveType> = (settings as Record<string, unknown>).drive_types as Array<DriveType> || []
-      driveTypes.push(dt)
-      await updateSiteSettings({ drive_types: driveTypes } as unknown as SiteSettings)
-    } catch (err) {
-      console.error('[DataService] addDriveTypeApi cloud sync error:', err)
-    }
+
+  if (!isCloudApiConfigured()) {
+    addLocalDriveType(name, icon, color)
+    return dt
   }
+
+  const settings = await fetchSiteSettings()
+  const driveTypes: Array<DriveType> = (settings as Record<string, unknown>).drive_types as Array<DriveType> || []
+  driveTypes.push(dt)
+  await updateSiteSettings({ drive_types: driveTypes } as unknown as SiteSettings)
+  addLocalDriveType(name, icon, color)
   return dt
 }
 
 export async function deleteDriveTypeApi(id: string): Promise<void> {
-  deleteLocalDriveType(id)
-  if (isCloudApiConfigured()) {
-    try {
-      const settings = await fetchSiteSettings()
-      const driveTypes: Array<DriveType> = (settings as Record<string, unknown>).drive_types as Array<DriveType> || []
-      const updated = driveTypes.filter(dt => dt.id !== id)
-      await updateSiteSettings({ drive_types: updated } as unknown as SiteSettings)
-    } catch (err) {
-      console.error('[DataService] deleteDriveTypeApi cloud sync error:', err)
-    }
+  if (!isCloudApiConfigured()) {
+    deleteLocalDriveType(id)
+    return
   }
+
+  const settings = await fetchSiteSettings()
+  const driveTypes: Array<DriveType> = (settings as Record<string, unknown>).drive_types as Array<DriveType> || []
+  const updated = driveTypes.filter(dt => dt.id !== id)
+  await updateSiteSettings({ drive_types: updated } as unknown as SiteSettings)
+  deleteLocalDriveType(id)
 }
 
 
@@ -1046,124 +985,126 @@ export function invalidateSiteSettingsCache(): void {
 }
 
 export async function updateSiteSettings(updates: Partial<SiteSettings>): Promise<void> {
-  const local = getLocalSiteSettings()
-  const merged = { ...local, ...updates }
-  saveLocalSiteSettings(merged)
-  // 写入后清除内存缓存，确保下次读取获取最新数据
-  invalidateSiteSettingsCache()
-
-  if (!isCloudApiConfigured()) {return}
-  try {
-    // 转换为 key-value 格式发送给 API
-    const payload: Record<string, string> = {}
-    for (const [key, value] of Object.entries(updates)) {
-      payload[key] = typeof value === 'string' ? value : JSON.stringify(value)
-    }
-    await apiFetch('/api/site-settings', {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    })
-  } catch (err) {
-    console.error('[DataService] updateSiteSettings error:', err)
+  if (!isCloudApiConfigured()) {
+    const local = getLocalSiteSettings()
+    const merged = { ...local, ...updates }
+    saveLocalSiteSettings(merged)
+    invalidateSiteSettingsCache()
+    return
   }
+
+  // 转换为 key-value 格式发送给 API
+  const payload: Record<string, string> = {}
+  for (const [key, value] of Object.entries(updates)) {
+    payload[key] = typeof value === 'string' ? value : JSON.stringify(value)
+  }
+  await apiFetch('/api/site-settings', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  // 同步到本地缓存并清除内存缓存，确保下次读取最新数据
+  const local = getLocalSiteSettings()
+  saveLocalSiteSettings({ ...local, ...updates })
+  invalidateSiteSettingsCache()
 }
 
 export async function addLogoToLibrary(url: string, name: string): Promise<Array<LogoItem>> {
-  const local = getLocalSiteSettings()
-  const library = local.logo_library || []
   const newLogo: LogoItem = { url, name, added_at: new Date().toISOString() }
-  local.logo_library = [...library, newLogo]
-  saveLocalSiteSettings(local)
 
-  if (!isCloudApiConfigured()) {return local.logo_library}
-  try {
-    const data = await apiFetch<{ success: boolean; library: Array<LogoItem> }>('/api/site-settings/logo', {
-      method: 'POST',
-      body: JSON.stringify({ url, name }),
-    })
-    return data.library
-  } catch (err) {
-    console.error('[DataService] addLogoToLibrary error:', err)
+  if (!isCloudApiConfigured()) {
+    const local = getLocalSiteSettings()
+    local.logo_library = [...(local.logo_library || []), newLogo]
+    saveLocalSiteSettings(local)
     return local.logo_library
   }
+
+  const data = await apiFetch<{ success: boolean; library: Array<LogoItem> }>('/api/site-settings/logo', {
+    method: 'POST',
+    body: JSON.stringify({ url, name }),
+  })
+  const local = getLocalSiteSettings()
+  local.logo_library = data.library
+  saveLocalSiteSettings(local)
+  return data.library
 }
 
 export async function deleteLogoFromLibrary(urlOrIndex: string | number): Promise<Array<LogoItem>> {
-  const local = getLocalSiteSettings()
-  let library = local.logo_library || []
-  if (typeof urlOrIndex === 'number') {
-    library = library.filter((_, i) => i !== urlOrIndex)
-  } else {
-    library = library.filter(l => l.url !== urlOrIndex)
-  }
-  local.logo_library = library
-  saveLocalSiteSettings(local)
-
-  if (!isCloudApiConfigured()) {return library}
-  try {
-    const params = typeof urlOrIndex === 'number'
-      ? `?index=${urlOrIndex}`
-      : `?url=${encodeURIComponent(urlOrIndex)}`
-    const data = await apiFetch<{ success: boolean; library: Array<LogoItem> }>(`/api/site-settings/logo${params}`, {
-      method: 'DELETE',
-    })
-    return data.library
-  } catch (err) {
-    console.error('[DataService] deleteLogoFromLibrary error:', err)
+  if (!isCloudApiConfigured()) {
+    const local = getLocalSiteSettings()
+    let library = local.logo_library || []
+    if (typeof urlOrIndex === 'number') {
+      library = library.filter((_, i) => i !== urlOrIndex)
+    } else {
+      library = library.filter(l => l.url !== urlOrIndex)
+    }
+    local.logo_library = library
+    saveLocalSiteSettings(local)
     return library
   }
+
+  const params = typeof urlOrIndex === 'number'
+    ? `?index=${urlOrIndex}`
+    : `?url=${encodeURIComponent(urlOrIndex)}`
+  const data = await apiFetch<{ success: boolean; library: Array<LogoItem> }>(`/api/site-settings/logo${params}`, {
+    method: 'DELETE',
+  })
+  const local = getLocalSiteSettings()
+  local.logo_library = data.library
+  saveLocalSiteSettings(local)
+  return data.library
 }
 
 export async function addFaviconToLibrary(url: string, name: string): Promise<Array<FaviconItem>> {
-  const local = getLocalSiteSettings()
-  const library = local.favicon_library || []
   const newItem: FaviconItem = { url, name, added_at: new Date().toISOString() }
-  local.favicon_library = [...library, newItem]
-  local.current_favicon_url = url
-  saveLocalSiteSettings(local)
 
-  if (!isCloudApiConfigured()) {return local.favicon_library}
-  try {
-    const data = await apiFetch<{ success: boolean; library: Array<FaviconItem> }>('/api/site-settings/favicon', {
-      method: 'POST',
-      body: JSON.stringify({ url, name }),
-    })
-    return data.library
-  } catch (err) {
-    console.error('[DataService] addFaviconToLibrary error:', err)
+  if (!isCloudApiConfigured()) {
+    const local = getLocalSiteSettings()
+    local.favicon_library = [...(local.favicon_library || []), newItem]
+    local.current_favicon_url = url
+    saveLocalSiteSettings(local)
     return local.favicon_library
   }
+
+  const data = await apiFetch<{ success: boolean; library: Array<FaviconItem> }>('/api/site-settings/favicon', {
+    method: 'POST',
+    body: JSON.stringify({ url, name }),
+  })
+  const local = getLocalSiteSettings()
+  local.favicon_library = data.library
+  local.current_favicon_url = url
+  saveLocalSiteSettings(local)
+  return data.library
 }
 
 export async function deleteFaviconFromLibrary(urlOrIndex: string | number): Promise<Array<FaviconItem>> {
-  const local = getLocalSiteSettings()
-  let library = local.favicon_library || []
-  const removed = typeof urlOrIndex === 'number'
-    ? library[urlOrIndex]
-    : library.find(l => l.url === urlOrIndex)
+  if (!isCloudApiConfigured()) {
+    const local = getLocalSiteSettings()
+    let library = local.favicon_library || []
+    const removed = typeof urlOrIndex === 'number'
+      ? library[urlOrIndex]
+      : library.find(l => l.url === urlOrIndex)
 
-  if (typeof urlOrIndex === 'number') {
-    library = library.filter((_, i) => i !== urlOrIndex)
-  } else {
-    library = library.filter(l => l.url !== urlOrIndex)
-  }
-  local.favicon_library = library
-  if (removed && local.current_favicon_url === removed.url) {
-    local.current_favicon_url = '/favicon.png'
-  }
-  saveLocalSiteSettings(local)
-
-  if (!isCloudApiConfigured()) {return library}
-  try {
-    const params = typeof urlOrIndex === 'number'
-      ? `?index=${urlOrIndex}`
-      : `?url=${encodeURIComponent(urlOrIndex)}`
-    const data = await apiFetch<{ success: boolean; library: Array<FaviconItem> }>(`/api/site-settings/favicon${params}`, {
-      method: 'DELETE',
-    })
-    return data.library
-  } catch (err) {
-    console.error('[DataService] deleteFaviconFromLibrary error:', err)
+    if (typeof urlOrIndex === 'number') {
+      library = library.filter((_, i) => i !== urlOrIndex)
+    } else {
+      library = library.filter(l => l.url !== urlOrIndex)
+    }
+    local.favicon_library = library
+    if (removed && local.current_favicon_url === removed.url) {
+      local.current_favicon_url = '/favicon.png'
+    }
+    saveLocalSiteSettings(local)
     return library
   }
+
+  const params = typeof urlOrIndex === 'number'
+    ? `?index=${urlOrIndex}`
+    : `?url=${encodeURIComponent(urlOrIndex)}`
+  const data = await apiFetch<{ success: boolean; library: Array<FaviconItem> }>(`/api/site-settings/favicon${params}`, {
+    method: 'DELETE',
+  })
+  const local = getLocalSiteSettings()
+  local.favicon_library = data.library
+  saveLocalSiteSettings(local)
+  return data.library
 }
