@@ -1,7 +1,7 @@
 import SearchBar from '@/components/home/SearchBar'
 import CategorySidebar from '@/components/home/CategorySidebar'
 import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Check,
@@ -40,7 +40,6 @@ const titleVariants = {
 }
 
 export default function HomePage() {
-  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { categories, links, subCategories, initialized } = useDataStore()
   const siteSettings = useSiteSettingsStore()
