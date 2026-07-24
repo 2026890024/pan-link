@@ -1108,3 +1108,28 @@ export async function deleteFaviconFromLibrary(urlOrIndex: string | number): Pro
   saveLocalSiteSettings(local)
   return data.library
 }
+
+// ============ Account Password ============
+
+/**
+ * 修改管理员登录凭证（用户名和密码）
+ * 云端：调用 Cloudflare Pages Functions API，存入 D1 admin_config 表
+ * 本地：当云端不可用时返回 false，由调用方回退到 localStorage
+ */
+export async function changeAdminPassword(
+  currentPassword: string,
+  newPassword: string,
+  newUsername: string,
+): Promise<{ success: boolean; error?: string; username?: string }> {
+  if (!isCloudApiConfigured()) { return { success: false, error: '云端 API 未配置' } }
+  try {
+    const data = await apiFetch<{ success: boolean; username: string }>('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword, newUsername }),
+    })
+    return { success: true, username: data.username }
+  } catch (error) {
+    log('changeAdminPassword error', error)
+    return { success: false, error: '修改密码失败，请检查当前密码是否正确' }
+  }
+}

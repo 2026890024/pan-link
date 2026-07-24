@@ -6,9 +6,12 @@ import {
   EyeOff,
   Shield,
   Loader2,
+  Cloud,
+  CloudOff,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { hashPassword, verifyPassword } from '@/lib/crypto'
+import { changeAdminPassword, isCloudApiConfigured } from '@/services/dataService'
 
 // 登录凭证持久化 key
 const AUTH_KEY = 'admin_auth_config'
@@ -40,6 +43,7 @@ export default function AccountSettingsPage() {
   const [showNewPwd, setShowNewPwd] = useState(false)
   const [showConfirmPwd, setShowConfirmPwd] = useState(false)
   const [changingCred, setChangingCred] = useState(false)
+  const cloudConfigured = isCloudApiConfigured()
 
   useEffect(() => {
     const a = loadAuth()
@@ -81,18 +85,37 @@ export default function AccountSettingsPage() {
         return
       }
 
-      // 存储密码哈希而非明文
+      const username = newUsername.trim() || storedAuth.username || 'admin'
+
+      // 先更新 localStorage（保证本地回退始终可用）
       const updated: AuthCredentials = {
-        username: newUsername.trim() || storedAuth.username || 'admin',
+        username,
         passwordHash: await hashPassword(newPassword),
       }
       setAuth(updated)
       saveAuth(updated)
 
+      // 再调用云端 API 同步到 D1
+      const cloudConfigured = isCloudApiConfigured()
+      if (cloudConfigured) {
+        const result = await changeAdminPassword(
+          currentPassword.trim() || storedAuth.passwordHash ? '' : '',
+          newPassword,
+          username,
+        )
+        if (result.success) {
+          toast.success('登录凭证已更新，云端同步成功')
+        } else {
+          toast.error(`云端同步失败：${result.error || '请稍后重试'}`, { duration: 5000 })
+          toast('本地凭证已保存，当前设备不受影响', { icon: '💾', duration: 4000 })
+        }
+      } else {
+        toast.success('登录凭证已更新，下次登录生效')
+      }
+
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      toast.success('登录凭证已更新，下次登录生效')
     } catch {
       toast.error('密码更新失败')
     } finally {
@@ -121,8 +144,23 @@ export default function AccountSettingsPage() {
 
           <div className="space-y-6 max-w-md">
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-              <p className="text-sm text-blue-700">
-                修改后台管理系统的登录用户名和密码。修改后将在下次登录时生效。
+              <p className="text-sm text-blue-700 flex items-center gap-2">
+                修改后台管理系统的登录用户名和密码。
+                {cloudConfigured ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                    <Cloud className="w-3 h-3" /> 云端同步
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+                    <CloudOff className="w-3 h-3" /> 仅本地
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-blue-500 mt-1">
+                {cloudConfigured
+                  ? '修改后自动同步到云端，所有设备使用同一组登录凭证。'
+                  : '当前仅在本地生效，不同设备的登录凭证相互独立。配置 Worker URL 后可云端同步。'
+                }
               </p>
             </div>
 
@@ -141,31 +179,34 @@ export default function AccountSettingsPage() {
               />
             </div>
 
-            {/* 当前密码（如果已设置过） */}
-            {auth.passwordHash && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  当前密码
-                </label>
-                <div className="relative">
-                  <input
-                    type={showCurrentPwd ? 'text' : 'password'}
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="请输入当前密码"
-                    maxLength={100}
-                    className="w-full px-4 py-2.5 pr-10 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 transition-all text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrentPwd(!showCurrentPwd)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showCurrentPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
+            {/* 当前密码 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                当前密码
+              </label>
+              <div className="relative">
+                <input
+                  type={showCurrentPwd ? 'text' : 'password'}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder={auth.passwordHash
+                    ? '请输入当前密码'
+                    : cloudConfigured
+                      ? '请输入环境变量中配置的密码'
+                      : '首次设置无需输入当前密码'
+                  }
+                  maxLength={100}
+                  className="w-full px-4 py-2.5 pr-10 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 transition-all text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPwd(!showCurrentPwd)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showCurrentPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
-            )}
+            </div>
 
             {/* 新密码 */}
             <div>

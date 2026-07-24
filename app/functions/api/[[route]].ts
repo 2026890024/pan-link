@@ -83,6 +83,34 @@ function requireAuth(request: Request, env: Env): Promise<boolean> {
   return verifyToken(auth.slice(7), env)
 }
 
+// ============ 密码哈希 ============
+function generateSalt(): string {
+  const array = new Uint8Array(16)
+  crypto.getRandomValues(array)
+  return Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function hashPassword(password: string, salt?: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const actualSalt = salt || generateSalt()
+  const data = encoder.encode(actualSalt + password)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  return `${actualSalt}:${hash}`
+}
+
+async function verifyPasswordHash(inputPassword: string, storedHash: string): Promise<boolean> {
+  if (!storedHash.includes(':')) {
+    // 旧格式：纯 hash，兼容纯 SHA-256
+    const inputHash = (await hashPassword(inputPassword, '')).split(':')[1]
+    return inputHash === storedHash
+  }
+  const [salt] = storedHash.split(':')
+  const inputFull = await hashPassword(inputPassword, salt)
+  return inputFull === storedHash
+}
+
 // ============ Rate Limiting (D1-based) ============
 // caches.default 在 Cloudflare Pages Functions 中对合成 URL 不可用，
 // 因此改用 D1 数据库存储限流/封禁状态 —— 这是 Pages Functions 中唯一可靠的分布式存储。
@@ -119,6 +147,14 @@ async function ensureRateLimitTables(env: Env): Promise<void> {
         strikes INTEGER NOT NULL DEFAULT 0,
         last_strike INTEGER NOT NULL DEFAULT 0,
         ban_until INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT DEFAULT (datetime('now'))
+      )`
+    ).run()
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS admin_config (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        username TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
         updated_at TEXT DEFAULT (datetime('now'))
       )`
     ).run()
@@ -539,10 +575,25 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     // ====== Auth ======
     if (path === '/api/auth/login' && method === 'POST') {
+      const body = await request.json<{ username: string; password: string }>()
+
+      // 1. 优先检查 D1 中的自定义凭证（从后台修改的账号密码）
+      try {
+        const adminRow = await env.DB.prepare('SELECT username, password_hash FROM admin_config WHERE id = 1')
+          .first<{ username: string; password_hash: string }>()
+        if (adminRow && adminRow.password_hash) {
+          if (body.username === adminRow.username && await verifyPasswordHash(body.password, adminRow.password_hash)) {
+            const token = await createToken(env)
+            return jsonRes({ token, expiresIn: 28800 }, 200, corsHeaders)
+          }
+          return jsonRes({ error: '用户名或密码错误' }, 401, corsHeaders)
+        }
+      } catch { /* D1 查询失败，回退到环境变量 */ }
+
+      // 2. 回退到环境变量（Cloudflare Dashboard 配置的 ADMIN_USER / ADMIN_PASS）
       if (!env.ADMIN_USER || !env.ADMIN_PASS) {
         return jsonRes({ error: '管理员账户未配置' }, 500, corsHeaders)
       }
-      const body = await request.json<{ username: string; password: string }>()
       if (body.username === env.ADMIN_USER && body.password === env.ADMIN_PASS) {
         const token = await createToken(env)
         return jsonRes({ token, expiresIn: 28800 }, 200, corsHeaders)
@@ -568,6 +619,48 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     }
 
     // ====== All data routes that need auth should come after this line ======
+
+    // ====== Change admin credentials (requires auth) ======
+    if (path === '/api/auth/change-password' && method === 'POST') {
+      const body = await request.json<{ currentPassword: string; newPassword: string; newUsername: string }>()
+      const newPwd = (body.newPassword || '').trim()
+      const curPwd = (body.currentPassword || '').trim()
+      const newUser = (body.newUsername || '').trim()
+
+      if (!newPwd || newPwd.length < 6) {
+        return jsonRes({ error: '新密码至少需要6位字符' }, 400, corsHeaders)
+      }
+
+      // 验证当前密码（D1 优先，环境变量回退）
+      let currentValid = false
+      try {
+        const adminRow = await env.DB.prepare('SELECT username, password_hash FROM admin_config WHERE id = 1')
+          .first<{ username: string; password_hash: string }>()
+        if (adminRow && adminRow.password_hash) {
+          currentValid = await verifyPasswordHash(curPwd, adminRow.password_hash)
+        }
+      } catch { /* D1 查询失败 */ }
+
+      if (!currentValid && env.ADMIN_PASS) {
+        currentValid = curPwd === env.ADMIN_PASS
+      }
+
+      if (!currentValid) {
+        return jsonRes({ error: '当前密码错误' }, 401, corsHeaders)
+      }
+
+      // 存储新凭证到 D1
+      const passwordHash = await hashPassword(newPwd)
+      const username = newUser || env.ADMIN_USER || 'admin'
+      const nowISO = new Date().toISOString()
+
+      await env.DB.prepare(
+        `INSERT INTO admin_config (id, username, password_hash, updated_at) VALUES (1, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET username = excluded.username, password_hash = excluded.password_hash, updated_at = excluded.updated_at`
+      ).bind(username, passwordHash, nowISO).run()
+
+      return jsonRes({ success: true, username }, 200, corsHeaders)
+    }
 
     // ====== CATEGORIES ======
 
