@@ -179,8 +179,8 @@ export default function SearchBar({
 
   return (
     <form onSubmit={onSearch} className="w-full max-w-xl sm:max-w-2xl relative">
-      <div className="relative group">
-        <div className="relative">
+      <div className="relative group rounded-full overflow-hidden">
+        <div className="relative rounded-full overflow-hidden">
           <input
             ref={searchInputRef}
             type="text"
@@ -189,6 +189,7 @@ export default function SearchBar({
             onFocus={() => searchQuery.trim() && onShowSuggestionsChange(true)}
             placeholder="搜索您需要的资源..."
             className="w-full px-5 py-3.5 sm:px-6 sm:py-4 pl-12 sm:pl-14 pr-24 sm:pr-28 rounded-full bg-white/80 backdrop-blur-xl text-gray-900 placeholder-gray-400 focus:outline-none text-base border border-gray-100 shadow-sm transition-colors duration-300"
+            style={{ borderRadius: '9999px' }}
             aria-label="搜索资源"
             aria-expanded={showSuggestions}
             aria-autocomplete="list"
