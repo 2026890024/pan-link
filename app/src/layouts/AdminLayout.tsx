@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
 import { adminRoutePreloadMap } from '@/pages/admin'
-import ThemeToggle from '@/components/ui/ThemeToggle'
 
 const navItems = [
   { path: '/admin/resources', label: '资源管理', icon: Link2 },
@@ -89,7 +88,7 @@ export default function AdminLayout() {
         <div className="flex items-center justify-center h-16 px-4 border-b border-gray-100">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-all cursor-pointer"
+            className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-gray-50 transition-all cursor-pointer"
             title={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}
             aria-label={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}
           >
@@ -174,10 +173,6 @@ export default function AdminLayout() {
             )}
           </div>
 
-          {/* 主题切换 */}
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
-          </div>
         </header>
 
         {/* 内容 */}

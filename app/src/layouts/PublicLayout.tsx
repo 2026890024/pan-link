@@ -2,7 +2,6 @@ import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { Home, Search } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
-import ThemeToggle from '@/components/ui/ThemeToggle'
 
 const pageVariants = {
   initial: { opacity: 0, y: 16, scale: 0.995 },
@@ -53,7 +52,6 @@ export default function PublicLayout() {
 
             {/* 右侧导航操作 */}
             <div className="flex items-center gap-1 sm:gap-2">
-              <ThemeToggle />
               <button
                 onClick={() => navigate('/search')}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors cursor-pointer"

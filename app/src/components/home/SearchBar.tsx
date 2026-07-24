@@ -123,7 +123,7 @@ export default function SearchBar({
   const suggestionsContent = showSuggestions && searchSuggestions.length > 0 && (
     <div
       ref={suggestionsRef}
-      className="fixed bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-brand-500/10 border border-gray-100/80 overflow-hidden max-h-80 overflow-y-auto z-30"
+      className="fixed bg-white/95 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-100 overflow-hidden max-h-80 overflow-y-auto z-30"
       style={{
         top: dropdownPosition.top,
         left: dropdownPosition.left,
@@ -188,7 +188,7 @@ export default function SearchBar({
             onChange={(e) => { onSearchQueryChange(e.target.value); onShowSuggestionsChange(true) }}
             onFocus={() => searchQuery.trim() && onShowSuggestionsChange(true)}
             placeholder="搜索您需要的资源..."
-            className="w-full px-5 py-3.5 sm:px-6 sm:py-4 pl-12 sm:pl-14 pr-24 sm:pr-28 rounded-full glass text-gray-900 placeholder-gray-400 focus:outline-none focus:scale-[1.02] transition-all duration-300 text-base"
+            className="w-full px-5 py-3.5 sm:px-6 sm:py-4 pl-12 sm:pl-14 pr-24 sm:pr-28 rounded-full bg-white/80 backdrop-blur-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:scale-[1.02] transition-transform duration-300 text-base border border-gray-100 shadow-sm"
             aria-label="搜索资源"
             aria-expanded={showSuggestions}
             aria-autocomplete="list"

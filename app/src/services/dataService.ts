@@ -237,7 +237,7 @@ export async function fetchCategories(): Promise<Array<Category>> {
       is_system: Boolean(c.is_system),
     }))
   } catch (err) {
-    console.error('[DataService] fetchCategories error:', err)
+    if (import.meta.env.DEV) { console.warn('[DataService] fetchCategories fallback:', err) }
     return getLocalCategories()
   }
 }
@@ -280,7 +280,7 @@ export async function fetchLinks(): Promise<Array<LinkItem>> {
     log('fetchLinks', data?.length)
     return (data || []).map(workerLinkToLinkItem)
   } catch (err) {
-    console.error('[DataService] fetchLinks error:', err)
+    if (import.meta.env.DEV) { console.warn('[DataService] fetchLinks fallback:', err) }
     return getLocalLinks()
   }
 }
@@ -292,7 +292,7 @@ export async function fetchPublicLinks(): Promise<Array<LinkItem>> {
     const data = await apiFetch<Array<Record<string, unknown>>>('/api/links/public')
     return (data || []).map(workerLinkToLinkItem)
   } catch (err) {
-    console.error('[DataService] fetchPublicLinks error:', err)
+    if (import.meta.env.DEV) { console.warn('[DataService] fetchPublicLinks fallback:', err) }
     return getLocalLinks()
   }
 }
@@ -390,7 +390,7 @@ export async function fetchTags(_userId?: string): Promise<Array<Tag>> {
       created_at: t.created_at, updated_at: t.updated_at,
     }))
   } catch (err) {
-    console.error('[DataService] fetchTags error:', err)
+    if (import.meta.env.DEV) { console.warn('[DataService] fetchTags fallback:', err) }
     return getLocalTags()
   }
 }
@@ -458,7 +458,7 @@ export async function fetchDashboardStats(_userId?: string): Promise<{
       favorited_links: data.favorited_links || 0,
     }
   } catch (err) {
-    console.error('[DataService] fetchStats error, falling back to local:', err)
+    if (import.meta.env.DEV) { console.warn('[DataService] fetchStats fallback:', err) }
     const links = getLocalLinks()
     return {
       total_links: links.length,
@@ -488,7 +488,7 @@ export async function fetchSubCategories(): Promise<Array<SubCategory>> {
       sort_order: Number(sc.sort_order) || 0,
     }))
   } catch (err) {
-    console.error('[DataService] fetchSubCategories error:', err)
+    if (import.meta.env.DEV) { console.warn('[DataService] fetchSubCategories fallback:', err) }
     return getLocalSubCategories()
   }
 }
@@ -549,11 +549,11 @@ export function fetchAll(): Promise<AllData | null> {
       }
       _allDataCache = { data: result, timestamp: Date.now() }
       return result
-    } catch (err) {
-      console.error('[DataService] fetchAll error:', err)
-      if (_allDataCache) {return _allDataCache.data}
-      return null
-    } finally {
+  } catch (err) {
+    if (import.meta.env.DEV) { console.warn('[DataService] fetchAll fallback:', err) }
+    if (_allDataCache) {return _allDataCache.data}
+    return null
+  } finally {
       _allDataPromise = null
     }
   })()
@@ -687,7 +687,7 @@ export async function searchLinks(query: string): Promise<Array<LinkItem>> {
     const data = await apiFetch<Array<Record<string, unknown>>>(`/api/links/search?q=${encodeURIComponent(query)}`)
     return (data || []).map(workerLinkToLinkItem)
   } catch (err) {
-    console.error('[DataService] searchLinks error:', err)
+    if (import.meta.env.DEV) { console.warn('[DataService] searchLinks fallback:', err) }
     return []
   }
 }
@@ -1009,7 +1009,7 @@ export function fetchSiteSettings(): Promise<SiteSettings> {
       _siteSettingsCache = { data: result, timestamp: Date.now() }
       return result
     } catch (err) {
-      console.error('[DataService] fetchSiteSettings error:', err)
+      if (import.meta.env.DEV) { console.warn('[DataService] fetchSiteSettings fallback:', err) }
       // 错误时也返回缓存（如果有），避免雪崩
       if (_siteSettingsCache) {return _siteSettingsCache.data}
       return getLocalSiteSettings()

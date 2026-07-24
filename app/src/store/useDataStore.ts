@@ -621,17 +621,23 @@ async function reloadAll(set: (partial: Partial<DataStore>) => void, get: () => 
     // 自动同步本地子分类到云端
     autoSyncSubCategories(subCategories.length, categories, localSubs, set, get)
   } catch (err) {
-    console.error('[DataStore] reloadAll error:', err)
+    if (import.meta.env.DEV) {
+      console.warn('[DataStore] reloadAll fallback (dev mode):', err)
+    } else {
+      console.error('[DataStore] reloadAll error:', err)
+    }
     const fallbackLinks = loadLocalLinks()
     const fallbackCats = loadLocal<Array<Category>>('categories', [])
     const fallbackSubs = loadLocalSubCategoriesCompat()
     set({
       initialized: true,
-      error: String(err),
+      error: ds.isCloudApiConfigured() ? String(err) : null,
       categories: fallbackCats,
       links: fallbackLinks,
       subCategories: fallbackSubs,
-      cloudSyncError: true,
+      cloudSyncError: ds.isCloudApiConfigured() && fallbackLinks.some(
+        (l) => (l as LinkItem & { _pendingSync?: boolean })._pendingSync === true
+      ),
     })
   }
 }

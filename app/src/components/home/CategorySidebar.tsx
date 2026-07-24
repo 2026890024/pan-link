@@ -1,5 +1,4 @@
 import { FolderOpen, X, ChevronDown, ChevronRight } from 'lucide-react'
-import { motion } from 'framer-motion'
 import type { Category, SubCategory } from '@/store/useDataStore'
 
 interface CategorySidebarProps {
@@ -59,9 +58,9 @@ export default function CategorySidebar({
       {/* Left Sidebar */}
       <div className={`
         ${showMobileSidebar ? 'fixed left-0 top-0 h-full w-72 z-50 transform translate-x-0' : 'hidden md:block'}
-        md:static md:transform-none md:w-64 md:flex-shrink-0 animate-slide-up
+        md:static md:transform-none md:w-64 md:flex-shrink-0
       `}>
-        <div className="bg-white/80 backdrop-blur-xl h-full md:h-auto md:rounded-2xl shadow-glass border border-white/60 p-5 md:sticky md:top-24 overflow-y-auto">
+        <div className="bg-white/80 backdrop-blur-xl h-full md:h-auto md:rounded-2xl shadow-sm border border-gray-100 p-5 md:sticky md:top-24 overflow-y-auto">
           {/* Mobile Close Button */}
           <div className="flex justify-between items-center mb-5 md:hidden">
             <span className="font-semibold text-gray-900 text-lg">资源分类</span>
@@ -87,11 +86,7 @@ export default function CategorySidebar({
               aria-current={!selectedCategory ? 'page' : undefined}
             >
               {!selectedCategory && (
-                <motion.div
-                  layoutId="activeCategory"
-                  className="absolute inset-0 bg-brand-600 rounded-xl shadow-button -z-10"
-                  transition={{ type: 'spring', stiffness: 380, damping: 30, mass: 0.5 }}
-                />
+                <div className="absolute inset-0 bg-brand-600 rounded-xl -z-10" />
               )}
               <FolderOpen className={`w-4 h-4 ${!selectedCategory ? 'text-white/90' : 'text-brand-400'}`} />
               <span>全部资源</span>
@@ -113,11 +108,7 @@ export default function CategorySidebar({
                       }`}
                     >
                       {isSelected && (
-                        <motion.div
-                          layoutId="activeCategory"
-                          className="absolute inset-0 bg-brand-600 rounded-xl shadow-button -z-10"
-                          transition={{ type: 'spring', stiffness: 380, damping: 30, mass: 0.5 }}
-                        />
+                        <div className="absolute inset-0 bg-brand-600 rounded-xl -z-10" />
                       )}
                       <div className="flex items-center gap-2.5">
                         <FolderOpen className={`w-4 h-4 ${isSelected ? 'text-white/90' : 'text-brand-400'}`} />
