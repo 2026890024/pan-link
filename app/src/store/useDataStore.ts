@@ -1179,11 +1179,10 @@ export const useDataStore = create<DataStore>()((set, get) => ({
   },
 
   incrementClicks: async (id) => {
-    try {
-      if (ds.isCloudApiConfigured()) {
-        await ds.incrementLinkClicks(id)
-      }
-    } catch (err) { console.error('点击计数同步失败:', err) }
+    // 本地立即 +1，云端合并批量提交（避免高频写限流）
+    if (ds.isCloudApiConfigured()) {
+      ds.incrementLinkClicks(id)
+    }
     set({
       links: get().links.map(l => l.id === id ? { ...l, click_count: l.click_count + 1 } : l),
     })

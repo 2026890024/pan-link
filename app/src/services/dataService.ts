@@ -342,13 +342,40 @@ export async function deleteLinkApi(id: string): Promise<void> {
   log('deleteLink', id)
 }
 
-export async function incrementLinkClicks(id: string): Promise<void> {
+// 🚀 点击计数合并提交：5 秒内多次点击合并为一次请求，避免高频写限流
+const pendingClicks = new Map<string, number>()
+let clickFlushTimer: ReturnType<typeof setTimeout> | null = null
+
+function flushClicks(): void {
+  if (clickFlushTimer) { clearTimeout(clickFlushTimer); clickFlushTimer = null }
+  if (pendingClicks.size === 0) { return }
+  if (!isCloudApiConfigured()) { pendingClicks.clear(); return }
+
+  const batch = new Map(pendingClicks)
+  pendingClicks.clear()
+
+  batch.forEach((count, id) => {
+    apiFetch(`/api/links/${id}/click`, {
+      method: 'POST',
+      body: JSON.stringify({ count }),
+    }).catch(() => { /* 点击记录为 best-effort */ })
+  })
+}
+
+function scheduleClickFlush(): void {
+  if (clickFlushTimer) { return }
+  clickFlushTimer = setTimeout(() => flushClicks(), 5000)
+}
+
+export function incrementLinkClicks(id: string): void {
   if (!isCloudApiConfigured()) { incrementLocalClicks(id); return }
-  // 通过公开 POST API 记录点击（无需认证，best-effort）
-  try {
-    await apiFetch(`/api/links/${id}/click`, { method: 'POST' })
-    log('incrementClicks', id)
-  } catch { /* ignore - 点击记录为 best-effort */ }
+  pendingClicks.set(id, (pendingClicks.get(id) || 0) + 1)
+  scheduleClickFlush()
+}
+
+// 页面卸载前尝试立即刷新未提交的点击
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => flushClicks())
 }
 
 // ============ Tags API ============

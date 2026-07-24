@@ -24,7 +24,7 @@ import { getDaysRemaining } from '@/lib/utils'
 
 export default function CategoryPage() {
   const { id } = useParams<{ id: string }>()
-  const { links, categories } = useDataStore()
+  const { links, categories, initialized } = useDataStore()
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [sortBy, setSortBy] = useState<'default' | 'recent' | 'popular'>('default')
   const [searchQuery, setSearchQuery] = useState('')
@@ -95,6 +95,18 @@ export default function CategoryPage() {
     const startIndex = (currentPage - 1) * itemsPerPage
     return filteredLinks.slice(startIndex, startIndex + itemsPerPage)
   }, [filteredLinks, currentPage])
+
+  // 数据尚未加载完成时显示骨架屏
+  if (!initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-500 rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-gray-500">加载中...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!id || !category) {
     return (

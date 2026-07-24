@@ -181,11 +181,12 @@ async function checkRateLimit(env: Env, ip: string, method: string, path: string
   const isWrite = ['POST', 'PUT', 'DELETE'].includes(method)
   const isSlugLookup = path.startsWith('/api/links/public')
   const isLogin = path === '/api/auth/login' && method === 'POST'
-  const keySuffix = isLogin ? 'login' : isWrite ? 'write' : isSlugLookup ? 'slug' : 'read'
+  const isClick = isWrite && /^\/api\/links\/[^/]+\/click$/.test(path)
+  const keySuffix = isLogin ? 'login' : isClick ? 'click' : isWrite ? 'write' : isSlugLookup ? 'slug' : 'read'
   const key = `${ip}/${keySuffix}`
 
-  // login=3, write=5, slug=5, read=10 (per IP per minute)
-  const limit = isLogin ? 3 : isWrite ? 5 : isSlugLookup ? 5 : 10
+  // 限流阈值：read=300, click=120, write=60, slug=120, login=20 (per IP per minute)
+  const limit = isLogin ? 20 : isClick ? 120 : isWrite ? 60 : isSlugLookup ? 120 : 300
   const windowMs = 60_000
 
   try {
@@ -226,7 +227,7 @@ async function checkRateLimit(env: Env, ip: string, method: string, path: string
 }
 
 // ============ 全局限流: 全局请求数超过阈值时拒绝所有新请求 ============
-const GLOBAL_LIMIT = 500  // 每分钟全局最大 500 次请求
+const GLOBAL_LIMIT = 5000  // 每分钟全局最大 5000 次请求
 const GLOBAL_WINDOW = 60_000
 const GLOBAL_KEY = '__global__'
 
@@ -297,7 +298,7 @@ async function checkBanlist(env: Env, ip: string, now: number): Promise<{ banned
 
 async function recordStrike(env: Env, ip: string, now: number): Promise<{ banned: boolean; banUntil?: number }> {
   const STRIKE_WINDOW = 5 * 60_000  // 5分钟内的违规累积
-  const MAX_STRIKES = 3              // 3次违规 = 拉黑15分钟
+  const MAX_STRIKES = 10             // 10次违规 = 拉黑15分钟
   const BAN_DURATION = 15 * 60_000
   const nowISO = new Date().toISOString()
 
@@ -483,7 +484,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   // Rate limit（读请求异步写入，写请求同步写入防并发超额）
   const rl = await checkRateLimit(env, clientIp, method, requestPath, now, isRead ? wu : undefined)
   if (!rl.allowed) {
-    // 记录违规：连续3次429触发15分钟IP拉黑
+    // 记录违规：连续10次429触发15分钟IP拉黑
     context.waitUntil(recordStrike(env, clientIp, now))
     return jsonRes({ error: '请求过于频繁，请稍后再试' }, 429, {
       ...corsHeaders,
@@ -607,7 +608,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const linkId = extractParam(path, '/api/links/:id/click')
       if (linkId) {
         try {
-          await env.DB.prepare('UPDATE links SET click_count = click_count + 1 WHERE id = ?').bind(linkId).run()
+          let count = 1
+          try {
+            const body = await request.json() as Record<string, unknown>
+            if (typeof body.count === 'number' && body.count > 0) {
+              count = Math.min(Math.floor(body.count), 100)
+            }
+          } catch { /* 无 body 或非法 body 时按 1 次处理 */ }
+          await env.DB.prepare('UPDATE links SET click_count = click_count + ? WHERE id = ?').bind(count, linkId).run()
         } catch { /* ignore - best-effort click tracking */ }
       }
       return jsonRes({ success: true }, 200, corsHeaders)

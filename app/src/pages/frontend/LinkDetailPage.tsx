@@ -29,7 +29,7 @@ function loadShareLinks(): Array<{ id: string; name: string; slug: string; linkI
 
 export default function LinkDetailPage() {
   const { slug } = useParams<{ slug: string }>()
-  const { links, categories, subCategories, incrementClicks } = useDataStore()
+  const { links, categories, subCategories, incrementClicks, initialized } = useDataStore()
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
   // 检查是否是分享链接 slug
@@ -48,6 +48,18 @@ export default function LinkDetailPage() {
       document.title = '链接不存在 - 资源云'
     }
   }, [shareLink, link])
+
+  // 数据尚未加载完成时显示骨架屏，避免误报“链接不存在”
+  if (!shareLink && !initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFBFC]">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-500 rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-gray-500">加载中...</p>
+        </div>
+      </div>
+    )
+  }
 
   const subcategory = link?.subcategory_id
     ? subCategories.find(sc => sc.id === link.subcategory_id)
