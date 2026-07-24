@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -9,11 +10,13 @@ import {
   ChevronRight,
   Settings,
   Palette,
+  Loader2,
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { useSiteSettingsStore } from '@/store/useSiteSettingsStore'
+import { adminRoutePreloadMap } from '@/pages/admin'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 
 const navItems = [
@@ -24,6 +27,17 @@ const navItems = [
   { path: '/admin/site-settings', label: '站点设置', icon: Palette },
   { path: '/admin/account', label: '账户设置', icon: User },
 ]
+
+function ContentLoading() {
+  return (
+    <div className="flex-1 flex items-center justify-center min-h-[60vh]">
+      <div className="flex flex-col items-center gap-3 text-gray-400">
+        <Loader2 className="w-6 h-6 animate-spin" />
+        <span className="text-sm">页面加载中...</span>
+      </div>
+    </div>
+  )
+}
 
 export default function AdminLayout() {
   const location = useLocation()
@@ -111,6 +125,8 @@ export default function AdminLayout() {
                   : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700'
               )}
               onClick={() => setMobileSidebarOpen(false)}
+              onMouseEnter={() => adminRoutePreloadMap[item.path]?.()}
+              onFocus={() => adminRoutePreloadMap[item.path]?.()}
             >
               <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
               {sidebarOpen && <span className="font-medium text-sm whitespace-nowrap">{item.label}</span>}
@@ -166,7 +182,9 @@ export default function AdminLayout() {
 
         {/* 内容 */}
         <main className="p-4 sm:p-6">
-          <Outlet />
+          <Suspense fallback={<ContentLoading />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

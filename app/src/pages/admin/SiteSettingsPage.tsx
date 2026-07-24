@@ -54,11 +54,22 @@ function resizeImageToDataURL(file: File, maxSize = 64): Promise<string> {
 
 export default function SiteSettingsPage() {
   const [activeTab, setActiveTab] = useState<'logo' | 'favicon' | 'colors' | 'info'>('logo')
-  const store = useSiteSettingsStore()
+  const { loaded } = useSiteSettingsStore()
 
-  useEffect(() => {
-    store.loadSettings()
-  }, [store])
+  if (!loaded) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">站点设置</h1>
+          <p className="text-gray-500 mt-1">管理网站 Logo、配色方案和基本信息</p>
+        </div>
+        <div className="flex items-center justify-center h-64 text-gray-400">
+          <Loader2 className="w-6 h-6 animate-spin mr-2" />
+          加载中...
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
