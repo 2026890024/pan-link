@@ -13,6 +13,8 @@ export default function SiteFooter({ variant = 'full' }: SiteFooterProps) {
   const siteName = siteSettings.settings.site_name || '资源云'
   const logoType = siteSettings.settings.current_logo_type || 'text'
   const logoUrl = siteSettings.settings.current_logo_url || ''
+  const disclaimer = siteSettings.settings.site_disclaimer || '免责申明：本站不以盈利为目的，下载资源均来源于网络，只做学习和交流使用，版权归原作者所有，若作商业用途请购买正版，由于未及时购买和付费发生的侵权行为，与本站无关。如果侵犯了您的合法权益，请联系站长删除。'
+  const copyright = siteSettings.settings.site_copyright || `© ${currentYear} ${siteName}`
 
   return (
     <footer className={variant === 'full' ? 'mt-12 pb-8' : 'mt-auto pt-10 sm:pt-12 pb-2 sm:pb-4'}>
@@ -26,7 +28,7 @@ export default function SiteFooter({ variant = 'full' }: SiteFooterProps) {
         {/* Disclaimer */}
         <div className="text-center mb-6 max-w-4xl mx-auto">
           <p className="text-xs text-gray-400 leading-relaxed">
-            免责申明：本站不以盈利为目的，下载资源均来源于网络，只做学习和交流使用，版权归原作者所有，若作商业用途请购买正版，由于未及时购买和付费发生的侵权行为，与本站无关。如果侵犯了您的合法权益，请联系站长删除。
+            {disclaimer}
           </p>
         </div>
         {/* Copyright */}
@@ -46,7 +48,7 @@ export default function SiteFooter({ variant = 'full' }: SiteFooterProps) {
           </Link>
           <span className="font-medium text-gray-500">{siteName}</span>
           <span className="text-gray-300">·</span>
-          <span>© {currentYear}</span>
+          <span>{copyright}</span>
         </div>
       </div>
     </footer>

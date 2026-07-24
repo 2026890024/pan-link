@@ -87,7 +87,9 @@ INSERT OR IGNORE INTO site_settings (key, value) VALUES
   ('current_colors', '{"primary":"#6366F1","secondary":"#818CF8","accent":"#A5B4FC","lightest":"#F5F3FF","darkest":"#1E1B4B"}'),
   ('color_history', '[]'),
   ('site_name', '"资源云"'),
-  ('site_description', '"一站式网盘资源聚合管理平台"');
+  ('site_description', '"一站式网盘资源聚合管理平台"'),
+  ('site_disclaimer', '"本站内容来源于网络收集整理，仅供学习交流使用。版权归原作者所有，如有侵权请联系我们处理。"'),
+  ('site_copyright', '"© 2026 资源云"');
 
 -- 子分类表
 CREATE TABLE IF NOT EXISTS subcategories (

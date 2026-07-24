@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
   Palette, Image, Type, Upload, Trash2, Save, Plus, Check, Loader2,
-  Globe, X, Sparkles, ChevronDown, History, PanelTop,
+  Globe, X, Sparkles, ChevronDown, History, PanelTop, FileText, Copyright,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useSiteSettingsStore, type ColorScheme } from '@/store/useSiteSettingsStore'
@@ -817,26 +817,34 @@ function ColorSchemeCard({
 // ============ 站点信息标签 ============
 
 function InfoTab() {
-  const { settings, setSiteName, setSiteDescription } = useSiteSettingsStore()
+  const { settings, setSiteName, setSiteDescription, setSiteDisclaimer, setSiteCopyright } = useSiteSettingsStore()
   const [name, setName] = useState(settings.site_name || '资源云')
   const [desc, setDesc] = useState(settings.site_description || '')
+  const [disclaimer, setDisclaimer] = useState(settings.site_disclaimer || '')
+  const [copyright, setCopyright] = useState(settings.site_copyright || '')
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setName(settings.site_name || '资源云')
     setDesc(settings.site_description || '')
-  }, [settings.site_name, settings.site_description])
+    setDisclaimer(settings.site_disclaimer || '')
+    setCopyright(settings.site_copyright || '')
+  }, [settings.site_name, settings.site_description, settings.site_disclaimer, settings.site_copyright])
 
   const handleSave = async () => {
     const trimmedName = name.trim()
     const trimmedDesc = desc.trim()
+    const trimmedDisclaimer = disclaimer.trim()
+    const trimmedCopyright = copyright.trim()
     if (!trimmedName) { toast('站点名称不能为空'); return }
     if (saving) {return}
     setSaving(true)
     try {
       await setSiteName(trimmedName)
       await setSiteDescription(trimmedDesc)
+      await setSiteDisclaimer(trimmedDisclaimer)
+      await setSiteCopyright(trimmedCopyright)
       // 浏览器标题完整使用“浏览器标题描述”字段
       document.title = trimmedDesc
       toast.success('站点信息已保存')
@@ -851,7 +859,7 @@ function InfoTab() {
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="bg-white rounded-xl border shadow-sm p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-5 flex items-center gap-2">
           <Globe className="w-5 h-5 text-brand-500" />
@@ -887,6 +895,45 @@ function InfoTab() {
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 text-sm resize-none"
             />
             <p className="text-xs text-gray-400 mt-1">完整显示在浏览器标签页标题中，不再拼接站点名称</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-5 flex items-center gap-2">
+          <FileText className="w-5 h-5 text-brand-500" />
+          页脚信息
+        </h2>
+
+        <div className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              免责声明
+            </label>
+            <textarea
+              value={disclaimer}
+              onChange={(e) => setDisclaimer(e.target.value)}
+              placeholder="输入首页页脚免责声明内容"
+              maxLength={2000}
+              rows={5}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 text-sm resize-none"
+            />
+            <p className="text-xs text-gray-400 mt-1">显示在首页页脚上方</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              版权信息
+            </label>
+            <input
+              type="text"
+              value={copyright}
+              onChange={(e) => setCopyright(e.target.value)}
+              placeholder="© 2026 资源云"
+              maxLength={200}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 text-sm"
+            />
+            <p className="text-xs text-gray-400 mt-1">显示在页脚 Logo 名称右侧</p>
           </div>
 
           <div className="pt-2">

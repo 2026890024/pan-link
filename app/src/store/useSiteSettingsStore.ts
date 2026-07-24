@@ -42,6 +42,8 @@ const DEFAULT_SETTINGS: SiteSettings = {
   color_history: [],
   site_name: '资源云',
   site_description: '全网资源交流分享',
+  site_disclaimer: '本站内容来源于网络收集整理，仅供学习交流使用。版权归原作者所有，如有侵权请联系我们处理。',
+  site_copyright: '© 2026 资源云',
 }
 
 // 启动时优先用 localStorage 缓存，确保 Logo 和数据内容同步显示
@@ -80,6 +82,10 @@ interface SiteSettingsStore {
   setSiteName: (name: string) => Promise<void>
   setSiteDescription: (desc: string) => Promise<void>
 
+  // 页脚信息
+  setSiteDisclaimer: (disclaimer: string) => Promise<void>
+  setSiteCopyright: (copyright: string) => Promise<void>
+
   // 获取当前配色方案
   getCurrentColors: () => typeof DEFAULT_COLORS
 }
@@ -106,6 +112,8 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
         color_history: settings.color_history || [],
         site_name: settings.site_name || DEFAULT_SETTINGS.site_name,
         site_description: settings.site_description || DEFAULT_SETTINGS.site_description,
+        site_disclaimer: settings.site_disclaimer || DEFAULT_SETTINGS.site_disclaimer,
+        site_copyright: settings.site_copyright || DEFAULT_SETTINGS.site_copyright,
       }
       saveCachedSettings(merged)
       set({ settings: merged, loaded: true })
@@ -128,6 +136,8 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
       color_history: data.color_history || [],
       site_name: data.site_name || DEFAULT_SETTINGS.site_name,
       site_description: data.site_description || DEFAULT_SETTINGS.site_description,
+      site_disclaimer: data.site_disclaimer || DEFAULT_SETTINGS.site_disclaimer,
+      site_copyright: data.site_copyright || DEFAULT_SETTINGS.site_copyright,
     }
     saveCachedSettings(merged)
     set({ settings: merged, loaded: true })
@@ -301,6 +311,20 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
     set({ settings })
     saveCachedSettings(settings)
     await ds.updateSiteSettings({ site_description: desc })
+  },
+
+  setSiteDisclaimer: async (disclaimer) => {
+    const settings = { ...get().settings, site_disclaimer: disclaimer }
+    set({ settings })
+    saveCachedSettings(settings)
+    await ds.updateSiteSettings({ site_disclaimer: disclaimer })
+  },
+
+  setSiteCopyright: async (copyright) => {
+    const settings = { ...get().settings, site_copyright: copyright }
+    set({ settings })
+    saveCachedSettings(settings)
+    await ds.updateSiteSettings({ site_copyright: copyright })
   },
 
   getCurrentColors: () => {

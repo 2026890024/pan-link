@@ -1244,6 +1244,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       if (!settings.favicon_library) {
         settings.favicon_library = []
       }
+      if (!settings.site_disclaimer) {
+        settings.site_disclaimer = '本站内容来源于网络收集整理，仅供学习交流使用。版权归原作者所有，如有侵权请联系我们处理。'
+      }
+      if (!settings.site_copyright) {
+        settings.site_copyright = '© 2026 资源云'
+      }
       const response = jsonRes(settings, 200, { ...corsHeaders, 'Cache-Control': 'public, max-age=60, s-maxage=300', 'CDN-Cache-Control': 'public, max-age=300' })
       await putCache(request, response)
       return response

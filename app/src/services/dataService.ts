@@ -937,6 +937,8 @@ export interface SiteSettings {
   color_history?: Array<ColorScheme>
   site_name?: string
   site_description?: string
+  site_disclaimer?: string
+  site_copyright?: string
   drive_types?: Array<DriveType>
 }
 
@@ -964,6 +966,8 @@ function getLocalSiteSettings(): SiteSettings {
     color_history: [],
     site_name: '资源云',
     site_description: '全网资源交流分享',
+    site_disclaimer: '本站内容来源于网络收集整理，仅供学习交流使用。版权归原作者所有，如有侵权请联系我们处理。',
+    site_copyright: '© 2026 资源云',
   }
 }
 
