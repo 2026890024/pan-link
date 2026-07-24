@@ -115,7 +115,7 @@ export function useDeleteLink() {
 export function useIncrementClicks() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => ds.incrementLinkClicks(id),
+    mutationFn: async (id: string) => { ds.incrementLinkClicks(id) },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.links })
       qc.invalidateQueries({ queryKey: queryKeys.publicLinks })
