@@ -55,6 +55,7 @@ interface SiteSettingsStore {
 
   // 初始化
   loadSettings: () => Promise<void>
+  loadSettingsFromData: (data: SiteSettings) => void
 
   // Logo 操作
   setLogoType: (type: 'text' | 'image') => Promise<void>
@@ -94,7 +95,7 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
     try {
       const settings = await ds.fetchSiteSettings()
       const merged: SiteSettings = {
-        ...settings, // 保留所有云端字段（homepage_show_featured、homepage_category_visibility 等）
+        ...settings,
         current_logo_type: settings.current_logo_type || DEFAULT_SETTINGS.current_logo_type,
         current_logo_text: settings.current_logo_text || DEFAULT_SETTINGS.current_logo_text,
         current_logo_url: settings.current_logo_url || DEFAULT_SETTINGS.current_logo_url,
@@ -106,13 +107,30 @@ export const useSiteSettingsStore = create<SiteSettingsStore>()((set, get) => ({
         site_name: settings.site_name || DEFAULT_SETTINGS.site_name,
         site_description: settings.site_description || DEFAULT_SETTINGS.site_description,
       }
-      // 持久化到 localStorage，下次打开瞬间恢复
       saveCachedSettings(merged)
       set({ settings: merged, loaded: true })
     } catch {
-      // API 失败也不影响，有缓存就用缓存
       set({ loaded: true })
     }
+  },
+
+  // 🚀 从预取数据直接设置，跳过二次 API 调用
+  loadSettingsFromData: (data: SiteSettings) => {
+    const merged: SiteSettings = {
+      ...data,
+      current_logo_type: data.current_logo_type || DEFAULT_SETTINGS.current_logo_type,
+      current_logo_text: data.current_logo_text || DEFAULT_SETTINGS.current_logo_text,
+      current_logo_url: data.current_logo_url || DEFAULT_SETTINGS.current_logo_url,
+      logo_library: data.logo_library || [],
+      current_favicon_url: data.current_favicon_url || DEFAULT_SETTINGS.current_favicon_url,
+      favicon_library: data.favicon_library || [],
+      current_colors: data.current_colors || DEFAULT_COLORS,
+      color_history: data.color_history || [],
+      site_name: data.site_name || DEFAULT_SETTINGS.site_name,
+      site_description: data.site_description || DEFAULT_SETTINGS.site_description,
+    }
+    saveCachedSettings(merged)
+    set({ settings: merged, loaded: true })
   },
 
   // ===== Logo =====

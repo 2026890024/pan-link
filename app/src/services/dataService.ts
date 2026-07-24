@@ -473,50 +473,65 @@ export interface AllData {
   subcategories: Array<SubCategory>
   tags: Array<Tag>
 }
-export async function fetchAll(): Promise<AllData | null> {
-  if (!isCloudApiConfigured()) {return null}
 
-  try {
-    const data = await apiFetch<{
-      categories: Array<Record<string, unknown>>
-      links: Array<Record<string, unknown>>
-      subcategories: Array<Record<string, unknown>>
-      tags: Array<Record<string, unknown>>
-    }>('/api/all')
-    log('fetchAll', data.categories?.length, data.links?.length, data.subcategories?.length)
-    return {
-      categories: (data.categories || []).map(c => ({
-        id: String(c.id),
-        name: c.name as string,
-        icon: (c.icon as string) || 'folder',
-        logo_url: (c.logo_url as string) || null,
-        sort_order: Number(c.sort_order || 0),
-        is_system: Boolean(c.is_system),
-        created_at: (c.created_at as string) || new Date().toISOString(),
-        updated_at: (c.updated_at as string) || new Date().toISOString(),
-      })),
-      links: (data.links || []).map(workerLinkToLinkItem),
-      subcategories: (data.subcategories || []).map(sc => ({
-        id: String(sc.id),
-        category_id: String(sc.category_id),
-        name: sc.name as string,
-        sort_order: Number(sc.sort_order || 0),
-        created_at: (sc.created_at as string) || new Date().toISOString(),
-        updated_at: (sc.updated_at as string) || new Date().toISOString(),
-      })),
-      tags: (data.tags || []).map(t => ({
-        id: String(t.id),
-        user_id: String(t.user_id || '1'),
-        name: t.name as string,
-        color: (t.color as string) || '#6B7280',
-        created_at: (t.created_at as string) || new Date().toISOString(),
-        updated_at: (t.updated_at as string) || new Date().toISOString(),
-      })),
-    }
-  } catch (err) {
-    console.error('[DataService] fetchAll error:', err)
-    return null
+// 🚀 内存缓存 + 请求去重，5 秒内不重复请求 /api/all
+let _allDataCache: { data: AllData; timestamp: number } | null = null
+let _allDataPromise: Promise<AllData | null> | null = null
+const ALL_CACHE_TTL = 5000
+
+export function fetchAll(): Promise<AllData | null> {
+  if (!isCloudApiConfigured()) {return Promise.resolve(null)}
+
+  // 1. 优先返回短时缓存
+  if (_allDataCache && (Date.now() - _allDataCache.timestamp) < ALL_CACHE_TTL) {
+    return Promise.resolve(_allDataCache.data)
   }
+
+  // 2. 有正在进行的请求，复用同一个 Promise
+  if (_allDataPromise) {return _allDataPromise}
+
+  _allDataPromise = (async () => {
+    try {
+      const data = await apiFetch<{
+        categories: Array<Record<string, unknown>>
+        links: Array<Record<string, unknown>>
+        subcategories: Array<Record<string, unknown>>
+        tags: Array<Record<string, unknown>>
+      }>('/api/all')
+      const result: AllData = {
+        categories: (data.categories || []).map(c => ({
+          id: String(c.id), name: c.name as string, icon: (c.icon as string) || 'folder',
+          logo_url: (c.logo_url as string) || null, sort_order: Number(c.sort_order || 0),
+          is_system: Boolean(c.is_system),
+          created_at: (c.created_at as string) || new Date().toISOString(),
+          updated_at: (c.updated_at as string) || new Date().toISOString(),
+        })),
+        links: (data.links || []).map(workerLinkToLinkItem),
+        subcategories: (data.subcategories || []).map(sc => ({
+          id: String(sc.id), category_id: String(sc.category_id), name: sc.name as string,
+          sort_order: Number(sc.sort_order || 0),
+          created_at: (sc.created_at as string) || new Date().toISOString(),
+          updated_at: (sc.updated_at as string) || new Date().toISOString(),
+        })),
+        tags: (data.tags || []).map(t => ({
+          id: String(t.id), user_id: String(t.user_id || '1'), name: t.name as string,
+          color: (t.color as string) || '#6B7280',
+          created_at: (t.created_at as string) || new Date().toISOString(),
+          updated_at: (t.updated_at as string) || new Date().toISOString(),
+        })),
+      }
+      _allDataCache = { data: result, timestamp: Date.now() }
+      return result
+    } catch (err) {
+      console.error('[DataService] fetchAll error:', err)
+      if (_allDataCache) {return _allDataCache.data}
+      return null
+    } finally {
+      _allDataPromise = null
+    }
+  })()
+
+  return _allDataPromise
 }
 
 export async function addSubCategoryApi(categoryId: string, name: string): Promise<SubCategory> {

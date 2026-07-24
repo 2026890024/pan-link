@@ -63,10 +63,14 @@ function App() {
     // 后台静默加载，不阻塞页面渲染（仅执行一次）
     if (!initializedRef.current) {
       initializedRef.current = true
-      // 只请求一次 siteSettings，避免 initialize() 和 loadSettings() 并发重复请求
-      fetchSiteSettings().then((settings) => {
-        initialize(settings)
-        siteSettings.loadSettings()
+      // 🚀 并行发起：fetchSiteSettings + initialize(fetchAll) 同时请求，节省一次往返
+      const settingsPromise = fetchSiteSettings()
+      initialize()
+      // 用预取数据直接设置，免去 loadSettings 内部的二次 API 调用
+      settingsPromise.then(settings => {
+        siteSettings.loadSettingsFromData(settings)
+      }).catch(() => {
+        siteSettings.loadSettings() // 网络失败时 fallback
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -177,7 +177,7 @@ async function maybeCleanupRatelimits(env: Env): Promise<void> {
   } catch { /* cleanup 失败不影响业务 */ }
 }
 
-async function checkRateLimit(env: Env, ip: string, method: string, path: string, now: number): Promise<{ allowed: boolean; limit: number; resetAt: number }> {
+async function checkRateLimit(env: Env, ip: string, method: string, path: string, now: number, waitUntil?: (p: Promise<unknown>) => void): Promise<{ allowed: boolean; limit: number; resetAt: number }> {
   const isWrite = ['POST', 'PUT', 'DELETE'].includes(method)
   const isSlugLookup = path.startsWith('/api/links/public')
   const isLogin = path === '/api/auth/login' && method === 'POST'
@@ -207,14 +207,20 @@ async function checkRateLimit(env: Env, ip: string, method: string, path: string
     }
 
     state.count++
-    await env.DB.prepare(
+    const writePromise = env.DB.prepare(
       `INSERT INTO rate_limits (key, count, window_start, updated_at) VALUES (?, ?, ?, ?)
        ON CONFLICT(key) DO UPDATE SET count = excluded.count, window_start = excluded.window_start, updated_at = excluded.updated_at`
     ).bind(key, state.count, state.windowStart, new Date().toISOString()).run()
 
+    // GET 请求：写入异步不阻塞响应；写操作：同步写入防并发超额
+    if (waitUntil) {
+      waitUntil(writePromise)
+    } else {
+      await writePromise
+    }
+
     return { allowed: true, limit, resetAt: state.windowStart + windowMs }
   } catch {
-    // D1 失败时放行，避免自身故障导致服务不可用
     return { allowed: true, limit, resetAt: now + windowMs }
   }
 }
@@ -224,7 +230,7 @@ const GLOBAL_LIMIT = 500  // 每分钟全局最大 500 次请求
 const GLOBAL_WINDOW = 60_000
 const GLOBAL_KEY = '__global__'
 
-async function checkGlobalRateLimit(env: Env, now: number): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+async function checkGlobalRateLimit(env: Env, now: number, waitUntil?: (p: Promise<unknown>) => void): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
   try {
     const row = await env.DB.prepare(
       'SELECT count, window_start FROM rate_limits WHERE key = ?'
@@ -244,10 +250,16 @@ async function checkGlobalRateLimit(env: Env, now: number): Promise<{ allowed: b
     }
 
     state.count++
-    await env.DB.prepare(
+    const writePromise = env.DB.prepare(
       `INSERT INTO rate_limits (key, count, window_start, updated_at) VALUES (?, ?, ?, ?)
        ON CONFLICT(key) DO UPDATE SET count = excluded.count, window_start = excluded.window_start, updated_at = excluded.updated_at`
     ).bind(GLOBAL_KEY, state.count, state.windowStart, new Date().toISOString()).run()
+
+    if (waitUntil) {
+      waitUntil(writePromise)
+    } else {
+      await writePromise
+    }
 
     return { allowed: true, remaining: GLOBAL_LIMIT - state.count, resetAt: state.windowStart + GLOBAL_WINDOW }
   } catch {
@@ -366,34 +378,31 @@ async function putCache(request: Request, response: Response): Promise<void> {
   }
 }
 
-// 写操作后清理相关 GET 缓存，避免前端删除/修改后列表仍是旧数据
+// 写操作后清理相关 GET 缓存，使用定向 URL 构造代替 cache.keys() 全量枚举
 async function invalidateRelatedCaches(request: Request, path: string): Promise<void> {
   try {
     const cache = (caches as CacheStorage).default
-    const keys = await cache.keys()
     const requestUrl = new URL(request.url)
-    const host = requestUrl.host
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`
 
-    const prefixes: Array<string> = []
+    const targets: Array<string> = []
     if (path.startsWith('/api/links') || path.startsWith('/api/categories') || path.startsWith('/api/subcategories') || path.startsWith('/api/tags')) {
-      prefixes.push('/api/all', '/api/links', '/api/categories', '/api/tags')
+      targets.push('/api/all', '/api/links', '/api/categories', '/api/tags')
     } else if (path.startsWith('/api/site-settings')) {
-      prefixes.push('/api/site-settings', '/api/all')
+      targets.push('/api/site-settings', '/api/all')
     }
-    if (prefixes.length === 0) { return }
+    if (targets.length === 0) { return }
 
-    for (const key of keys) {
-      const keyUrl = new URL(key.url)
-      if (keyUrl.host !== host) { continue }
-      const keyPath = keyUrl.pathname
-      if (prefixes.some(p => keyPath === p || keyPath.startsWith(p + '/'))) {
-        await cache.delete(key)
-      }
-    }
-  } catch {
-    // 缓存失效失败不影响业务 —— 最多等 5 分钟 CDN 自然过期
-  }
+    await Promise.all(targets.map(p =>
+      cache.delete(new Request(baseUrl + p)).catch(() => {})
+    ))
+  } catch { /* 缓存失效失败不影响业务 */ }
 }
+
+// ============ 预编译 UA 爬虫检测正则 ============
+const BOT_UA_RE = /^(?:python|curl|wget|httpie|go-http-client|java|ruby|perl|php|libwww|axios|node-fetch|got|request|superagent|okhttp|wget|httpx|fasthttp|urllib|scrapy|zgrab|masscan|nmap|nikto|sqlmap|nessus|burp|postman|insomnia|paw|bruno)|python-requests|python-urllib|python-aiohttp|go-http|lua-resty|gptbot|chatgpt|claude|anthropic|bard|perplexity|gemini|ccbot|bytespider|petalbot|openai|cohere|diffbot|ia_archiver|facebookexternalhit|twitterbot|timpibot|applebot|duckduckbot|seznambot|sogou|yisouspider|naverbot|daumoa|semrush|ahrefs|dotbot|mj12bot|yandex|rogerbot|exabot|bingbot|slurp|baiduspider|360spider|haosouspider|sosospider|youdaobot|proximic|blexbot|datafeedwatch|feedfetcher|internetarchive|linkdex|majestic|nutch|omgili|paperlibot|screaming|siteimprove|turnitinbot|veooz|webalta|werlitzbot|whatweb|wotbox|zoominfo|embedly|flipboard|iframely|outbrain|panscient|pinterest|reddit|slack|telegram|whatsapp|viber|wechat|line|discord|headless|headlesschrome|phantomjs|slimerjs|casperjs|nightmare|puppeteer|playwright|selenium|webdriver/i
+const BOT_WORD_RE = /\b(?:bot|crawler|spider|scanner|scraper|fetcher|extractor|grabber)\b/i
+const BROWSER_RE = /mozilla|chrome|safari|firefox|edge|opera|samsung|ucbrowser|miui/i
 
 // ============ 主处理 ============
 
@@ -401,6 +410,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const { request, env } = context
   const method = request.method
   const now = Date.now()
+  const isRead = method === 'GET' || method === 'HEAD' || method === 'OPTIONS'
+  const wu = context.waitUntil.bind(context)
 
   const clientIp =
     request.headers.get('CF-Connecting-IP') ||
@@ -436,8 +447,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   // 懒迁移：首次请求自动建 rate_limits / banlist 表
   await ensureRateLimitTables(env)
 
-  // 全局限流：当全局请求数超过阈值时，拒绝所有请求，保护配额
-  const globalRl = await checkGlobalRateLimit(env, now)
+  // 全局限流：当全局请求数超过阈值时，拒绝所有请求，保护配额（读请求异步写入）
+  const globalRl = await checkGlobalRateLimit(env, now, isRead ? wu : undefined)
   if (!globalRl.allowed) {
     return new Response('Service temporarily unavailable due to high traffic', {
       status: 503,
@@ -469,8 +480,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     return new Response('Not Found', { status: 404, headers: { ...corsHeaders, ...securityHeaders } })
   }
 
-  // Rate limit
-  const rl = await checkRateLimit(env, clientIp, method, requestPath, now)
+  // Rate limit（读请求异步写入，写请求同步写入防并发超额）
+  const rl = await checkRateLimit(env, clientIp, method, requestPath, now, isRead ? wu : undefined)
   if (!rl.allowed) {
     // 记录违规：连续3次429触发15分钟IP拉黑
     context.waitUntil(recordStrike(env, clientIp, now))
@@ -483,22 +494,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   // 定期清理过期限流/封禁记录（后台异步，不阻塞响应）
   context.waitUntil(maybeCleanupRatelimits(env))
 
-  // UA 爬虫拦截（仅 API 路由，正常浏览器必有 UA）
+  // UA 爬虫拦截
   const ua = (request.headers.get('User-Agent') || '').toLowerCase()
   const isBot =
     !ua ||
-    // 命令行工具 & 渗透测试
-    /^(python|curl|wget|httpie|go-http-client|java|ruby|perl|php|libwww|axios|node-fetch|got|request|superagent|okhttp|wget|httpx|fasthttp|urllib|scrapy|zgrab|masscan|nmap|nikto|sqlmap|nessus|burp|postman|insomnia|paw|bruno)/.test(ua) ||
-    /python-requests|python-urllib|python-aiohttp|go-http|lua-resty/.test(ua) ||
-    // AI 爬虫
-    /gptbot|chatgpt|claude|anthropic|bard|perplexity|gemini|ccbot|bytespider|petalbot|openai|cohere|diffbot|ia_archiver|facebookexternalhit|twitterbot|timpibot|applebot|duckduckbot|seznambot|sogou|yisouspider|naverbot|daumoa/.test(ua) ||
-    // SEO & 监控爬虫
-    /semrush|ahrefs|dotbot|mj12bot|yandex|rogerbot|exabot|bingbot|slurp|baiduspider|360spider|haosouspider|sosospider|youdaobot|proximic|blexbot|datafeedwatch|feedfetcher|internetarchive|linkdex|majestic|nutch|omgili|paperlibot|screaming|siteimprove|turnitinbot|veooz|webalta|werlitzbot|whatweb|wotbox|zoominfo|embedly|flipboard|iframely|outbrain|panscient|pinterest|reddit|slack|telegram|whatsapp|viber|wechat|line|discord/.test(ua) ||
-    // 通用爬虫模式匹配
-    (!/mozilla|chrome|safari|firefox|edge|opera|samsung|ucbrowser|miui/i.test(ua) && /\b(bot|crawler|spider|scanner|scraper|fetcher|extractor|grabber)\b/i.test(ua)) ||
-    // Headless Chrome / Puppeteer
-    /headless|headlesschrome|phantomjs|slimerjs|casperjs|nightmare|puppeteer|playwright|selenium|webdriver/.test(ua) ||
-    // 无 UA + 直接请求 API
+    BOT_UA_RE.test(ua) ||
+    (!BROWSER_RE.test(ua) && BOT_WORD_RE.test(ua)) ||
     (!ua && requestPath.startsWith('/api/'))
   if (isBot) {
     return jsonRes({ error: 'Forbidden' }, 403, corsHeaders)
