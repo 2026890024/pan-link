@@ -248,9 +248,14 @@ export default function HomePage() {
   }, [])
 
   const handleSuggestionClick = useCallback((link: LinkItem) => {
+    setSearchQuery(link.name)
+    setIsSearchMode(true)
+    setSelectedCategory(null)
+    setSelectedSubCategory(null)
+    setExpandedCategory(null)
     setShowSuggestions(false)
-    navigate(`/s/${link.slug}`)
-  }, [navigate])
+    setSearchParams({}, { replace: true })
+  }, [setSearchParams])
 
   const updateUrlParams = useCallback((categoryId: string | null, subCategoryId: string | null) => {
     const params = new URLSearchParams()
