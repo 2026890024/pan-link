@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
   Palette, Image, Type, Upload, Trash2, Save, Plus, Check, Loader2,
-  Globe, X, Sparkles, ChevronDown, History, PanelTop, FileText, Copyright,
+  Globe, X, Sparkles, ChevronDown, History, PanelTop, FileText,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useSiteSettingsStore, type ColorScheme } from '@/store/useSiteSettingsStore'
