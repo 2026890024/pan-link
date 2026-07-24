@@ -19,15 +19,15 @@ const CategoryPage = lazy(() => import('@/pages/frontend/CategoryPage'))
 // 认证页面 - 懒加载
 const AdminLoginPage = lazy(() => import('@/pages/auth/AdminLoginPage'))
 
-// 后台页面 - 懒加载（只有管理员访问）
+// 后台页面 - 高频切换的设置页同步引入，其余懒加载
 import {
   DashboardPage,
   ResourceManagementPage,
   AccountSettingsPage,
   DataManagementPage,
-  HomepageSettingsPage,
-  SiteSettingsPage,
 } from '@/pages/admin'
+import SiteSettingsPage from '@/pages/admin/SiteSettingsPage'
+import HomepageSettingsPage from '@/pages/admin/HomepageSettingsPage'
 // 后台布局与守卫 - 同步引入（避免切换时整页 loading）
 import AdminLayout from '@/layouts/AdminLayout'
 import AdminAuthGuard from '@/components/AdminAuthGuard'
