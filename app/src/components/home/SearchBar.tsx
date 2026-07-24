@@ -180,7 +180,6 @@ export default function SearchBar({
   return (
     <form onSubmit={onSearch} className="w-full max-w-xl sm:max-w-2xl relative">
       <div className="relative group">
-        <div className="absolute -inset-1 bg-gradient-to-r from-brand-400 via-brand-500 to-violet-500 rounded-full opacity-20 blur-md group-focus-within:opacity-40 group-focus-within:blur-lg transition-all duration-500" />
         <div className="relative">
           <input
             ref={searchInputRef}
@@ -189,7 +188,7 @@ export default function SearchBar({
             onChange={(e) => { onSearchQueryChange(e.target.value); onShowSuggestionsChange(true) }}
             onFocus={() => searchQuery.trim() && onShowSuggestionsChange(true)}
             placeholder="搜索您需要的资源..."
-            className="w-full px-5 py-3.5 sm:px-6 sm:py-4 pl-12 sm:pl-14 pr-24 sm:pr-28 rounded-full glass text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-400/50 focus:border-brand-400/30 transition-all duration-300 text-base shadow-glass"
+            className="w-full px-5 py-3.5 sm:px-6 sm:py-4 pl-12 sm:pl-14 pr-24 sm:pr-28 rounded-full glass text-gray-900 placeholder-gray-400 focus:outline-none focus:scale-[1.02] transition-all duration-300 text-base shadow-glass"
             aria-label="搜索资源"
             aria-expanded={showSuggestions}
             aria-autocomplete="list"
